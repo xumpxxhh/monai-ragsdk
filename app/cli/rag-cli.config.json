@@ -1,0 +1,15 @@
+{
+  "embedding": {
+    "provider": "ollama",
+    "model": "nomic-embed-text:latest",
+    "baseUrl": "http://localhost:11434",
+    "dimension": 768
+  },
+  "vectorStore": {
+    "provider": "pgvector",
+    "connectionString": "postgresql://postgres:postgres@localhost:5432/ragdb",
+    "schema": "public",
+    "tableName": "rag_vectors",
+    "ensureTable": true
+  }
+}

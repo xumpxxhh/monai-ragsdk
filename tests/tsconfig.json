@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.json",
+  "references": [
+    { "path": "../packages/core" },
+    { "path": "../packages/indexing" },
+    { "path": "../packages/runtime" },
+    { "path": "../packages/adapters" }
+  ],
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts"]
+}

@@ -1,0 +1,20 @@
+---
+description: MonAI RAG SDK 仓库级实现边界、构建约定与依赖/验证约束
+alwaysApply: true
+---
+
+# 工程约束
+
+命名空间为 `@monai-ragsdk/*`。当前以 `core`、`indexing`、`adapters` 为实现主路径；`runtime` 与 `observability` 已具备最小实现，勿无故继续扩散；`eval` 与 `utils` 保持未实现，除非明确要求。
+
+- 保持 monorepo 改动最小化，不要新增无关目录或依赖。
+- 允许在 `core` 维护共享契约：schema、type、interface、error 与轻量 pipeline。
+- 允许在 `indexing` 继续离线索引实现：内部 type、interface、default component、pipeline、demo 与 unit test。
+- 允许在 `adapters` 继续外部适配：loader / chunker / embedder / store adapter、demo 与 unit test。
+- 不要在 `runtime`、`eval`、`utils` 中提前扩散实现，除非明确要求。
+- 扩展 `observability` 时优先保持协议与失败隔离稳定。
+- 除非明确要求，否则不要引入新依赖；已批准依赖按 `docs/decisions/package-installation-strategy.md` 安装。
+- `src/` 只保留 `.ts` 源码；构建产物必须输出到 `dist/`，禁止把 `.js`、`.d.ts`、`.map` 写回 `src/`。
+- 所有文档必须使用中文。
+- 建设测试、demo、integration 或 smoke 前遵循 `docs/decisions/verification-system-strategy.md`。
+- 当前仅允许在 `core`、`indexing` 与 `adapters` 中继续扩展 demo 与 unit test；不要在其他 package 提前批量引入验证实现。

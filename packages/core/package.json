@@ -1,0 +1,31 @@
+{
+  "name": "@monai-ragsdk/core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm run build && vitest run __tests__",
+    "test:watch": "vitest __tests__",
+    "demo:runtime-like": "tsx demo/runtime-like.ts",
+    "demo:schema": "tsx demo/schema-parse.ts",
+    "demo:schema-parse": "tsx demo/schema-parse.ts",
+    "demo:errors": "tsx demo/error-cases.ts",
+    "demo:pipeline": "tsx demo/pipeline-like.ts",
+    "demo:pipeline-like": "tsx demo/pipeline-like.ts"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}

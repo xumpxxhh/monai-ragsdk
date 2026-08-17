@@ -1,0 +1,35 @@
+{
+  "files": [],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@monai-ragsdk/core": ["./packages/core/src/index.ts"],
+      "@monai-ragsdk/core/*": ["./packages/core/src/*"],
+      "@monai-ragsdk/indexing": ["./packages/indexing/src/index.ts"],
+      "@monai-ragsdk/indexing/*": ["./packages/indexing/src/*"],
+      "@monai-ragsdk/adapters": ["./packages/adapters/src/index.ts"],
+      "@monai-ragsdk/adapters/*": ["./packages/adapters/src/*"],
+      "@monai-ragsdk/observability": ["./packages/observability/src/index.ts"],
+      "@monai-ragsdk/observability/*": ["./packages/observability/src/*"],
+      "@monai-ragsdk/runtime": ["./packages/runtime/src/index.ts"],
+      "@monai-ragsdk/runtime/*": ["./packages/runtime/src/*"]
+    },
+    "strict": true,
+    "declaration": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/runtime" },
+    { "path": "./packages/indexing" },
+    { "path": "./packages/adapters" },
+    { "path": "./packages/observability" },
+    { "path": "./packages/eval" },
+    { "path": "./packages/utils" },
+    { "path": "./app/cli" }
+  ]
+}

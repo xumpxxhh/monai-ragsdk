@@ -1,0 +1,26 @@
+{
+  "name": "@monai-ragsdk/cli",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @monai-ragsdk/indexing build && pnpm --filter @monai-ragsdk/runtime build && pnpm --filter @monai-ragsdk/observability build && pnpm --filter @monai-ragsdk/adapters build && tsc -p tsconfig.json",
+    "cli": "pnpm run build && node dist/index.js",
+    "cli:dev": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --pretty false"
+  },
+  "dependencies": {
+    "@langchain/classic": "^1.0.30",
+    "@monai-ragsdk/adapters": "workspace:*",
+    "@monai-ragsdk/core": "workspace:*",
+    "@monai-ragsdk/indexing": "workspace:*",
+    "@monai-ragsdk/observability": "workspace:*",
+    "@monai-ragsdk/runtime": "workspace:*",
+    "zod": "^4.3.6"
+  }
+}

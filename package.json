@@ -1,0 +1,31 @@
+{
+  "name": "monai-ragsdk",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.8.1",
+  "scripts": {
+    "build": "pnpm exec tsc -b",
+    "build:app": "pnpm --filter @monai-ragsdk/web build",
+    "build:cli": "pnpm --filter @monai-ragsdk/cli build",
+    "cli": "pnpm --filter @monai-ragsdk/cli cli",
+    "dev:app": "pnpm --filter @monai-ragsdk/web dev",
+    "start:app": "pnpm --filter @monai-ragsdk/web start",
+    "typecheck": "pnpm exec tsc -b --pretty false",
+    "test": "pnpm --filter @monai-ragsdk/core test && pnpm --filter @monai-ragsdk/indexing test && pnpm --filter @monai-ragsdk/adapters test && pnpm --filter @monai-ragsdk/runtime test",
+    "test:core": "pnpm --filter @monai-ragsdk/core test",
+    "test:indexing": "pnpm --filter @monai-ragsdk/indexing test",
+    "test:adapters": "pnpm --filter @monai-ragsdk/adapters test",
+    "test:runtime": "pnpm --filter @monai-ragsdk/runtime test",
+    "test:integration": "pnpm run build && tsx tests/integration/runtime-adapters-query-chain.ts && tsx tests/integration/indexing-runtime-query-chain.ts",
+    "check": "pnpm run typecheck && pnpm run test",
+    "smoke": "pnpm run build && tsx tests/smoke/runtime-adapters-query-chain.ts && tsx tests/smoke/indexing-runtime-query-chain.ts",
+    "verify": "pnpm run check && pnpm run test:integration && pnpm run smoke"
+  },
+  "devDependencies": {
+    "@langchain/core": "^1.1.39",
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  }
+}

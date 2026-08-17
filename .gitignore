@@ -1,0 +1,13 @@
+# 依赖目录
+node_modules/
+.next/
+
+# TypeScript 构建产物
+dist/
+*.tsbuildinfo
+
+# Demo 运行产物
+packages/*/demo/.artifacts/
+
+# 系统文件
+.DS_Store

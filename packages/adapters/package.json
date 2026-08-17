@@ -1,0 +1,42 @@
+{
+  "name": "@monai-ragsdk/adapters",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @monai-ragsdk/core build && pnpm --filter @monai-ragsdk/indexing build && pnpm --filter @monai-ragsdk/runtime build && tsc -p tsconfig.json",
+    "demo": "pnpm run build && tsx demo/langchain-adapters.ts",
+    "demo:chroma-store": "pnpm run build && tsx demo/chroma-store.ts",
+    "demo:langchain-adapters": "pnpm run build && tsx demo/langchain-adapters.ts",
+    "demo:langchain-extensions": "pnpm run build && tsx demo/langchain-extensions.ts",
+    "demo:langchain-runtime": "pnpm run build && tsx demo/langchain-runtime.ts",
+    "demo:pgvector-store": "pnpm run build && tsx demo/pgvector-store.ts",
+    "test": "pnpm run build && vitest run __tests__",
+    "test:watch": "vitest __tests__"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.5"
+  },
+  "dependencies": {
+    "@langchain/classic": "^1.0.30",
+    "@langchain/community": "^1.1.27",
+    "@langchain/core": "^1.1.39",
+    "@langchain/textsplitters": "^1.0.1",
+    "@monai-ragsdk/core": "workspace:*",
+    "@monai-ragsdk/indexing": "workspace:*",
+    "@monai-ragsdk/runtime": "workspace:*",
+    "chromadb": "^3.4.3",
+    "pg": "^8.16.0"
+  }
+}
