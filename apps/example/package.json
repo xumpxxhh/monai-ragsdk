@@ -1,0 +1,29 @@
+{
+  "name": "@monai-ragsdk/example",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "start": "tsx src/index.ts",
+    "start:list": "pnpm start list",
+    "start:basic": "pnpm start basic-stream",
+    "start:pre": "pnpm start pre-retrieval",
+    "start:post": "pnpm start post-retrieval",
+    "start:full": "pnpm start full-pipeline",
+    "start:observability": "pnpm start observability",
+    "start:all": "pnpm start all"
+  },
+  "dependencies": {
+    "@monai-ragsdk/adapters": "workspace:*",
+    "@monai-ragsdk/indexing": "workspace:*",
+    "@monai-ragsdk/runtime": "workspace:*",
+    "@monai-ragsdk/observability": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
+  }
+}
