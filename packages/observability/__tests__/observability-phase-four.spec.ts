@@ -1,8 +1,8 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createConsoleExporter,
@@ -12,9 +12,9 @@ import {
   type RAGErrorRecord,
   type RAGEvent,
   type RAGTrace,
-} from "../src/index.js";
+} from '../src/index.js';
 
-describe("observability phase 4", () => {
+describe('observability phase 4', () => {
   const tempDirs: string[] = [];
 
   afterEach(() => {
@@ -30,50 +30,50 @@ describe("observability phase 4", () => {
   });
 
   async function createTempFilePath(fileName: string): Promise<string> {
-    const dirPath = await mkdtemp(join(tmpdir(), "rag-observability-"));
+    const dirPath = await mkdtemp(join(tmpdir(), 'rag-observability-'));
     tempDirs.push(dirPath);
 
     return join(dirPath, fileName);
   }
 
-  it("exports traces to multiple exporters via createRAGObserver", async () => {
+  it('exports traces to multiple exporters via createRAGObserver', async () => {
     const memoryExporter = createMemoryTraceExporter();
     const customExporter = {
       export: vi.fn(async () => {}),
     };
     const observer = createRAGObserver({
-      serviceName: "kb-api",
-      environment: "test",
+      serviceName: 'kb-api',
+      environment: 'test',
       defaultTags: {
-        app: "internal-kb",
+        app: 'internal-kb',
       },
       exporters: [memoryExporter, customExporter],
     });
 
     const event: RAGEvent = {
-      traceId: "trace-1",
-      scope: "runtime",
-      stage: "retrieval",
-      name: "runtime.retrieval.complete",
+      traceId: 'trace-1',
+      scope: 'runtime',
+      stage: 'retrieval',
+      name: 'runtime.retrieval.complete',
       timestamp: Date.now(),
     };
 
     await observer.onEvent?.(event);
     await observer.onTraceEnd?.({
-      traceId: "trace-1",
-      scope: "runtime",
+      traceId: 'trace-1',
+      scope: 'runtime',
       startedAt: Date.now(),
-      status: "ok",
+      status: 'ok',
       events: [],
     });
 
     expect(customExporter.export).toHaveBeenCalledWith(
       expect.objectContaining({
-        traceId: "trace-1",
-        serviceName: "kb-api",
-        environment: "test",
+        traceId: 'trace-1',
+        serviceName: 'kb-api',
+        environment: 'test',
         tags: {
-          app: "internal-kb",
+          app: 'internal-kb',
         },
         events: [event],
       }),
@@ -81,11 +81,11 @@ describe("observability phase 4", () => {
     expect(memoryExporter.getTraces()).toHaveLength(1);
   });
 
-  it("keeps exporting when one exporter fails", async () => {
+  it('keeps exporting when one exporter fails', async () => {
     const memoryExporter = createMemoryTraceExporter();
     const failingExporter = {
       export: vi.fn(async () => {
-        throw new Error("export failed");
+        throw new Error('export failed');
       }),
     };
     const observer = createRAGObserver({
@@ -94,10 +94,10 @@ describe("observability phase 4", () => {
 
     await expect(
       observer.onTraceEnd?.({
-        traceId: "trace-2",
-        scope: "runtime",
+        traceId: 'trace-2',
+        scope: 'runtime',
         startedAt: Date.now(),
-        status: "ok",
+        status: 'ok',
         events: [],
       }),
     ).resolves.toBeUndefined();
@@ -106,29 +106,29 @@ describe("observability phase 4", () => {
     expect(memoryExporter.getTraces()).toHaveLength(1);
   });
 
-  it("persists buffered errors when trace summary arrives later", async () => {
+  it('persists buffered errors when trace summary arrives later', async () => {
     const memoryExporter = createMemoryTraceExporter();
     const observer = createRAGObserver({
       exporters: [memoryExporter],
     });
     const errorRecord: RAGErrorRecord = {
-      traceId: "trace-3",
-      scope: "indexing",
-      stage: "embed",
-      name: "indexing.embed.fail",
+      traceId: 'trace-3',
+      scope: 'indexing',
+      stage: 'embed',
+      name: 'indexing.embed.fail',
       timestamp: Date.now(),
       error: {
-        name: "IndexingError",
-        message: "embedding failed",
+        name: 'IndexingError',
+        message: 'embedding failed',
       },
     };
 
     await observer.onError?.(errorRecord);
     await observer.onTraceEnd?.({
-      traceId: "trace-3",
-      scope: "indexing",
+      traceId: 'trace-3',
+      scope: 'indexing',
       startedAt: Date.now(),
-      status: "error",
+      status: 'error',
       events: [],
     });
 
@@ -137,13 +137,13 @@ describe("observability phase 4", () => {
     });
   });
 
-  it("supports memory exporter trace inspection and clearing", async () => {
+  it('supports memory exporter trace inspection and clearing', async () => {
     const exporter = createMemoryTraceExporter();
     const trace: RAGTrace = {
-      traceId: "trace-4",
-      scope: "runtime",
+      traceId: 'trace-4',
+      scope: 'runtime',
       startedAt: Date.now(),
-      status: "ok",
+      status: 'ok',
       events: [],
     };
 
@@ -156,37 +156,37 @@ describe("observability phase 4", () => {
     expect(exporter.getTraces()).toEqual([]);
   });
 
-  it("logs trace summaries through the console exporter", async () => {
-    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
-    const exporter = createConsoleExporter({ level: "info" });
+  it('logs trace summaries through the console exporter', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const exporter = createConsoleExporter({ level: 'info' });
 
     await exporter.export({
-      traceId: "trace-5",
-      scope: "runtime",
+      traceId: 'trace-5',
+      scope: 'runtime',
       startedAt: Date.now(),
       durationMs: 25,
-      status: "ok",
+      status: 'ok',
       events: [],
     });
 
-    expect(infoSpy).toHaveBeenCalledWith("[runtime] trace.ok 25ms events=0");
+    expect(infoSpy).toHaveBeenCalledWith('[runtime] trace.ok 25ms events=0');
   });
 
-  it("writes trace records as JSONL", async () => {
-    const filePath = await createTempFilePath("traces.jsonl");
+  it('writes trace records as JSONL', async () => {
+    const filePath = await createTempFilePath('traces.jsonl');
     const exporter = createJsonlTraceExporter({ filePath });
     const firstTrace: RAGTrace = {
-      traceId: "trace-jsonl-1",
-      scope: "runtime",
+      traceId: 'trace-jsonl-1',
+      scope: 'runtime',
       startedAt: Date.now(),
-      status: "ok",
+      status: 'ok',
       events: [],
     };
     const secondTrace: RAGTrace = {
-      traceId: "trace-jsonl-2",
-      scope: "indexing",
+      traceId: 'trace-jsonl-2',
+      scope: 'indexing',
       startedAt: Date.now(),
-      status: "error",
+      status: 'error',
       events: [],
     };
 
@@ -194,78 +194,75 @@ describe("observability phase 4", () => {
     await exporter.export(secondTrace);
     await exporter.flush?.();
 
-    const content = await readFile(filePath, "utf-8");
-    const lines = content.trim().split("\n");
+    const content = await readFile(filePath, 'utf-8');
+    const lines = content.trim().split('\n');
 
     expect(lines).toHaveLength(2);
-    expect(lines.map((line) => JSON.parse(line))).toEqual([
-      firstTrace,
-      secondTrace,
-    ]);
+    expect(lines.map((line) => JSON.parse(line))).toEqual([firstTrace, secondTrace]);
   });
 
-  it("truncates the target file when append is disabled", async () => {
-    const filePath = await createTempFilePath("traces.jsonl");
-    await writeFile(filePath, '{"stale":true}\n', "utf-8");
+  it('truncates the target file when append is disabled', async () => {
+    const filePath = await createTempFilePath('traces.jsonl');
+    await writeFile(filePath, '{"stale":true}\n', 'utf-8');
 
     const exporter = createJsonlTraceExporter({
       filePath,
       append: false,
     });
     const trace: RAGTrace = {
-      traceId: "trace-jsonl-3",
-      scope: "runtime",
+      traceId: 'trace-jsonl-3',
+      scope: 'runtime',
       startedAt: Date.now(),
-      status: "ok",
+      status: 'ok',
       events: [],
     };
 
     await exporter.export(trace);
     await exporter.flush?.();
 
-    const content = await readFile(filePath, "utf-8");
+    const content = await readFile(filePath, 'utf-8');
 
-    expect(content.trim().split("\n")).toEqual([JSON.stringify(trace)]);
+    expect(content.trim().split('\n')).toEqual([JSON.stringify(trace)]);
   });
 
-  it("works with createRAGObserver to persist finalized traces", async () => {
-    const filePath = await createTempFilePath("observer-traces.jsonl");
+  it('works with createRAGObserver to persist finalized traces', async () => {
+    const filePath = await createTempFilePath('observer-traces.jsonl');
     const exporter = createJsonlTraceExporter({ filePath });
     const observer = createRAGObserver({ exporters: [exporter] });
     const event: RAGEvent = {
-      traceId: "trace-jsonl-4",
-      scope: "runtime",
-      stage: "query",
-      name: "runtime.query.receive",
+      traceId: 'trace-jsonl-4',
+      scope: 'runtime',
+      stage: 'query',
+      name: 'runtime.query.receive',
       timestamp: Date.now(),
       attributes: {
-        query: "公司年假政策是什么？",
+        query: '公司年假政策是什么？',
       },
     };
 
     await observer.onEvent?.(event);
     await observer.onTraceEnd?.({
-      traceId: "trace-jsonl-4",
-      scope: "runtime",
+      traceId: 'trace-jsonl-4',
+      scope: 'runtime',
       startedAt: Date.now(),
-      status: "ok",
+      status: 'ok',
       events: [],
     });
     await observer.flush?.();
 
-    const content = await readFile(filePath, "utf-8");
+    const content = await readFile(filePath, 'utf-8');
     const [persistedTrace] = content
       .trim()
-      .split("\n")
+      .split('\n')
       .map((line) => JSON.parse(line) as RAGTrace);
 
     expect(persistedTrace).toMatchObject({
-      traceId: "trace-jsonl-4",
+      traceId: 'trace-jsonl-4',
       events: [event],
     });
   });
 
-  it("forwards flush and shutdown to exporters", async () => {
+  it('forwards flush and shutdown to exporters', async () => {
     const exporter = {
       export: vi.fn(async () => {}),
       flush: vi.fn(async () => {}),

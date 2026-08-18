@@ -1,1 +1,1 @@
-export * from "./openai-embedder.js";
+export * from './openai-embedder.js';

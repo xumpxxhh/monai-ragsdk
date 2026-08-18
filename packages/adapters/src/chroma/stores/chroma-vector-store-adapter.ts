@@ -1,5 +1,5 @@
-import type { JsonValue, Vector } from "@monai-ragsdk/core";
-import type { VectorStore, VectorStoreWriteContext } from "@monai-ragsdk/indexing";
+import type { JsonValue, Vector } from '@monai-ragsdk/core';
+import type { VectorStore, VectorStoreWriteContext } from '@monai-ragsdk/indexing';
 import {
   ChromaClient,
   type ChromaClientArgs,
@@ -7,17 +7,17 @@ import {
   type CollectionMetadata,
   type CreateCollectionConfiguration,
   type Metadata as ChromaMetadata,
-} from "chromadb";
+} from 'chromadb';
 
-import { normalizeJsonObject } from "../../shared/json.js";
+import { normalizeJsonObject } from '../../shared/json.js';
 
 type ChromaConnectionOptions = Pick<
   ChromaClientArgs,
-  "host" | "port" | "ssl" | "tenant" | "database" | "headers"
+  'host' | 'port' | 'ssl' | 'tenant' | 'database' | 'headers'
 >;
 
-type ChromaCollectionLike = Pick<Collection, "upsert">;
-type ChromaClientLike = Pick<ChromaClient, "getOrCreateCollection">;
+type ChromaCollectionLike = Pick<Collection, 'upsert'>;
+type ChromaClientLike = Pick<ChromaClient, 'getOrCreateCollection'>;
 
 export type ChromaVectorStoreAdapterOptions = ChromaConnectionOptions & {
   collectionName: string;
@@ -41,10 +41,7 @@ export class ChromaVectorStoreAdapter implements VectorStore {
     this.#collectionConfiguration = options.collectionConfiguration;
   }
 
-  async upsert(
-    vectors: Vector[],
-    _context?: VectorStoreWriteContext,
-  ): Promise<void> {
+  async upsert(vectors: Vector[], _context?: VectorStoreWriteContext): Promise<void> {
     if (vectors.length === 0) {
       return;
     }
@@ -52,19 +49,13 @@ export class ChromaVectorStoreAdapter implements VectorStore {
     assertConsistentDimensions(vectors);
 
     const collection = await this.#getCollection();
-    const metadatas = vectors.map((vector) =>
-      toChromaMetadata(vector.metadata),
-    );
-    const shouldIncludeMetadata = metadatas.some(
-      (metadata) => metadata !== undefined,
-    );
+    const metadatas = vectors.map((vector) => toChromaMetadata(vector.metadata));
+    const shouldIncludeMetadata = metadatas.some((metadata) => metadata !== undefined);
 
     await collection.upsert({
       ids: vectors.map((vector) => vector.id),
       embeddings: vectors.map((vector) => vector.values),
-      metadatas: shouldIncludeMetadata
-        ? metadatas.map((metadata) => metadata ?? {})
-        : undefined,
+      metadatas: shouldIncludeMetadata ? metadatas.map((metadata) => metadata ?? {}) : undefined,
     });
   }
 
@@ -87,9 +78,7 @@ export class ChromaVectorStoreAdapter implements VectorStore {
   }
 }
 
-function toClientArgs(
-  options: ChromaVectorStoreAdapterOptions,
-): Partial<ChromaClientArgs> {
+function toClientArgs(options: ChromaVectorStoreAdapterOptions): Partial<ChromaClientArgs> {
   return {
     host: options.host,
     port: options.port,
@@ -112,12 +101,8 @@ function assertConsistentDimensions(vectors: Vector[]): void {
   }
 }
 
-function toChromaMetadata(
-  metadata: Vector["metadata"],
-): ChromaMetadata | undefined {
-  const normalizedMetadata = normalizeJsonObject(
-    metadata as Record<string, unknown> | undefined,
-  );
+function toChromaMetadata(metadata: Vector['metadata']): ChromaMetadata | undefined {
+  const normalizedMetadata = normalizeJsonObject(metadata as Record<string, unknown> | undefined);
 
   if (!normalizedMetadata) {
     return undefined;
@@ -133,23 +118,23 @@ function toChromaMetadata(
 function toChromaMetadataValue(value: JsonValue): ChromaMetadata[string] {
   if (
     value === null ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
   ) {
     return value;
   }
 
   if (Array.isArray(value)) {
-    if (value.every((item) => typeof item === "string")) {
+    if (value.every((item) => typeof item === 'string')) {
       return value;
     }
 
-    if (value.every((item) => typeof item === "number")) {
+    if (value.every((item) => typeof item === 'number')) {
       return value;
     }
 
-    if (value.every((item) => typeof item === "boolean")) {
+    if (value.every((item) => typeof item === 'boolean')) {
       return value;
     }
 

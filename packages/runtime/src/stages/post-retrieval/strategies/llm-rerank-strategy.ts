@@ -1,20 +1,13 @@
-import type { Query } from "@monai-ragsdk/core";
+import type { Query } from '@monai-ragsdk/core';
 
 import type {
   PostRetrievalStrategy,
   PostRetrievalStrategyResult,
-} from "../post-retrieval-strategy.js";
+} from '../post-retrieval-strategy.js';
 
-import type {
-  RetrievalCandidate,
-  RetrievalRequest,
-  RuntimeContext,
-} from "../../../types/index.js";
+import type { RetrievalCandidate, RetrievalRequest, RuntimeContext } from '../../../types/index.js';
 
-import type {
-  RuntimeStrategyModel,
-  RuntimeStrategyModelInput,
-} from "../../../types/index.js";
+import type { RuntimeStrategyModel, RuntimeStrategyModelInput } from '../../../types/index.js';
 
 function extractJson(text: string): unknown | undefined {
   const trimmed = text.trim();
@@ -32,12 +25,8 @@ function extractJson(text: string): unknown | undefined {
   }
 }
 
-function toCandidateId(
-  value: unknown,
-): string | undefined {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : undefined;
+function toCandidateId(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 type RankedItem = {
@@ -45,34 +34,30 @@ type RankedItem = {
   score?: number;
 };
 
-function parseRanked(
-  text: string,
-): { ranked: RankedItem[] } | undefined {
+function parseRanked(text: string): { ranked: RankedItem[] } | undefined {
   const json = extractJson(text);
-  if (!json || typeof json !== "object" || Array.isArray(json)) {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) {
     return undefined;
   }
 
   const obj = json as Record<string, unknown>;
 
   // { ranked: [{chunkId, score}] }
-  const rankedValue = obj["ranked"];
+  const rankedValue = obj['ranked'];
   if (Array.isArray(rankedValue)) {
     const ranked: RankedItem[] = [];
 
     for (const item of rankedValue) {
-      if (!item || typeof item !== "object" || Array.isArray(item)) {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
         continue;
       }
-      const id = toCandidateId((item as Record<string, unknown>)["chunkId"]);
+      const id = toCandidateId((item as Record<string, unknown>)['chunkId']);
       if (!id) {
         continue;
       }
-      const scoreValue = (item as Record<string, unknown>)["score"];
+      const scoreValue = (item as Record<string, unknown>)['score'];
       const score =
-        typeof scoreValue === "number" && Number.isFinite(scoreValue)
-          ? scoreValue
-          : undefined;
+        typeof scoreValue === 'number' && Number.isFinite(scoreValue) ? scoreValue : undefined;
       ranked.push({ chunkId: id, score });
     }
 
@@ -80,11 +65,11 @@ function parseRanked(
   }
 
   // { ordered: ["id1","id2"] }
-  const orderedValue = obj["ordered"];
+  const orderedValue = obj['ordered'];
   if (Array.isArray(orderedValue)) {
     const ids = orderedValue
       .map((id) => toCandidateId(id))
-      .filter((id): id is string => typeof id === "string");
+      .filter((id): id is string => typeof id === 'string');
 
     if (ids.length === 0) {
       return undefined;
@@ -103,7 +88,7 @@ export type LlmRerankStrategyOptions = {
   candidateMaxChars?: number;
   /** LLM 输出的重排序数量上限；若 < candidates.length，会把被截断的其余候选放在后面。 */
   maxCandidatesForPrompt?: number;
-  onError?: "passthrough" | "throw";
+  onError?: 'passthrough' | 'throw';
 };
 
 function buildPrompt(
@@ -113,26 +98,25 @@ function buildPrompt(
 ): RuntimeStrategyModelInput {
   const context = candidates
     .map((candidate, idx) => {
-      const text = candidate.chunk.content ?? "";
-      const trimmed =
-        text.length > candidateMaxChars ? text.slice(0, candidateMaxChars) : text;
+      const text = candidate.chunk.content ?? '';
+      const trimmed = text.length > candidateMaxChars ? text.slice(0, candidateMaxChars) : text;
 
-      const preview = trimmed.replace(/\s+/g, " ").trim();
+      const preview = trimmed.replace(/\s+/g, ' ').trim();
       return `[#${idx + 1}] chunkId=${candidate.chunk.id}\ncontent=${preview}`;
     })
-    .join("\n\n");
+    .join('\n\n');
 
   return {
     prompt: [
-      "请根据 query 与每个候选内容的相关性进行重排序。",
-      "只输出 JSON，不要回答问题本身。",
-      "输出格式：{ \"ranked\": [{\"chunkId\":\"...\",\"score\": number}, ...] }",
-      "",
+      '请根据 query 与每个候选内容的相关性进行重排序。',
+      '只输出 JSON，不要回答问题本身。',
+      '输出格式：{ "ranked": [{"chunkId":"...","score": number}, ...] }',
+      '',
       `query=${query.query}`,
-      "",
-      "candidates=",
+      '',
+      'candidates=',
       context,
-    ].join("\n"),
+    ].join('\n'),
   };
 }
 
@@ -140,7 +124,7 @@ function buildSelectionTrace(
   candidates: RetrievalCandidate[],
   ordered: string[],
   scoreById: Map<string, number | undefined>,
-): PostRetrievalStrategyResult["selectionTrace"] {
+): PostRetrievalStrategyResult['selectionTrace'] {
   return ordered.map((chunkId, order) => {
     const candidate = candidates.find((c) => c.chunk.id === chunkId)!;
     const score = scoreById.get(chunkId);
@@ -148,12 +132,12 @@ function buildSelectionTrace(
     return {
       candidate,
       selected: true,
-      reason: "selected",
-      stage: "context-ordering",
+      reason: 'selected',
+      stage: 'context-ordering',
       score,
       order,
       metadata: {
-        rerankProvider: "llm",
+        rerankProvider: 'llm',
       },
     };
   });
@@ -167,10 +151,8 @@ function buildSelectionTrace(
  * - 如 LLM 失败或 JSON 解析失败：默认透传（不改变候选顺序）。
  * - 若 LLM 返回 score：写回 candidate.score，便于后续 score-threshold 策略消费。
  */
-export function createLlmRerankStrategy(
-  options: LlmRerankStrategyOptions,
-): PostRetrievalStrategy {
-  const onError = options.onError ?? "passthrough";
+export function createLlmRerankStrategy(options: LlmRerankStrategyOptions): PostRetrievalStrategy {
+  const onError = options.onError ?? 'passthrough';
   const candidateMaxChars = options.candidateMaxChars ?? 800;
   const maxCandidatesForPrompt = options.maxCandidatesForPrompt ?? 12;
 
@@ -183,8 +165,8 @@ export function createLlmRerankStrategy(
       const candidates = input.candidates;
 
       // 给 runtime debug 的可观测字段；mutation 是可控副作用，仅用于诊断。
-      request.rerank = request.rerank ?? { strategy: "llm-rerank" };
-      request.rerank.strategy = "llm-rerank";
+      request.rerank = request.rerank ?? { strategy: 'llm-rerank' };
+      request.rerank.strategy = 'llm-rerank';
 
       const subset = candidates.slice(0, maxCandidatesForPrompt);
 
@@ -192,7 +174,7 @@ export function createLlmRerankStrategy(
       try {
         const systemPrompt =
           options.systemPrompt ??
-          "你是检索重排序器。只根据 query 与候选内容的相关性判断，不要引入额外假设。";
+          '你是检索重排序器。只根据 query 与候选内容的相关性判断，不要引入额外假设。';
 
         const modelInput: RuntimeStrategyModelInput = {
           ...buildPrompt(request.effectiveQuery, subset, candidateMaxChars),
@@ -203,8 +185,8 @@ export function createLlmRerankStrategy(
         modelText = out?.trim();
 
         if (!modelText) {
-          if (onError === "throw") {
-            throw new Error("llm rerank returned empty text");
+          if (onError === 'throw') {
+            throw new Error('llm rerank returned empty text');
           }
           return {
             selectedCandidates: candidates,
@@ -212,7 +194,7 @@ export function createLlmRerankStrategy(
           };
         }
       } catch (error) {
-        if (onError === "throw") {
+        if (onError === 'throw') {
           throw error;
         }
         return {
@@ -223,8 +205,8 @@ export function createLlmRerankStrategy(
 
       const parsed = parseRanked(modelText!);
       if (!parsed) {
-        if (onError === "throw") {
-          throw new Error("llm rerank could not parse ranked result");
+        if (onError === 'throw') {
+          throw new Error('llm rerank could not parse ranked result');
         }
         return {
           selectedCandidates: candidates,
@@ -253,18 +235,14 @@ export function createLlmRerankStrategy(
         .map((id) => idToCandidate.get(id))
         .filter((c): c is RetrievalCandidate => Boolean(c));
 
-      const remaining = candidates
-        .filter((c) => !uniqueIds.includes(c.chunk.id))
-        .slice(0);
+      const remaining = candidates.filter((c) => !uniqueIds.includes(c.chunk.id)).slice(0);
 
       const reordered = [...orderedTop, ...remaining];
 
       // 写回 score（只写入 LLM 返回的那些候选；其余保持原 score）
       const finalCandidates = reordered.map((c) => {
         const nextScore = scoreById.has(c.chunk.id) ? scoreById.get(c.chunk.id) : c.score;
-        return nextScore !== undefined
-          ? { ...c, score: nextScore }
-          : c;
+        return nextScore !== undefined ? { ...c, score: nextScore } : c;
       });
 
       const selectionTrace = buildSelectionTrace(
@@ -281,4 +259,3 @@ export function createLlmRerankStrategy(
     },
   };
 }
-

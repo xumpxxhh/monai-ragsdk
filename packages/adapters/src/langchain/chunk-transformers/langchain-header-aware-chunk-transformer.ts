@@ -1,10 +1,7 @@
-import type { Chunk, JsonValue } from "@monai-ragsdk/core";
-import type {
-  ChunkTransformContext,
-  ChunkTransformer,
-} from "@monai-ragsdk/indexing";
+import type { Chunk, JsonValue } from '@monai-ragsdk/core';
+import type { ChunkTransformContext, ChunkTransformer } from '@monai-ragsdk/indexing';
 
-import { normalizeJsonObject } from "../../shared/json.js";
+import { normalizeJsonObject } from '../../shared/json.js';
 
 export type LangChainHeaderAwareChunkTransformerOptions = {
   metadataKey?: string;
@@ -15,18 +12,18 @@ export type LangChainHeaderAwareChunkTransformerOptions = {
 };
 
 const DEFAULT_METADATA_FIELDS = [
-  "Header 1",
-  "Header 2",
-  "Header 3",
-  "Header 4",
-  "Header 5",
-  "Header 6",
-  "header1",
-  "header2",
-  "header3",
-  "header4",
-  "header5",
-  "header6",
+  'Header 1',
+  'Header 2',
+  'Header 3',
+  'Header 4',
+  'Header 5',
+  'Header 6',
+  'header1',
+  'header2',
+  'header3',
+  'header4',
+  'header5',
+  'header6',
 ];
 
 export class LangChainHeaderAwareChunkTransformer implements ChunkTransformer {
@@ -37,17 +34,14 @@ export class LangChainHeaderAwareChunkTransformer implements ChunkTransformer {
   readonly #separator: string;
 
   constructor(options: LangChainHeaderAwareChunkTransformerOptions = {}) {
-    this.#metadataKey = options.metadataKey ?? "headerPath";
+    this.#metadataKey = options.metadataKey ?? 'headerPath';
     this.#metadataFields = options.metadataFields ?? DEFAULT_METADATA_FIELDS;
     this.#includeInContent = options.includeInContent ?? true;
-    this.#contentPrefix = options.contentPrefix ?? "Context:";
-    this.#separator = options.separator ?? " > ";
+    this.#contentPrefix = options.contentPrefix ?? 'Context:';
+    this.#separator = options.separator ?? ' > ';
   }
 
-  async transform(
-    chunk: Chunk,
-    context: ChunkTransformContext,
-  ): Promise<Chunk> {
+  async transform(chunk: Chunk, context: ChunkTransformContext): Promise<Chunk> {
     const headerPath = this.#resolveHeaderPath(chunk, context);
 
     if (headerPath.length === 0) {
@@ -86,9 +80,7 @@ export class LangChainHeaderAwareChunkTransformer implements ChunkTransformer {
     return this.#pickPathFromMetadata(normalizedDocumentMetadata);
   }
 
-  #pickPathFromMetadata(
-    metadata: Record<string, JsonValue> | undefined,
-  ): string[] {
+  #pickPathFromMetadata(metadata: Record<string, JsonValue> | undefined): string[] {
     if (!metadata) {
       return [];
     }
@@ -97,16 +89,13 @@ export class LangChainHeaderAwareChunkTransformer implements ChunkTransformer {
 
     if (Array.isArray(explicitPath)) {
       return explicitPath.filter(
-        (value): value is string =>
-          typeof value === "string" && value.length > 0,
+        (value): value is string => typeof value === 'string' && value.length > 0,
       );
     }
 
     return this.#metadataFields.flatMap((field) => {
       const value = metadata[field];
-      return typeof value === "string" && value.trim().length > 0
-        ? [value.trim()]
-        : [];
+      return typeof value === 'string' && value.trim().length > 0 ? [value.trim()] : [];
     });
   }
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach } from 'vitest';
 
 import {
   createConsoleObserver,
@@ -7,21 +7,21 @@ import {
   type RAGErrorRecord,
   type RAGEvent,
   type RAGTrace,
-} from "../src/index.js";
+} from '../src/index.js';
 
-describe("observability phase 1", () => {
+describe('observability phase 1', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("supports nested JSON attributes", () => {
+  it('supports nested JSON attributes', () => {
     const attributes: RAGAttributes = {
-      query: "公司年假政策是什么？",
+      query: '公司年假政策是什么？',
       candidates: [
         {
-          id: "chunk-1",
+          id: 'chunk-1',
           metadata: {
-            section: "leave",
+            section: 'leave',
             page: 3,
           },
         },
@@ -34,44 +34,44 @@ describe("observability phase 1", () => {
     expect(attributes.candidates).toHaveLength(1);
   });
 
-  it("constructs runtime events with the unified name format", () => {
+  it('constructs runtime events with the unified name format', () => {
     const event: RAGEvent = {
-      traceId: "trace-1",
-      scope: "runtime",
-      stage: "retrieval",
-      name: "runtime.retrieval.complete",
+      traceId: 'trace-1',
+      scope: 'runtime',
+      stage: 'retrieval',
+      name: 'runtime.retrieval.complete',
       timestamp: Date.now(),
     };
 
-    expect(event.name).toBe("runtime.retrieval.complete");
+    expect(event.name).toBe('runtime.retrieval.complete');
   });
 
-  it("keeps NoopObserver side-effect free", async () => {
+  it('keeps NoopObserver side-effect free', async () => {
     const event: RAGEvent = {
-      traceId: "trace-1",
-      scope: "runtime",
-      stage: "retrieval",
-      name: "runtime.retrieval.complete",
+      traceId: 'trace-1',
+      scope: 'runtime',
+      stage: 'retrieval',
+      name: 'runtime.retrieval.complete',
       timestamp: Date.now(),
     };
 
     const error: RAGErrorRecord = {
-      traceId: "trace-1",
-      scope: "runtime",
-      stage: "generation",
-      name: "runtime.generation.fail",
+      traceId: 'trace-1',
+      scope: 'runtime',
+      stage: 'generation',
+      name: 'runtime.generation.fail',
       timestamp: Date.now(),
       error: {
-        name: "RuntimeError",
-        message: "generation failed",
+        name: 'RuntimeError',
+        message: 'generation failed',
       },
     };
 
     const trace: RAGTrace = {
-      traceId: "trace-1",
-      scope: "runtime",
+      traceId: 'trace-1',
+      scope: 'runtime',
       startedAt: Date.now(),
-      status: "ok",
+      status: 'ok',
       events: [event],
     };
 
@@ -80,46 +80,43 @@ describe("observability phase 1", () => {
     await expect(NoopObserver.onTraceEnd?.(trace)).resolves.toBeUndefined();
   });
 
-  it("isolates console observer callback failures", async () => {
-    const observer = createConsoleObserver({ level: "info" });
-    vi.spyOn(console, "info").mockImplementation(() => {
-      throw new Error("console unavailable");
+  it('isolates console observer callback failures', async () => {
+    const observer = createConsoleObserver({ level: 'info' });
+    vi.spyOn(console, 'info').mockImplementation(() => {
+      throw new Error('console unavailable');
     });
 
     const event: RAGEvent = {
-      traceId: "trace-1",
-      scope: "runtime",
-      stage: "retrieval",
-      name: "runtime.retrieval.complete",
+      traceId: 'trace-1',
+      scope: 'runtime',
+      stage: 'retrieval',
+      name: 'runtime.retrieval.complete',
       timestamp: Date.now(),
     };
 
     await expect(observer.onEvent?.(event)).resolves.toBeUndefined();
   });
 
-  it("logs event attributes when configured", async () => {
+  it('logs event attributes when configured', async () => {
     const observer = createConsoleObserver({
-      level: "debug",
+      level: 'debug',
       includeAttributes: true,
     });
-    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     const event: RAGEvent = {
-      traceId: "trace-1",
-      scope: "runtime",
-      stage: "query",
-      name: "runtime.query.receive",
+      traceId: 'trace-1',
+      scope: 'runtime',
+      stage: 'query',
+      name: 'runtime.query.receive',
       timestamp: Date.now(),
       attributes: {
-        query: "公司年假政策是什么？",
+        query: '公司年假政策是什么？',
       },
     };
 
     await observer.onEvent?.(event);
 
-    expect(debugSpy).toHaveBeenCalledWith(
-      "[runtime] runtime.query.receive",
-      event.attributes,
-    );
+    expect(debugSpy).toHaveBeenCalledWith('[runtime] runtime.query.receive', event.attributes);
   });
 });

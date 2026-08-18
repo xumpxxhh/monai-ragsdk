@@ -14,12 +14,10 @@ export function extractJsonValue(text: string): unknown {
   try {
     return JSON.parse(candidate);
   } catch {
-    const objectStart = candidate.indexOf("{");
-    const arrayStart = candidate.indexOf("[");
+    const objectStart = candidate.indexOf('{');
+    const arrayStart = candidate.indexOf('[');
     const start =
-      objectStart >= 0 && (arrayStart < 0 || objectStart < arrayStart)
-        ? objectStart
-        : arrayStart;
+      objectStart >= 0 && (arrayStart < 0 || objectStart < arrayStart) ? objectStart : arrayStart;
 
     if (start < 0) {
       return undefined;
@@ -39,56 +37,56 @@ function trimQuery(value: string): string | undefined {
 }
 
 function stripListMarker(line: string): string {
-  return line.replace(/^\s*(?:[-*]|\d+[.)])\s+/, "").trim();
+  return line.replace(/^\s*(?:[-*]|\d+[.)])\s+/, '').trim();
 }
 
 /** 单条改写：优先 JSON `{ query }` / 字符串 / 数组首项，否则取第一行非空文本。 */
 export function parseRewrittenQuery(text: string): string | undefined {
   const json = extractJsonValue(text);
 
-  if (typeof json === "string") {
+  if (typeof json === 'string') {
     return trimQuery(json);
   }
 
-  if (json && typeof json === "object" && !Array.isArray(json)) {
+  if (json && typeof json === 'object' && !Array.isArray(json)) {
     const query = (json as { query?: unknown }).query;
-    if (typeof query === "string") {
+    if (typeof query === 'string') {
       return trimQuery(query);
     }
   }
 
-  if (Array.isArray(json) && typeof json[0] === "string") {
+  if (Array.isArray(json) && typeof json[0] === 'string') {
     return trimQuery(json[0]);
   }
 
   const firstLine = text
     .split(/\r?\n/)
     .map((line) => stripListMarker(line))
-    .find((line) => line.length > 0 && !line.startsWith("```"));
+    .find((line) => line.length > 0 && !line.startsWith('```'));
 
   return firstLine ? trimQuery(firstLine) : undefined;
 }
 
 function collectJsonQueries(json: unknown): string[] {
-  if (typeof json === "string") {
+  if (typeof json === 'string') {
     const query = trimQuery(json);
     return query ? [query] : [];
   }
 
   if (Array.isArray(json)) {
     return json.flatMap((item) =>
-      typeof item === "string" ? (trimQuery(item) ? [item.trim()] : []) : [],
+      typeof item === 'string' ? (trimQuery(item) ? [item.trim()] : []) : [],
     );
   }
 
-  if (json && typeof json === "object") {
+  if (json && typeof json === 'object') {
     const queries = (json as { queries?: unknown }).queries;
     if (Array.isArray(queries)) {
       return collectJsonQueries(queries);
     }
 
     const query = (json as { query?: unknown }).query;
-    if (typeof query === "string") {
+    if (typeof query === 'string') {
       const trimmed = trimQuery(query);
       return trimmed ? [trimmed] : [];
     }
@@ -107,11 +105,7 @@ export function parseQueryList(text: string, maxCount: number): string[] {
           .split(/\r?\n/)
           .map((line) => stripListMarker(line))
           .filter(
-            (line) =>
-              line.length > 0 &&
-              !line.startsWith("```") &&
-              line !== "[" &&
-              line !== "]",
+            (line) => line.length > 0 && !line.startsWith('```') && line !== '[' && line !== ']',
           );
 
   const unique: string[] = [];

@@ -1,7 +1,4 @@
-import {
-  createDefaultPostprocessor,
-  createDefaultRuntime,
-} from "../dist/index.js";
+import { createDefaultPostprocessor, createDefaultRuntime } from '../dist/index.js';
 
 const runtime = createDefaultRuntime({
   postprocessor: createDefaultPostprocessor({
@@ -16,7 +13,7 @@ const runtime = createDefaultRuntime({
       enabled: true,
       maxPerSource: 1,
     },
-    candidatePredicate: ({ candidate }) => candidate.sourceId !== "docs/ignore",
+    candidatePredicate: ({ candidate }) => candidate.sourceId !== 'docs/ignore',
     orderCandidates: (left, right) => (right.score ?? 0) - (left.score ?? 0),
     debug: true,
   }),
@@ -26,40 +23,40 @@ const runtime = createDefaultRuntime({
         candidates: [
           {
             chunk: {
-              id: "chunk-1",
+              id: 'chunk-1',
               content: `primary result for: ${request.effectiveQuery.query}`,
             },
             score: 0.99,
-            sourceId: "docs/runtime",
+            sourceId: 'docs/runtime',
           },
           {
             chunk: {
-              id: "chunk-2",
+              id: 'chunk-2',
               content: `primary result for: ${request.effectiveQuery.query}`,
             },
-            fingerprint: "runtime-primary",
+            fingerprint: 'runtime-primary',
             score: 0.92,
-            sourceId: "docs/runtime",
+            sourceId: 'docs/runtime',
           },
           {
             chunk: {
-              id: "chunk-3",
+              id: 'chunk-3',
               content: `ignored result for: ${request.effectiveQuery.query}`,
             },
             score: 0.95,
-            sourceId: "docs/ignore",
+            sourceId: 'docs/ignore',
           },
           {
             chunk: {
-              id: "chunk-4",
+              id: 'chunk-4',
               content: `indexing result for: ${request.effectiveQuery.query}`,
             },
             score: 0.88,
-            sourceId: "docs/indexing",
+            sourceId: 'docs/indexing',
           },
         ],
         retrievalMetadata: {
-          provider: "demo",
+          provider: 'demo',
         },
       };
     },
@@ -67,50 +64,47 @@ const runtime = createDefaultRuntime({
   generator: {
     async generate({ request, chunks, promptContext }) {
       return {
-        answer: `${request.effectiveQuery.query} -> ${chunks.map((chunk) => chunk.id).join(",")}`,
+        answer: `${request.effectiveQuery.query} -> ${chunks.map((chunk) => chunk.id).join(',')}`,
         generationMetadata: {
-          provider: "demo",
+          provider: 'demo',
           promptContextLength: promptContext?.length ?? 0,
         },
       };
     },
     async *generateStream({ request, chunks, promptContext }) {
       const result = {
-        answer: `${request.effectiveQuery.query} -> ${chunks.map((chunk) => chunk.id).join(",")}`,
+        answer: `${request.effectiveQuery.query} -> ${chunks.map((chunk) => chunk.id).join(',')}`,
         generationMetadata: {
-          provider: "demo",
+          provider: 'demo',
           promptContextLength: promptContext?.length ?? 0,
           streamed: true,
         },
       };
 
-      for (const [index, part] of result.answer.split(" ").entries()) {
+      for (const [index, part] of result.answer.split(' ').entries()) {
         yield {
-          type: "delta" as const,
+          type: 'delta' as const,
           text: index === 0 ? part : ` ${part}`,
         };
       }
 
       yield {
-        type: "complete" as const,
+        type: 'complete' as const,
         result,
       };
     },
   },
 });
 
-const result = await runtime.run(
-  { query: "Explain runtime MVP" },
-  { includeDebug: true },
-);
+const result = await runtime.run({ query: 'Explain runtime MVP' }, { includeDebug: true });
 
-process.stdout.write("stream: ");
-for await (const event of runtime.runStream({ query: "Explain runtime MVP" })) {
-  if (event.type === "delta") {
+process.stdout.write('stream: ');
+for await (const event of runtime.runStream({ query: 'Explain runtime MVP' })) {
+  if (event.type === 'delta') {
     process.stdout.write(event.text);
   }
 }
-process.stdout.write("\n");
+process.stdout.write('\n');
 
-console.log("runtime minimal demo passed");
+console.log('runtime minimal demo passed');
 console.log(result);

@@ -1,4 +1,4 @@
-import type { Chunk, Document, JsonValue, Vector } from "@monai-ragsdk/core";
+import type { Chunk, Document, JsonValue, Vector } from '@monai-ragsdk/core';
 import type {
   RAGAttributes,
   RAGErrorRecord,
@@ -6,17 +6,17 @@ import type {
   RAGObserver,
   RAGTrace,
   TraceIdSource,
-} from "@monai-ragsdk/observability";
+} from '@monai-ragsdk/observability';
 
-import { SimpleChunker } from "../chunkers/simple-chunker.js";
+import { SimpleChunker } from '../chunkers/simple-chunker.js';
 import {
   DEFAULT_BATCH_SIZE,
   defaultMetadataBuilder,
   defaultShouldIndex,
-} from "../defaults/index.js";
-import { IndexingError } from "../errors/index.js";
-import type { ChunkFilter } from "../filters/chunk-filter.js";
-import type { MetadataExtractor } from "../metadata/metadata-extractor.js";
+} from '../defaults/index.js';
+import { IndexingError } from '../errors/index.js';
+import type { ChunkFilter } from '../filters/chunk-filter.js';
+import type { MetadataExtractor } from '../metadata/metadata-extractor.js';
 import type {
   FingerprintResolver,
   IndexingContext,
@@ -25,14 +25,14 @@ import type {
   IndexingResult,
   IndexingStage,
   SourceIdResolver,
-} from "../types/index.js";
-import type { VectorStore } from "../stores/vector-store.js";
-import type { ChunkTransformer } from "../chunk-transformers/chunk-transformer.js";
+} from '../types/index.js';
+import type { VectorStore } from '../stores/vector-store.js';
+import type { ChunkTransformer } from '../chunk-transformers/chunk-transformer.js';
 import {
   buildSourceFingerprintMap,
   collectStaleSourceIds,
   shouldSkipUnchanged,
-} from "./incremental.js";
+} from './incremental.js';
 
 type IndexingTraceState = {
   traceId: string;
@@ -40,7 +40,7 @@ type IndexingTraceState = {
   startedAt: number;
   dataset?: string;
   version?: string;
-  tags?: IndexingOptions["trace"] extends infer T
+  tags?: IndexingOptions['trace'] extends infer T
     ? T extends { tags?: infer Tags }
       ? Tags
       : never
@@ -63,19 +63,15 @@ type IndexingObservation = {
 const defaultObserver: RAGObserver = {};
 
 function normalizeStageName(stage: string): string {
-  return stage.replace(/-/g, "_");
+  return stage.replace(/-/g, '_');
 }
 
-function buildTraceState(
-  options: IndexingOptions,
-  startedAt: number,
-): IndexingTraceState {
+function buildTraceState(options: IndexingOptions, startedAt: number): IndexingTraceState {
   const providedTraceId = options.trace?.traceId;
 
   return {
-    traceId:
-      providedTraceId ?? `indexing:${options.mode ?? "full"}:${startedAt}`,
-    traceIdSource: providedTraceId ? "provided" : "generated",
+    traceId: providedTraceId ?? `indexing:${options.mode ?? 'full'}:${startedAt}`,
+    traceIdSource: providedTraceId ? 'provided' : 'generated',
     startedAt,
     dataset: options.trace?.dataset,
     version: options.trace?.version,
@@ -85,9 +81,7 @@ function buildTraceState(
   };
 }
 
-async function notifyObserver(
-  callback: (() => void | Promise<void>) | undefined,
-): Promise<void> {
+async function notifyObserver(callback: (() => void | Promise<void>) | undefined): Promise<void> {
   try {
     await callback?.();
   } catch {
@@ -98,7 +92,7 @@ async function notifyObserver(
 async function emitEvent(
   observation: IndexingObservation,
   stage: string,
-  action: "start" | "complete" | "fail",
+  action: 'start' | 'complete' | 'fail',
   timestamp: number,
   durationMs?: number,
   attributes?: RAGAttributes,
@@ -106,7 +100,7 @@ async function emitEvent(
   const normalizedStage = normalizeStageName(stage);
   const event: RAGEvent = {
     traceId: observation.trace.traceId,
-    scope: "indexing",
+    scope: 'indexing',
     stage: normalizedStage,
     name: `indexing.${normalizedStage}.${action}`,
     timestamp,
@@ -130,14 +124,14 @@ async function emitError(
   const normalizedStage = normalizeStageName(stage);
   const record: RAGErrorRecord = {
     traceId: observation.trace.traceId,
-    scope: "indexing",
+    scope: 'indexing',
     stage: normalizedStage,
     name: `indexing.${normalizedStage}.fail`,
     timestamp,
     error: {
       name: error.name,
       message: error.message,
-      ...(typeof error.stack === "string" ? { stack: error.stack } : {}),
+      ...(typeof error.stack === 'string' ? { stack: error.stack } : {}),
     },
     ...(attributes ? { attributes } : {}),
   };
@@ -148,38 +142,27 @@ async function emitError(
   return record;
 }
 
-async function endTrace(
-  observation: IndexingObservation,
-  status: "ok" | "error",
-): Promise<void> {
+async function endTrace(observation: IndexingObservation, status: 'ok' | 'error'): Promise<void> {
   const endedAt = Date.now();
   const payload: RAGTrace = {
     traceId: observation.trace.traceId,
     traceIdSource: observation.trace.traceIdSource,
-    scope: "indexing",
-    ...(observation.trace.dataset
-      ? { dataset: observation.trace.dataset }
-      : {}),
-    ...(observation.trace.version
-      ? { version: observation.trace.version }
-      : {}),
+    scope: 'indexing',
+    ...(observation.trace.dataset ? { dataset: observation.trace.dataset } : {}),
+    ...(observation.trace.version ? { version: observation.trace.version } : {}),
     ...(observation.trace.tags ? { tags: observation.trace.tags } : {}),
     startedAt: observation.trace.startedAt,
     endedAt,
     durationMs: endedAt - observation.trace.startedAt,
     status,
     events: [...observation.trace.events],
-    ...(observation.trace.errors.length > 0
-      ? { errors: [...observation.trace.errors] }
-      : {}),
+    ...(observation.trace.errors.length > 0 ? { errors: [...observation.trace.errors] } : {}),
   };
 
   await notifyObserver(() => observation.observer.onTraceEnd?.(payload));
 }
 
-export async function runIndexing(
-  options: IndexingOptions,
-): Promise<IndexingResult> {
+export async function runIndexing(options: IndexingOptions): Promise<IndexingResult> {
   const startedAt = Date.now();
   const observation: IndexingObservation = {
     observer: options.observer ?? defaultObserver,
@@ -194,43 +177,30 @@ export async function runIndexing(
   const metadataExtractors = options.metadataExtractors ?? [];
   const transformers = options.transformers ?? [];
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
-  const mode = options.mode ?? "full";
+  const mode = options.mode ?? 'full';
   const sourceIdResolver = options.sourceIdResolver;
   const fingerprintResolver = options.fingerprintResolver;
 
-  await emitEvent(
-    observation,
-    "run",
-    "start",
-    Date.now(),
-    undefined,
-    {
-      mode,
-      ...(options.trace?.dataset ? { dataset: options.trace.dataset } : {}),
-      ...(options.trace?.version ? { version: options.trace.version } : {}),
-    },
-  );
+  await emitEvent(observation, 'run', 'start', Date.now(), undefined, {
+    mode,
+    ...(options.trace?.dataset ? { dataset: options.trace.dataset } : {}),
+    ...(options.trace?.version ? { version: options.trace.version } : {}),
+  });
 
   try {
     if (batchSize <= 0) {
-      throw new Error("batchSize must be greater than 0");
+      throw new Error('batchSize must be greater than 0');
     }
 
-    const documents = await runStage(
-      "load",
-      () => loader.load(),
-      { mode },
-      observation,
-      {
-        startAttributes: {
-          mode,
-        },
-        completeAttributes: (loadedDocuments) => ({
-          mode,
-          documentCount: loadedDocuments.length,
-        }),
+    const documents = await runStage('load', () => loader.load(), { mode }, observation, {
+      startAttributes: {
+        mode,
       },
-    );
+      completeAttributes: (loadedDocuments) => ({
+        mode,
+        documentCount: loadedDocuments.length,
+      }),
+    });
 
     const result: IndexingResult = {
       documentsTotal: documents.length,
@@ -246,28 +216,26 @@ export async function runIndexing(
     const previousSourceRecords = options.store.listSourceRecords
       ? await options.store.listSourceRecords()
       : [];
-    const previousFingerprints = buildSourceFingerprintMap(
-      previousSourceRecords,
-    );
+    const previousFingerprints = buildSourceFingerprintMap(previousSourceRecords);
     const seenSourceIds = new Set<string>();
 
     for (const rawDocument of documents) {
       try {
         let document = rawDocument;
-        let documentContext: Omit<IndexingContext, "stage"> = {
+        let documentContext: Omit<IndexingContext, 'stage'> = {
           documentId: rawDocument.id,
           mode,
         };
 
         for (const transformer of transformers) {
           document = await runStage(
-            "transform",
+            'transform',
             () => transformer.transform(document),
             documentContext,
             observation,
             {
               startAttributes: {
-                documentId: documentContext.documentId ?? "unknown",
+                documentId: documentContext.documentId ?? 'unknown',
               },
             },
           );
@@ -284,16 +252,16 @@ export async function runIndexing(
         }
 
         const canIndex = await runStage(
-          "filter",
+          'filter',
           () => shouldIndex(document),
           documentContext,
           observation,
           {
             startAttributes: {
-              documentId: documentContext.documentId ?? "unknown",
+              documentId: documentContext.documentId ?? 'unknown',
             },
             completeAttributes: (shouldKeep) => ({
-              documentId: documentContext.documentId ?? "unknown",
+              documentId: documentContext.documentId ?? 'unknown',
               kept: shouldKeep,
             }),
           },
@@ -301,10 +269,7 @@ export async function runIndexing(
 
         if (!canIndex) {
           result.skippedDocuments += 1;
-          if (
-            documentContext.sourceId &&
-            previousFingerprints.has(documentContext.sourceId)
-          ) {
+          if (documentContext.sourceId && previousFingerprints.has(documentContext.sourceId)) {
             await deleteSourceIds(
               options.store,
               [documentContext.sourceId],
@@ -329,16 +294,16 @@ export async function runIndexing(
         }
 
         const chunks = await runStage(
-          "chunk",
+          'chunk',
           () => chunker.chunk(document),
           documentContext,
           observation,
           {
             startAttributes: {
-              documentId: documentContext.documentId ?? "unknown",
+              documentId: documentContext.documentId ?? 'unknown',
             },
             completeAttributes: (createdChunks) => ({
-              documentId: documentContext.documentId ?? "unknown",
+              documentId: documentContext.documentId ?? 'unknown',
               chunkCount: createdChunks.length,
             }),
           },
@@ -364,7 +329,7 @@ export async function runIndexing(
 
         for (const chunkBatch of splitIntoBatches(processedChunks, batchSize)) {
           const vectors = await runStage(
-            "embed",
+            'embed',
             () => options.embedder.embed(chunkBatch),
             {
               ...documentContext,
@@ -373,11 +338,11 @@ export async function runIndexing(
             observation,
             {
               startAttributes: {
-                documentId: documentContext.documentId ?? "unknown",
+                documentId: documentContext.documentId ?? 'unknown',
                 chunkCount: chunkBatch.length,
               },
               completeAttributes: (embeddedVectors) => ({
-                documentId: documentContext.documentId ?? "unknown",
+                documentId: documentContext.documentId ?? 'unknown',
                 vectorCount: embeddedVectors.length,
                 chunkCount: chunkBatch.length,
               }),
@@ -392,8 +357,8 @@ export async function runIndexing(
 
           if (hadPrevious && !options.store.deleteByFilter) {
             throw new IndexingError(
-              "incremental replace requires VectorStore.deleteByFilter()",
-              "delete",
+              'incremental replace requires VectorStore.deleteByFilter()',
+              'delete',
               {
                 context: documentContext,
               },
@@ -418,7 +383,7 @@ export async function runIndexing(
           const vectorsToStore = attachChunkContent(vectors, chunkBatch);
 
           await runStage(
-            "store",
+            'store',
             () =>
               options.store.upsert(vectorsToStore, {
                 documentId: documentContext.documentId,
@@ -434,11 +399,11 @@ export async function runIndexing(
             observation,
             {
               startAttributes: {
-                documentId: documentContext.documentId ?? "unknown",
+                documentId: documentContext.documentId ?? 'unknown',
                 vectorCount: vectorsToStore.length,
               },
               completeAttributes: () => ({
-                documentId: documentContext.documentId ?? "unknown",
+                documentId: documentContext.documentId ?? 'unknown',
                 vectorCount: vectorsToStore.length,
                 upserted: vectorsToStore.length,
               }),
@@ -471,72 +436,48 @@ export async function runIndexing(
       }
     }
 
-    const staleSourceIds = collectStaleSourceIds(
-      previousFingerprints,
-      seenSourceIds,
-    );
+    const staleSourceIds = collectStaleSourceIds(previousFingerprints, seenSourceIds);
 
     if (staleSourceIds.length > 0) {
       if (!options.store.deleteByFilter) {
-        throw new IndexingError(
-          "stale cleanup requires VectorStore.deleteByFilter()",
-          "delete",
-          { context: { mode } },
-        );
+        throw new IndexingError('stale cleanup requires VectorStore.deleteByFilter()', 'delete', {
+          context: { mode },
+        });
       }
 
-      await deleteSourceIds(
-        options.store,
-        staleSourceIds,
-        { mode },
-        observation,
-      );
+      await deleteSourceIds(options.store, staleSourceIds, { mode }, observation);
       result.staleSourcesDeleted += staleSourceIds.length;
     }
 
-    await emitEvent(
-      observation,
-      "run",
-      "complete",
-      Date.now(),
-      Date.now() - startedAt,
-      {
-        documentsTotal: result.documentsTotal,
-        documentsIndexed: result.documentsIndexed,
-        skippedDocuments: result.skippedDocuments,
-        failedDocuments: result.failedDocuments,
-        unchangedDocuments: result.unchangedDocuments,
-        replacedDocuments: result.replacedDocuments,
-        staleSourcesDeleted: result.staleSourcesDeleted,
-        chunksTotal: result.chunksTotal,
-        vectorsTotal: result.vectorsTotal,
-      },
-    );
-    await endTrace(observation, "ok");
+    await emitEvent(observation, 'run', 'complete', Date.now(), Date.now() - startedAt, {
+      documentsTotal: result.documentsTotal,
+      documentsIndexed: result.documentsIndexed,
+      skippedDocuments: result.skippedDocuments,
+      failedDocuments: result.failedDocuments,
+      unchangedDocuments: result.unchangedDocuments,
+      replacedDocuments: result.replacedDocuments,
+      staleSourcesDeleted: result.staleSourcesDeleted,
+      chunksTotal: result.chunksTotal,
+      vectorsTotal: result.vectorsTotal,
+    });
+    await endTrace(observation, 'ok');
 
     return result;
   } catch (error) {
     const indexingError = toIndexingError(error, { mode });
     const timestamp = Date.now();
 
-    await emitEvent(
-      observation,
-      "run",
-      "fail",
-      timestamp,
-      Date.now() - startedAt,
-      {
-        stage: normalizeStageName(indexingError.stage),
-        errorName: indexingError.name,
-        errorMessage: indexingError.message,
-      },
-    );
-    await emitError(observation, "run", timestamp, indexingError, {
+    await emitEvent(observation, 'run', 'fail', timestamp, Date.now() - startedAt, {
+      stage: normalizeStageName(indexingError.stage),
+      errorName: indexingError.name,
+      errorMessage: indexingError.message,
+    });
+    await emitError(observation, 'run', timestamp, indexingError, {
       ...(indexingError.context?.documentId
         ? { documentId: indexingError.context.documentId }
         : {}),
     });
-    await endTrace(observation, "error");
+    await endTrace(observation, 'error');
 
     throw indexingError;
   }
@@ -547,7 +488,7 @@ async function processChunks(
   document: Document,
   mode: IndexingMode,
   chunkTransformers: ChunkTransformer[],
-  documentContext: Omit<IndexingContext, "stage">,
+  documentContext: Omit<IndexingContext, 'stage'>,
   metadataBuilder: (
     document: Document,
     chunk: Chunk,
@@ -564,7 +505,7 @@ async function processChunks(
 
     for (const transformer of chunkTransformers) {
       chunk = await runStage(
-        "transform-chunk",
+        'transform-chunk',
         () =>
           transformer.transform(chunk, {
             document,
@@ -584,7 +525,7 @@ async function processChunks(
     }
 
     chunk = await runStage(
-      "metadata",
+      'metadata',
       () => applyMetadata(document, chunk, metadataBuilder),
       chunkContext,
       observation,
@@ -598,15 +539,8 @@ async function processChunks(
 
     if (metadataExtractors.length > 0) {
       chunk = await runStage(
-        "extract-metadata",
-        () =>
-          applyMetadataExtractors(
-            document,
-            chunk,
-            metadataExtractors,
-            mode,
-            documentContext,
-          ),
+        'extract-metadata',
+        () => applyMetadataExtractors(document, chunk, metadataExtractors, mode, documentContext),
         chunkContext,
         observation,
       );
@@ -646,27 +580,21 @@ async function processChunks(
 async function deleteSourceIds(
   store: VectorStore,
   sourceIds: string[],
-  context: Omit<IndexingContext, "stage">,
+  context: Omit<IndexingContext, 'stage'>,
   observation: IndexingObservation,
 ): Promise<void> {
   if (sourceIds.length === 0 || !store.deleteByFilter) {
     return;
   }
 
-  await runStage(
-    "delete",
-    () => store.deleteByFilter?.({ sourceIds }),
-    context,
-    observation,
-    {
-      startAttributes: {
-        sourceCount: sourceIds.length,
-      },
-      completeAttributes: () => ({
-        deletedSourceCount: sourceIds.length,
-      }),
+  await runStage('delete', () => store.deleteByFilter?.({ sourceIds }), context, observation, {
+    startAttributes: {
+      sourceCount: sourceIds.length,
     },
-  );
+    completeAttributes: () => ({
+      deletedSourceCount: sourceIds.length,
+    }),
+  });
 }
 
 async function applyMetadata(
@@ -690,7 +618,7 @@ async function applyMetadata(
 
 function applyReservedMetadata(
   chunk: Chunk,
-  documentContext: Omit<IndexingContext, "stage">,
+  documentContext: Omit<IndexingContext, 'stage'>,
 ): Chunk {
   if (!documentContext.sourceId && !documentContext.fingerprint) {
     return chunk;
@@ -700,12 +628,8 @@ function applyReservedMetadata(
     ...chunk,
     metadata: {
       ...(chunk.metadata ?? {}),
-      ...(documentContext.sourceId
-        ? { sourceId: documentContext.sourceId }
-        : {}),
-      ...(documentContext.fingerprint
-        ? { fingerprint: documentContext.fingerprint }
-        : {}),
+      ...(documentContext.sourceId ? { sourceId: documentContext.sourceId } : {}),
+      ...(documentContext.fingerprint ? { fingerprint: documentContext.fingerprint } : {}),
     },
   };
 }
@@ -715,7 +639,7 @@ async function applyMetadataExtractors(
   chunk: Chunk,
   metadataExtractors: MetadataExtractor[],
   mode: IndexingMode,
-  documentContext: Omit<IndexingContext, "stage">,
+  documentContext: Omit<IndexingContext, 'stage'>,
 ): Promise<Chunk> {
   const extractedMetadata: Record<string, JsonValue> = {};
 
@@ -752,13 +676,13 @@ async function shouldKeepChunkAfterFilters(
   document: Document,
   mode: IndexingMode,
   chunkFilters: ChunkFilter[],
-  chunkContext: Omit<IndexingContext, "stage">,
-  documentContext: Omit<IndexingContext, "stage">,
+  chunkContext: Omit<IndexingContext, 'stage'>,
+  documentContext: Omit<IndexingContext, 'stage'>,
   observation: IndexingObservation,
 ): Promise<boolean> {
   for (const chunkFilter of chunkFilters) {
     const shouldKeep = await runStage(
-      "filter-chunk",
+      'filter-chunk',
       () =>
         chunkFilter.shouldKeep(chunk, {
           document,
@@ -782,7 +706,7 @@ function buildChunkContext(
   document: Document,
   chunk: Chunk,
   mode: IndexingMode,
-): Omit<IndexingContext, "stage"> {
+): Omit<IndexingContext, 'stage'> {
   return {
     documentId: document.id,
     chunkId: chunk.id,
@@ -807,7 +731,7 @@ function splitIntoBatches<T>(items: T[], batchSize: number): T[][] {
 async function runStage<T>(
   stage: IndexingStage,
   run: () => Promise<T> | T,
-  context: Omit<IndexingContext, "stage"> = {},
+  context: Omit<IndexingContext, 'stage'> = {},
   observation?: IndexingObservation,
   stageObservation?: StageObservation<T>,
 ): Promise<T> {
@@ -818,7 +742,7 @@ async function runStage<T>(
     await emitEvent(
       observation,
       stage,
-      "start",
+      'start',
       timestamp,
       undefined,
       stageObservation?.startAttributes,
@@ -832,7 +756,7 @@ async function runStage<T>(
       await emitEvent(
         observation,
         stage,
-        "complete",
+        'complete',
         Date.now(),
         Date.now() - startedAt,
         stageObservation?.completeAttributes?.(result),
@@ -848,7 +772,7 @@ async function runStage<T>(
       await emitEvent(
         observation,
         stage,
-        "fail",
+        'fail',
         failTimestamp,
         Date.now() - startedAt,
         stageObservation?.failAttributes?.(indexingError),
@@ -867,20 +791,19 @@ async function runStage<T>(
 
 function toIndexingError(
   error: unknown,
-  context: Omit<IndexingContext, "stage"> = {},
+  context: Omit<IndexingContext, 'stage'> = {},
   stageOverride?: IndexingStage,
 ): IndexingError {
   if (error instanceof IndexingError) {
     return error;
   }
 
-  const message =
-    error instanceof Error ? error.message : "Unknown indexing error";
+  const message = error instanceof Error ? error.message : 'Unknown indexing error';
   const contextSuffix = formatContextSuffix(context);
 
   return new IndexingError(
     contextSuffix.length > 0 ? `${message} (${contextSuffix})` : message,
-    stageOverride ?? "store",
+    stageOverride ?? 'store',
     {
       cause: error instanceof Error ? error : undefined,
       context,
@@ -888,7 +811,7 @@ function toIndexingError(
   );
 }
 
-function formatContextSuffix(context: Omit<IndexingContext, "stage">): string {
+function formatContextSuffix(context: Omit<IndexingContext, 'stage'>): string {
   const contextParts: string[] = [];
 
   if (context.documentId) {
@@ -907,7 +830,7 @@ function formatContextSuffix(context: Omit<IndexingContext, "stage">): string {
     contextParts.push(`fingerprint: ${context.fingerprint}`);
   }
 
-  return contextParts.join(", ");
+  return contextParts.join(', ');
 }
 
 async function resolveSourceId(
@@ -920,9 +843,7 @@ async function resolveSourceId(
 
   const sourceId = document.metadata?.sourceId;
 
-  return typeof sourceId === "string" && sourceId.length > 0
-    ? sourceId
-    : undefined;
+  return typeof sourceId === 'string' && sourceId.length > 0 ? sourceId : undefined;
 }
 
 async function resolveFingerprint(
@@ -935,9 +856,7 @@ async function resolveFingerprint(
 
   const fingerprint = document.metadata?.fingerprint;
 
-  return typeof fingerprint === "string" && fingerprint.length > 0
-    ? fingerprint
-    : undefined;
+  return typeof fingerprint === 'string' && fingerprint.length > 0 ? fingerprint : undefined;
 }
 
 /**
@@ -951,7 +870,7 @@ function attachChunkContent(vectors: Vector[], chunks: Chunk[]): Vector[] {
   return vectors.map((vector) => {
     const existing = vector.metadata?.content;
 
-    if (typeof existing === "string" && existing.length > 0) {
+    if (typeof existing === 'string' && existing.length > 0) {
       return vector;
     }
 

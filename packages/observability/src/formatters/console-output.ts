@@ -1,8 +1,8 @@
-import type { RAGErrorRecord } from "../types/rag-error-record.js";
-import type { RAGEvent, RAGEventAction } from "../types/rag-event.js";
-import type { RAGTrace } from "../types/rag-trace.js";
+import type { RAGErrorRecord } from '../types/rag-error-record.js';
+import type { RAGEvent, RAGEventAction } from '../types/rag-event.js';
+import type { RAGTrace } from '../types/rag-trace.js';
 
-export type ConsoleObserverLevel = "debug" | "info" | "warn" | "error";
+export type ConsoleObserverLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface ConsoleOutputOptions {
   level?: ConsoleObserverLevel;
@@ -17,17 +17,17 @@ const levelPriority: Record<ConsoleObserverLevel, number> = {
 };
 
 export function readAction(name: string): RAGEventAction | undefined {
-  const action = name.split(".").at(-1);
+  const action = name.split('.').at(-1);
 
   if (
-    action === "receive" ||
-    action === "preprocess" ||
-    action === "start" ||
-    action === "complete" ||
-    action === "fail" ||
-    action === "select" ||
-    action === "drop" ||
-    action === "store"
+    action === 'receive' ||
+    action === 'preprocess' ||
+    action === 'start' ||
+    action === 'complete' ||
+    action === 'fail' ||
+    action === 'select' ||
+    action === 'drop' ||
+    action === 'store'
   ) {
     return action;
   }
@@ -39,19 +39,18 @@ export function resolveEventLevel(event: RAGEvent): ConsoleObserverLevel {
   const action = readAction(event.name);
 
   switch (action) {
-    case "fail":
-      return "error";
-    case "receive":
-    case "start":
-      return "debug";
+    case 'fail':
+      return 'error';
+    case 'receive':
+    case 'start':
+      return 'debug';
     default:
-      return "info";
+      return 'info';
   }
 }
 
 export function formatEvent(event: RAGEvent): string {
-  const durationSuffix =
-    typeof event.durationMs === "number" ? ` ${event.durationMs}ms` : "";
+  const durationSuffix = typeof event.durationMs === 'number' ? ` ${event.durationMs}ms` : '';
 
   return `[${event.scope}] ${event.name}${durationSuffix}`;
 }
@@ -61,8 +60,7 @@ export function formatError(error: RAGErrorRecord): string {
 }
 
 export function formatTrace(trace: RAGTrace): string {
-  const durationSuffix =
-    typeof trace.durationMs === "number" ? ` ${trace.durationMs}ms` : "";
+  const durationSuffix = typeof trace.durationMs === 'number' ? ` ${trace.durationMs}ms` : '';
 
   return `[${trace.scope}] trace.${trace.status}${durationSuffix} events=${trace.events.length}`;
 }

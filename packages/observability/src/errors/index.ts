@@ -1,1 +1,1 @@
-export * from "./observability-internal-error.js";
+export * from './observability-internal-error.js';

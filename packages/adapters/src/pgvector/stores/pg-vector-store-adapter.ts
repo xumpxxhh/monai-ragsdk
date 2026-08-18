@@ -1,26 +1,26 @@
-import type { Vector } from "@monai-ragsdk/core";
+import type { Vector } from '@monai-ragsdk/core';
 import type {
   VectorStore,
   VectorStoreDeleteFilter,
   VectorStoreSourceRecord,
   VectorStoreWriteContext,
-} from "@monai-ragsdk/indexing";
-import { Pool, type PoolConfig } from "pg";
+} from '@monai-ragsdk/indexing';
+import { Pool, type PoolConfig } from 'pg';
 
-import { normalizeJsonObject } from "../../shared/json.js";
+import { normalizeJsonObject } from '../../shared/json.js';
 
 type PgConnectionOptions = Pick<
   PoolConfig,
-  | "connectionString"
-  | "host"
-  | "port"
-  | "user"
-  | "password"
-  | "database"
-  | "ssl"
-  | "max"
-  | "idleTimeoutMillis"
-  | "connectionTimeoutMillis"
+  | 'connectionString'
+  | 'host'
+  | 'port'
+  | 'user'
+  | 'password'
+  | 'database'
+  | 'ssl'
+  | 'max'
+  | 'idleTimeoutMillis'
+  | 'connectionTimeoutMillis'
 >;
 
 type PgQueryResultLike<Row = Record<string, unknown>> = {
@@ -50,14 +50,14 @@ export type PgVectorStoreAdapterOptions = PgConnectionOptions & {
   client?: PgClientLike;
 };
 
-const DEFAULT_SCHEMA = "public";
-const DEFAULT_ID_COLUMN = "id";
-const DEFAULT_VECTOR_COLUMN = "embedding";
-const DEFAULT_METADATA_COLUMN = "metadata";
-const DEFAULT_CONTENT_COLUMN = "content";
-const DEFAULT_SOURCE_ID_COLUMN = "source_id";
-const DEFAULT_FINGERPRINT_COLUMN = "fingerprint";
-const DEFAULT_CONTENT_METADATA_KEY = "content";
+const DEFAULT_SCHEMA = 'public';
+const DEFAULT_ID_COLUMN = 'id';
+const DEFAULT_VECTOR_COLUMN = 'embedding';
+const DEFAULT_METADATA_COLUMN = 'metadata';
+const DEFAULT_CONTENT_COLUMN = 'content';
+const DEFAULT_SOURCE_ID_COLUMN = 'source_id';
+const DEFAULT_FINGERPRINT_COLUMN = 'fingerprint';
+const DEFAULT_CONTENT_METADATA_KEY = 'content';
 
 /**
  * PostgreSQL + pgvector 写入适配：upsert / deleteByFilter / listSourceRecords。
@@ -89,49 +89,39 @@ export class PgVectorStoreAdapter implements VectorStore {
       this.#client = pool;
       this.#ownedPool = pool;
     }
-    this.#schema = validateIdentifier(
-      options.schema ?? DEFAULT_SCHEMA,
-      "schema",
-    );
-    this.#tableName = validateIdentifier(options.tableName, "tableName");
-    this.#idColumn = validateIdentifier(
-      options.idColumn ?? DEFAULT_ID_COLUMN,
-      "idColumn",
-    );
+    this.#schema = validateIdentifier(options.schema ?? DEFAULT_SCHEMA, 'schema');
+    this.#tableName = validateIdentifier(options.tableName, 'tableName');
+    this.#idColumn = validateIdentifier(options.idColumn ?? DEFAULT_ID_COLUMN, 'idColumn');
     this.#vectorColumn = validateIdentifier(
       options.vectorColumn ?? DEFAULT_VECTOR_COLUMN,
-      "vectorColumn",
+      'vectorColumn',
     );
     this.#metadataColumn = validateIdentifier(
       options.metadataColumn ?? DEFAULT_METADATA_COLUMN,
-      "metadataColumn",
+      'metadataColumn',
     );
     this.#contentColumn = validateIdentifier(
       options.contentColumn ?? DEFAULT_CONTENT_COLUMN,
-      "contentColumn",
+      'contentColumn',
     );
     this.#sourceIdColumn = validateIdentifier(
       options.sourceIdColumn ?? DEFAULT_SOURCE_ID_COLUMN,
-      "sourceIdColumn",
+      'sourceIdColumn',
     );
     this.#fingerprintColumn = validateIdentifier(
       options.fingerprintColumn ?? DEFAULT_FINGERPRINT_COLUMN,
-      "fingerprintColumn",
+      'fingerprintColumn',
     );
-    this.#contentMetadataKey =
-      options.contentMetadataKey ?? DEFAULT_CONTENT_METADATA_KEY;
+    this.#contentMetadataKey = options.contentMetadataKey ?? DEFAULT_CONTENT_METADATA_KEY;
     this.#ensureTable = options.ensureTable ?? false;
     this.#dimension = options.dimension;
 
     if (this.#dimension !== undefined && this.#dimension <= 0) {
-      throw new Error("dimension must be greater than 0");
+      throw new Error('dimension must be greater than 0');
     }
   }
 
-  async upsert(
-    vectors: Vector[],
-    _context?: VectorStoreWriteContext,
-  ): Promise<void> {
+  async upsert(vectors: Vector[], _context?: VectorStoreWriteContext): Promise<void> {
     if (vectors.length === 0) {
       return;
     }
@@ -157,15 +147,15 @@ export class PgVectorStoreAdapter implements VectorStore {
         formatPgVector(vector.values),
         toJsonbValue(vector.metadata),
         readStringMetadata(vector.metadata, this.#contentMetadataKey) ?? null,
-        readStringMetadata(vector.metadata, "sourceId") ?? null,
-        readStringMetadata(vector.metadata, "fingerprint") ?? null,
+        readStringMetadata(vector.metadata, 'sourceId') ?? null,
+        readStringMetadata(vector.metadata, 'fingerprint') ?? null,
       );
 
       return `($${offset + 1}, $${offset + 2}::vector, $${offset + 3}::jsonb, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
     });
 
     await this.#client.query(
-      `INSERT INTO ${quotedTable} (${quotedIdColumn}, ${quotedVectorColumn}, ${quotedMetadataColumn}, ${quotedContentColumn}, ${quotedSourceIdColumn}, ${quotedFingerprintColumn}) VALUES ${rowsSql.join(", ")} ON CONFLICT (${quotedIdColumn}) DO UPDATE SET ${quotedVectorColumn} = EXCLUDED.${quotedVectorColumn}, ${quotedMetadataColumn} = EXCLUDED.${quotedMetadataColumn}, ${quotedContentColumn} = EXCLUDED.${quotedContentColumn}, ${quotedSourceIdColumn} = EXCLUDED.${quotedSourceIdColumn}, ${quotedFingerprintColumn} = EXCLUDED.${quotedFingerprintColumn}`,
+      `INSERT INTO ${quotedTable} (${quotedIdColumn}, ${quotedVectorColumn}, ${quotedMetadataColumn}, ${quotedContentColumn}, ${quotedSourceIdColumn}, ${quotedFingerprintColumn}) VALUES ${rowsSql.join(', ')} ON CONFLICT (${quotedIdColumn}) DO UPDATE SET ${quotedVectorColumn} = EXCLUDED.${quotedVectorColumn}, ${quotedMetadataColumn} = EXCLUDED.${quotedMetadataColumn}, ${quotedContentColumn} = EXCLUDED.${quotedContentColumn}, ${quotedSourceIdColumn} = EXCLUDED.${quotedSourceIdColumn}, ${quotedFingerprintColumn} = EXCLUDED.${quotedFingerprintColumn}`,
       values,
     );
   }
@@ -178,10 +168,7 @@ export class PgVectorStoreAdapter implements VectorStore {
       return;
     }
 
-    if (
-      (sourceIds && sourceIds.length === 0) ||
-      (fingerprints && fingerprints.length === 0)
-    ) {
+    if ((sourceIds && sourceIds.length === 0) || (fingerprints && fingerprints.length === 0)) {
       return;
     }
 
@@ -192,9 +179,7 @@ export class PgVectorStoreAdapter implements VectorStore {
 
     if (sourceIds) {
       values.push(sourceIds);
-      conditions.push(
-        `${quoteIdentifier(this.#sourceIdColumn)} = ANY($${values.length}::text[])`,
-      );
+      conditions.push(`${quoteIdentifier(this.#sourceIdColumn)} = ANY($${values.length}::text[])`);
     }
 
     if (fingerprints) {
@@ -209,7 +194,7 @@ export class PgVectorStoreAdapter implements VectorStore {
     }
 
     await this.#client.query(
-      `DELETE FROM ${this.#getQuotedTableName()} WHERE ${conditions.join(" AND ")}`,
+      `DELETE FROM ${this.#getQuotedTableName()} WHERE ${conditions.join(' AND ')}`,
       values,
     );
   }
@@ -225,10 +210,10 @@ export class PgVectorStoreAdapter implements VectorStore {
     );
 
     return (result.rows ?? [])
-      .filter((row) => typeof row.source_id === "string" && row.source_id.length > 0)
+      .filter((row) => typeof row.source_id === 'string' && row.source_id.length > 0)
       .map((row) => ({
         sourceId: row.source_id as string,
-        ...(typeof row.fingerprint === "string" && row.fingerprint.length > 0
+        ...(typeof row.fingerprint === 'string' && row.fingerprint.length > 0
           ? { fingerprint: row.fingerprint }
           : {}),
       }));
@@ -245,9 +230,7 @@ export class PgVectorStoreAdapter implements VectorStore {
     }
 
     if (!this.#initializedPromise) {
-      this.#initializedPromise = this.#ensureSchemaAndTable(
-        batchDimension,
-      ).catch((error) => {
+      this.#initializedPromise = this.#ensureSchemaAndTable(batchDimension).catch((error) => {
         this.#initializedPromise = undefined;
         throw error;
       });
@@ -261,7 +244,7 @@ export class PgVectorStoreAdapter implements VectorStore {
 
     if (!dimension || dimension <= 0) {
       throw new Error(
-        "PgVectorStoreAdapter requires a positive dimension to create the pgvector table",
+        'PgVectorStoreAdapter requires a positive dimension to create the pgvector table',
       );
     }
 
@@ -348,31 +331,24 @@ function assertConsistentDimensions(vectors: Vector[]): number {
   }
 
   if (expectedDimension <= 0) {
-    throw new Error(
-      "PgVectorStoreAdapter requires vectors to have a positive dimension",
-    );
+    throw new Error('PgVectorStoreAdapter requires vectors to have a positive dimension');
   }
 
   return expectedDimension;
 }
 
 function formatPgVector(values: number[]): string {
-  return `[${values.join(",")}]`;
+  return `[${values.join(',')}]`;
 }
 
-function toJsonbValue(metadata: Vector["metadata"]): string | null {
-  const normalizedMetadata = normalizeJsonObject(
-    metadata as Record<string, unknown> | undefined,
-  );
+function toJsonbValue(metadata: Vector['metadata']): string | null {
+  const normalizedMetadata = normalizeJsonObject(metadata as Record<string, unknown> | undefined);
 
   return normalizedMetadata ? JSON.stringify(normalizedMetadata) : null;
 }
 
-function readStringMetadata(
-  metadata: Vector["metadata"],
-  key: string,
-): string | undefined {
-  const value = metadata?.[key as keyof NonNullable<Vector["metadata"]>];
+function readStringMetadata(metadata: Vector['metadata'], key: string): string | undefined {
+  const value = metadata?.[key as keyof NonNullable<Vector['metadata']>];
 
-  return typeof value === "string" && value.length > 0 ? value : undefined;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
 }

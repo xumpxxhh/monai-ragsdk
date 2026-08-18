@@ -1,10 +1,6 @@
-import type { Document } from "@monai-ragsdk/core";
-import type {
-  IndexingMode,
-  IndexingOptions,
-  IndexingResult,
-} from "@monai-ragsdk/indexing";
-import { runIndexing } from "@monai-ragsdk/indexing";
+import type { Document } from '@monai-ragsdk/core';
+import type { IndexingMode, IndexingOptions, IndexingResult } from '@monai-ragsdk/indexing';
+import { runIndexing } from '@monai-ragsdk/indexing';
 
 import type {
   RuntimeRunOptions,
@@ -12,8 +8,8 @@ import type {
   RuntimeResult,
   RuntimeSearchResult,
   Runtime,
-} from "../types/index.js";
-import type { VectorStoreDeleteFilter, VectorStoreSourceRecord } from "@monai-ragsdk/indexing";
+} from '../types/index.js';
+import type { VectorStoreDeleteFilter, VectorStoreSourceRecord } from '@monai-ragsdk/indexing';
 
 /**
  * Collection（知识库门面）MVP。
@@ -28,7 +24,7 @@ import type { VectorStoreDeleteFilter, VectorStoreSourceRecord } from "@monai-ra
  * - 不引入第三方存储/查询路径（仍复用默认 stack 由 indexing/runtime 完成）。
  */
 export function createCollection(options: {
-  indexing: Omit<IndexingOptions, "loader">;
+  indexing: Omit<IndexingOptions, 'loader'>;
   runtime: Runtime;
 }) {
   const indexingBase = options.indexing;
@@ -52,7 +48,7 @@ export function createCollection(options: {
          * - `incremental`：复用 indexing 的 fingerprint + deleteByFilter 语义做 replace / stale cleanup。
          */
         mode?: IndexingMode;
-      } & Partial<Pick<IndexingOptions, "observer" | "trace" | "batchSize">> = {},
+      } & Partial<Pick<IndexingOptions, 'observer' | 'trace' | 'batchSize'>> = {},
     ): Promise<IndexingResult> {
       const loader = {
         async load() {
@@ -110,7 +106,7 @@ export function createCollection(options: {
         listSourceRecords?: () => Promise<VectorStoreSourceRecord[]>;
       };
 
-      if (typeof store.listSourceRecords !== "function") {
+      if (typeof store.listSourceRecords !== 'function') {
         return [];
       }
 
@@ -122,14 +118,12 @@ export function createCollection(options: {
      *
      * 返回值用于让调用方知道“是否真正执行删除”，而不是把能力缺失当作错误。
      */
-    async deleteByFilters(
-      filter: VectorStoreDeleteFilter,
-    ): Promise<boolean> {
+    async deleteByFilters(filter: VectorStoreDeleteFilter): Promise<boolean> {
       const store = indexingBase.store as unknown as {
         deleteByFilter?: (filter: VectorStoreDeleteFilter) => Promise<void>;
       };
 
-      if (typeof store.deleteByFilter !== "function") {
+      if (typeof store.deleteByFilter !== 'function') {
         return false;
       }
 
@@ -145,7 +139,7 @@ export function createCollection(options: {
     async close(): Promise<boolean> {
       const store = indexingBase.store as unknown as { close?: () => Promise<void> };
 
-      if (typeof store.close !== "function") {
+      if (typeof store.close !== 'function') {
         return false;
       }
 
@@ -156,4 +150,3 @@ export function createCollection(options: {
 }
 
 export type CollectionSearchResult = RuntimeSearchResult;
-

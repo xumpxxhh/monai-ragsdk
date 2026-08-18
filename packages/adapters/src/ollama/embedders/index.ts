@@ -1,1 +1,1 @@
-export * from "./ollama-embedder.js";
+export * from './ollama-embedder.js';

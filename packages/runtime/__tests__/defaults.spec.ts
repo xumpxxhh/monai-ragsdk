@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 
 import {
   NoopQueryPreprocessor,
@@ -10,24 +10,24 @@ import {
   applyScoreThresholdStrategy,
   applySourceCoverageStrategy,
   createDefaultPostprocessor,
-} from "../src/index.ts";
+} from '../src/index.ts';
 
-describe("runtime defaults", () => {
-  it("normalizes RuntimeQueryInput into a RetrievalRequest", async () => {
+describe('runtime defaults', () => {
+  it('normalizes RuntimeQueryInput into a RetrievalRequest', async () => {
     const preprocessor = new NoopQueryPreprocessor({
       topK: 3,
-      indexingMode: "incremental",
-      strategy: "metadata-first",
-      route: "docs",
+      indexingMode: 'incremental',
+      strategy: 'metadata-first',
+      route: 'docs',
       filters: {
-        sourceIds: ["docs/runtime"],
+        sourceIds: ['docs/runtime'],
       },
       budget: {
         maxCandidates: 10,
         maxChunks: 3,
       },
       rerank: {
-        strategy: "score-threshold",
+        strategy: 'score-threshold',
         minScore: 0.5,
       },
     });
@@ -35,51 +35,51 @@ describe("runtime defaults", () => {
     await expect(
       preprocessor.preprocess(
         {
-          query: "Explain noop preprocessor",
+          query: 'Explain noop preprocessor',
           metadata: {
-            source: "unit-test",
+            source: 'unit-test',
           },
         },
         {
-          requestId: "test",
-          input: { query: "Explain noop preprocessor" },
+          requestId: 'test',
+          input: { query: 'Explain noop preprocessor' },
           options: {},
           startedAt: Date.now(),
         },
       ),
     ).resolves.toMatchObject({
-      originalQuery: { query: "Explain noop preprocessor" },
-      effectiveQuery: { query: "Explain noop preprocessor" },
+      originalQuery: { query: 'Explain noop preprocessor' },
+      effectiveQuery: { query: 'Explain noop preprocessor' },
       topK: 3,
-      indexingMode: "incremental",
-      strategy: "metadata-first",
-      route: "docs",
+      indexingMode: 'incremental',
+      strategy: 'metadata-first',
+      route: 'docs',
       filters: {
-        sourceIds: ["docs/runtime"],
+        sourceIds: ['docs/runtime'],
       },
       budget: {
         maxCandidates: 10,
         maxChunks: 3,
       },
       rerank: {
-        strategy: "score-threshold",
+        strategy: 'score-threshold',
         minScore: 0.5,
       },
       metadata: {
-        source: "unit-test",
+        source: 'unit-test',
       },
     });
   });
 
-  it("passes candidates through as final chunks", async () => {
+  it('passes candidates through as final chunks', async () => {
     const postprocessor = new PassthroughRetrievalPostprocessor();
 
     await expect(
       postprocessor.postprocess(
         {
           request: {
-            originalQuery: { query: "Explain postprocessor" },
-            effectiveQuery: { query: "Explain postprocessor" },
+            originalQuery: { query: 'Explain postprocessor' },
+            effectiveQuery: { query: 'Explain postprocessor' },
             budget: {
               maxChunks: 1,
             },
@@ -90,23 +90,23 @@ describe("runtime defaults", () => {
           candidates: [
             {
               chunk: {
-                id: "chunk-1",
-                content: "chunk content",
+                id: 'chunk-1',
+                content: 'chunk content',
               },
               score: 0.9,
             },
             {
               chunk: {
-                id: "chunk-2",
-                content: "extra chunk",
+                id: 'chunk-2',
+                content: 'extra chunk',
               },
               score: 0.3,
             },
           ],
         },
         {
-          requestId: "test",
-          input: { query: "Explain postprocessor" },
+          requestId: 'test',
+          input: { query: 'Explain postprocessor' },
           options: {},
           startedAt: Date.now(),
         },
@@ -114,15 +114,15 @@ describe("runtime defaults", () => {
     ).resolves.toMatchObject({
       chunks: [
         {
-          id: "chunk-1",
-          content: "chunk content",
+          id: 'chunk-1',
+          content: 'chunk content',
         },
       ],
       selectedCandidates: [
         {
           chunk: {
-            id: "chunk-1",
-            content: "chunk content",
+            id: 'chunk-1',
+            content: 'chunk content',
           },
           score: 0.9,
         },
@@ -130,8 +130,8 @@ describe("runtime defaults", () => {
       droppedCandidates: [
         {
           chunk: {
-            id: "chunk-2",
-            content: "extra chunk",
+            id: 'chunk-2',
+            content: 'extra chunk',
           },
           score: 0.3,
         },
@@ -143,32 +143,32 @@ describe("runtime defaults", () => {
       selectionTrace: [
         {
           selected: true,
-          reason: "selected",
+          reason: 'selected',
         },
         {
           selected: false,
-          reason: "score-threshold",
+          reason: 'score-threshold',
         },
       ],
-      promptContext: "query: Explain postprocessor\n\nchunk content",
+      promptContext: 'query: Explain postprocessor\n\nchunk content',
     });
   });
 
-  it("applies score threshold strategy to candidates", () => {
+  it('applies score threshold strategy to candidates', () => {
     expect(
       applyScoreThresholdStrategy(
         [
           {
             chunk: {
-              id: "chunk-1",
-              content: "selected",
+              id: 'chunk-1',
+              content: 'selected',
             },
             score: 0.8,
           },
           {
             chunk: {
-              id: "chunk-2",
-              content: "dropped",
+              id: 'chunk-2',
+              content: 'dropped',
             },
             score: 0.2,
           },
@@ -179,14 +179,14 @@ describe("runtime defaults", () => {
       selectedCandidates: [
         {
           chunk: {
-            id: "chunk-1",
+            id: 'chunk-1',
           },
         },
       ],
       droppedCandidates: [
         {
           chunk: {
-            id: "chunk-2",
+            id: 'chunk-2',
           },
         },
       ],
@@ -194,36 +194,36 @@ describe("runtime defaults", () => {
       selectionTrace: [
         {
           selected: true,
-          reason: "selected",
+          reason: 'selected',
         },
         {
           selected: false,
-          reason: "score-threshold",
+          reason: 'score-threshold',
         },
       ],
     });
   });
 
-  it("applies budget trim strategy to candidates", () => {
+  it('applies budget trim strategy to candidates', () => {
     expect(
       applyBudgetTrimStrategy(
         [
           {
             chunk: {
-              id: "chunk-1",
-              content: "12345",
+              id: 'chunk-1',
+              content: '12345',
             },
           },
           {
             chunk: {
-              id: "chunk-2",
-              content: "67890",
+              id: 'chunk-2',
+              content: '67890',
             },
           },
           {
             chunk: {
-              id: "chunk-3",
-              content: "abcde",
+              id: 'chunk-3',
+              content: 'abcde',
             },
           },
         ],
@@ -237,19 +237,19 @@ describe("runtime defaults", () => {
       selectedCandidates: [
         {
           chunk: {
-            id: "chunk-1",
+            id: 'chunk-1',
           },
         },
       ],
       droppedCandidates: [
         {
           chunk: {
-            id: "chunk-2",
+            id: 'chunk-2',
           },
         },
         {
           chunk: {
-            id: "chunk-3",
+            id: 'chunk-3',
           },
         },
       ],
@@ -261,14 +261,14 @@ describe("runtime defaults", () => {
     });
   });
 
-  it("treats maxPromptChars as a hard limit", () => {
+  it('treats maxPromptChars as a hard limit', () => {
     expect(
       applyBudgetTrimStrategy(
         [
           {
             chunk: {
-              id: "chunk-1",
-              content: "123456789",
+              id: 'chunk-1',
+              content: '123456789',
             },
           },
         ],
@@ -281,47 +281,47 @@ describe("runtime defaults", () => {
       droppedCandidates: [
         {
           chunk: {
-            id: "chunk-1",
+            id: 'chunk-1',
           },
         },
       ],
       selectionTrace: [
         {
           selected: false,
-          reason: "max-prompt-chars",
+          reason: 'max-prompt-chars',
         },
       ],
     });
   });
 
-  it("applies custom predicate filtering and records the dropped reason", async () => {
+  it('applies custom predicate filtering and records the dropped reason', async () => {
     await expect(
       applyCandidatePredicateStrategy(
         [
           {
             chunk: {
-              id: "chunk-1",
-              content: "runtime docs",
+              id: 'chunk-1',
+              content: 'runtime docs',
             },
-            sourceId: "docs/runtime",
+            sourceId: 'docs/runtime',
           },
           {
             chunk: {
-              id: "chunk-2",
-              content: "other docs",
+              id: 'chunk-2',
+              content: 'other docs',
             },
-            sourceId: "docs/other",
+            sourceId: 'docs/other',
           },
         ],
-        ({ candidate }) => candidate.sourceId === "docs/runtime",
+        ({ candidate }) => candidate.sourceId === 'docs/runtime',
         {
           request: {
-            originalQuery: { query: "Explain runtime docs" },
-            effectiveQuery: { query: "Explain runtime docs" },
+            originalQuery: { query: 'Explain runtime docs' },
+            effectiveQuery: { query: 'Explain runtime docs' },
           },
           context: {
-            requestId: "test",
-            input: { query: "Explain runtime docs" },
+            requestId: 'test',
+            input: { query: 'Explain runtime docs' },
             options: {},
             startedAt: Date.now(),
           },
@@ -331,14 +331,14 @@ describe("runtime defaults", () => {
       selectedCandidates: [
         {
           chunk: {
-            id: "chunk-1",
+            id: 'chunk-1',
           },
         },
       ],
       droppedCandidates: [
         {
           chunk: {
-            id: "chunk-2",
+            id: 'chunk-2',
           },
         },
       ],
@@ -346,33 +346,33 @@ describe("runtime defaults", () => {
       selectionTrace: [
         {
           selected: true,
-          reason: "selected",
-          stage: "predicate-filter",
+          reason: 'selected',
+          stage: 'predicate-filter',
         },
         {
           selected: false,
-          reason: "predicate-filter",
-          stage: "predicate-filter",
+          reason: 'predicate-filter',
+          stage: 'predicate-filter',
         },
       ],
     });
   });
 
-  it("keeps selected candidates in the comparator order", () => {
+  it('keeps selected candidates in the comparator order', () => {
     expect(
       applyCandidateOrderingStrategy(
         [
           {
             chunk: {
-              id: "chunk-1",
-              content: "lower score",
+              id: 'chunk-1',
+              content: 'lower score',
             },
             score: 0.2,
           },
           {
             chunk: {
-              id: "chunk-2",
-              content: "higher score",
+              id: 'chunk-2',
+              content: 'higher score',
             },
             score: 0.9,
           },
@@ -380,12 +380,12 @@ describe("runtime defaults", () => {
         (left, right) => (right.score ?? 0) - (left.score ?? 0),
         {
           request: {
-            originalQuery: { query: "Explain ordering" },
-            effectiveQuery: { query: "Explain ordering" },
+            originalQuery: { query: 'Explain ordering' },
+            effectiveQuery: { query: 'Explain ordering' },
           },
           context: {
-            requestId: "test",
-            input: { query: "Explain ordering" },
+            requestId: 'test',
+            input: { query: 'Explain ordering' },
             options: {},
             startedAt: Date.now(),
           },
@@ -395,12 +395,12 @@ describe("runtime defaults", () => {
       candidates: [
         {
           chunk: {
-            id: "chunk-2",
+            id: 'chunk-2',
           },
         },
         {
           chunk: {
-            id: "chunk-1",
+            id: 'chunk-1',
           },
         },
       ],
@@ -408,26 +408,26 @@ describe("runtime defaults", () => {
         {
           candidate: {
             chunk: {
-              id: "chunk-2",
+              id: 'chunk-2',
             },
           },
           order: 0,
-          stage: "context-ordering",
+          stage: 'context-ordering',
         },
         {
           candidate: {
             chunk: {
-              id: "chunk-1",
+              id: 'chunk-1',
             },
           },
           order: 1,
-          stage: "context-ordering",
+          stage: 'context-ordering',
         },
       ],
     });
   });
 
-  it("supports fixed budget and trace disabling in the default postprocessor", async () => {
+  it('supports fixed budget and trace disabling in the default postprocessor', async () => {
     const postprocessor = createDefaultPostprocessor({
       budget: {
         maxCandidates: 1,
@@ -439,29 +439,29 @@ describe("runtime defaults", () => {
       postprocessor.postprocess(
         {
           request: {
-            originalQuery: { query: "Explain default postprocessor" },
-            effectiveQuery: { query: "Explain default postprocessor" },
+            originalQuery: { query: 'Explain default postprocessor' },
+            effectiveQuery: { query: 'Explain default postprocessor' },
           },
           candidates: [
             {
               chunk: {
-                id: "chunk-1",
-                content: "first",
+                id: 'chunk-1',
+                content: 'first',
               },
               score: 0.9,
             },
             {
               chunk: {
-                id: "chunk-2",
-                content: "second",
+                id: 'chunk-2',
+                content: 'second',
               },
               score: 0.8,
             },
           ],
         },
         {
-          requestId: "test",
-          input: { query: "Explain default postprocessor" },
+          requestId: 'test',
+          input: { query: 'Explain default postprocessor' },
           options: {},
           startedAt: Date.now(),
         },
@@ -470,14 +470,14 @@ describe("runtime defaults", () => {
       selectedCandidates: [
         {
           chunk: {
-            id: "chunk-1",
+            id: 'chunk-1',
           },
         },
       ],
       droppedCandidates: [
         {
           chunk: {
-            id: "chunk-2",
+            id: 'chunk-2',
           },
         },
       ],
@@ -489,71 +489,71 @@ describe("runtime defaults", () => {
       postprocessor.postprocess(
         {
           request: {
-            originalQuery: { query: "Explain default postprocessor" },
-            effectiveQuery: { query: "Explain default postprocessor" },
+            originalQuery: { query: 'Explain default postprocessor' },
+            effectiveQuery: { query: 'Explain default postprocessor' },
           },
           candidates: [
             {
               chunk: {
-                id: "chunk-1",
-                content: "first",
+                id: 'chunk-1',
+                content: 'first',
               },
               score: 0.9,
             },
           ],
         },
         {
-          requestId: "test",
-          input: { query: "Explain default postprocessor" },
+          requestId: 'test',
+          input: { query: 'Explain default postprocessor' },
           options: {},
           startedAt: Date.now(),
         },
       ),
-    ).resolves.not.toHaveProperty("selectionTrace");
+    ).resolves.not.toHaveProperty('selectionTrace');
   });
 
-  it("supports predicate filtering and candidate ordering in the default postprocessor", async () => {
+  it('supports predicate filtering and candidate ordering in the default postprocessor', async () => {
     const postprocessor = new PassthroughRetrievalPostprocessor({
-      candidatePredicate: ({ candidate }) => candidate.sourceId !== "docs/drop",
+      candidatePredicate: ({ candidate }) => candidate.sourceId !== 'docs/drop',
       orderCandidates: (left, right) => (right.score ?? 0) - (left.score ?? 0),
     });
 
     const result = await postprocessor.postprocess(
       {
         request: {
-          originalQuery: { query: "Explain configured postprocessor" },
-          effectiveQuery: { query: "Explain configured postprocessor" },
+          originalQuery: { query: 'Explain configured postprocessor' },
+          effectiveQuery: { query: 'Explain configured postprocessor' },
         },
         candidates: [
           {
             chunk: {
-              id: "chunk-1",
-              content: "kept but lower score",
+              id: 'chunk-1',
+              content: 'kept but lower score',
             },
-            sourceId: "docs/runtime",
+            sourceId: 'docs/runtime',
             score: 0.7,
           },
           {
             chunk: {
-              id: "chunk-2",
-              content: "dropped by predicate",
+              id: 'chunk-2',
+              content: 'dropped by predicate',
             },
-            sourceId: "docs/drop",
+            sourceId: 'docs/drop',
             score: 1,
           },
           {
             chunk: {
-              id: "chunk-3",
-              content: "kept and higher score",
+              id: 'chunk-3',
+              content: 'kept and higher score',
             },
-            sourceId: "docs/runtime",
+            sourceId: 'docs/runtime',
             score: 0.9,
           },
         ],
       },
       {
-        requestId: "test",
-        input: { query: "Explain configured postprocessor" },
+        requestId: 'test',
+        input: { query: 'Explain configured postprocessor' },
         options: {},
         startedAt: Date.now(),
       },
@@ -563,19 +563,19 @@ describe("runtime defaults", () => {
       selectedCandidates: [
         {
           chunk: {
-            id: "chunk-3",
+            id: 'chunk-3',
           },
         },
         {
           chunk: {
-            id: "chunk-1",
+            id: 'chunk-1',
           },
         },
       ],
       droppedCandidates: [
         {
           chunk: {
-            id: "chunk-2",
+            id: 'chunk-2',
           },
         },
       ],
@@ -585,53 +585,53 @@ describe("runtime defaults", () => {
         expect.objectContaining({
           candidate: expect.objectContaining({
             chunk: expect.objectContaining({
-              id: "chunk-3",
+              id: 'chunk-3',
             }),
           }),
-          stage: "context-ordering",
+          stage: 'context-ordering',
           order: 0,
         }),
         expect.objectContaining({
           candidate: expect.objectContaining({
             chunk: expect.objectContaining({
-              id: "chunk-2",
+              id: 'chunk-2',
             }),
           }),
-          stage: "predicate-filter",
-          reason: "predicate-filter",
+          stage: 'predicate-filter',
+          reason: 'predicate-filter',
           selected: false,
         }),
         expect.objectContaining({
           candidate: expect.objectContaining({
             chunk: expect.objectContaining({
-              id: "chunk-1",
+              id: 'chunk-1',
             }),
           }),
-          stage: "context-ordering",
+          stage: 'context-ordering',
           order: 1,
         }),
       ]),
     );
   });
 
-  it("removes near-duplicate candidates by fingerprint and keeps the higher-scored one", () => {
+  it('removes near-duplicate candidates by fingerprint and keeps the higher-scored one', () => {
     expect(
       applyNearDuplicateRemovalStrategy(
         [
           {
             chunk: {
-              id: "chunk-1",
-              content: "runtime guide introduction",
+              id: 'chunk-1',
+              content: 'runtime guide introduction',
             },
-            fingerprint: "shared-fingerprint",
+            fingerprint: 'shared-fingerprint',
             score: 0.6,
           },
           {
             chunk: {
-              id: "chunk-2",
-              content: "runtime guide introduction updated",
+              id: 'chunk-2',
+              content: 'runtime guide introduction updated',
             },
-            fingerprint: "shared-fingerprint",
+            fingerprint: 'shared-fingerprint',
             score: 0.95,
           },
         ],
@@ -640,12 +640,12 @@ describe("runtime defaults", () => {
         },
         {
           request: {
-            originalQuery: { query: "Explain runtime guide" },
-            effectiveQuery: { query: "Explain runtime guide" },
+            originalQuery: { query: 'Explain runtime guide' },
+            effectiveQuery: { query: 'Explain runtime guide' },
           },
           context: {
-            requestId: "test",
-            input: { query: "Explain runtime guide" },
+            requestId: 'test',
+            input: { query: 'Explain runtime guide' },
             options: {},
             startedAt: Date.now(),
           },
@@ -655,14 +655,14 @@ describe("runtime defaults", () => {
       selectedCandidates: [
         {
           chunk: {
-            id: "chunk-2",
+            id: 'chunk-2',
           },
         },
       ],
       droppedCandidates: [
         {
           chunk: {
-            id: "chunk-1",
+            id: 'chunk-1',
           },
         },
       ],
@@ -670,21 +670,21 @@ describe("runtime defaults", () => {
     });
   });
 
-  it("falls back to normalized text similarity for near-duplicate removal", () => {
+  it('falls back to normalized text similarity for near-duplicate removal', () => {
     expect(
       applyNearDuplicateRemovalStrategy(
         [
           {
             chunk: {
-              id: "chunk-1",
-              content: "Runtime architecture overview for the knowledge base",
+              id: 'chunk-1',
+              content: 'Runtime architecture overview for the knowledge base',
             },
             score: 0.9,
           },
           {
             chunk: {
-              id: "chunk-2",
-              content: "runtime architecture overview for knowledge base",
+              id: 'chunk-2',
+              content: 'runtime architecture overview for knowledge base',
             },
             score: 0.7,
           },
@@ -695,12 +695,12 @@ describe("runtime defaults", () => {
         },
         {
           request: {
-            originalQuery: { query: "Explain runtime architecture" },
-            effectiveQuery: { query: "Explain runtime architecture" },
+            originalQuery: { query: 'Explain runtime architecture' },
+            effectiveQuery: { query: 'Explain runtime architecture' },
           },
           context: {
-            requestId: "test",
-            input: { query: "Explain runtime architecture" },
+            requestId: 'test',
+            input: { query: 'Explain runtime architecture' },
             options: {},
             startedAt: Date.now(),
           },
@@ -710,55 +710,55 @@ describe("runtime defaults", () => {
       selectedCandidates: [
         {
           chunk: {
-            id: "chunk-1",
+            id: 'chunk-1',
           },
         },
       ],
       droppedCandidates: [
         {
           chunk: {
-            id: "chunk-2",
+            id: 'chunk-2',
           },
         },
       ],
       selectionTrace: [
         {
           selected: true,
-          stage: "duplicate-removal",
+          stage: 'duplicate-removal',
         },
         {
           selected: false,
-          reason: "duplicate",
-          stage: "duplicate-removal",
+          reason: 'duplicate',
+          stage: 'duplicate-removal',
         },
       ],
     });
   });
 
-  it("applies source coverage by limiting candidates per source", () => {
+  it('applies source coverage by limiting candidates per source', () => {
     expect(
       applySourceCoverageStrategy(
         [
           {
             chunk: {
-              id: "chunk-1",
-              content: "runtime source 1",
+              id: 'chunk-1',
+              content: 'runtime source 1',
             },
-            sourceId: "docs/runtime",
+            sourceId: 'docs/runtime',
           },
           {
             chunk: {
-              id: "chunk-2",
-              content: "runtime source 2",
+              id: 'chunk-2',
+              content: 'runtime source 2',
             },
-            sourceId: "docs/runtime",
+            sourceId: 'docs/runtime',
           },
           {
             chunk: {
-              id: "chunk-3",
-              content: "indexing source 1",
+              id: 'chunk-3',
+              content: 'indexing source 1',
             },
-            sourceId: "docs/indexing",
+            sourceId: 'docs/indexing',
           },
         ],
         {
@@ -770,19 +770,19 @@ describe("runtime defaults", () => {
       selectedCandidates: [
         {
           chunk: {
-            id: "chunk-1",
+            id: 'chunk-1',
           },
         },
         {
           chunk: {
-            id: "chunk-3",
+            id: 'chunk-3',
           },
         },
       ],
       droppedCandidates: [
         {
           chunk: {
-            id: "chunk-2",
+            id: 'chunk-2',
           },
         },
       ],
@@ -790,22 +790,22 @@ describe("runtime defaults", () => {
       selectionTrace: [
         {
           selected: true,
-          stage: "source-coverage",
+          stage: 'source-coverage',
         },
         {
           selected: false,
-          reason: "source-coverage-quota",
-          stage: "source-coverage",
+          reason: 'source-coverage-quota',
+          stage: 'source-coverage',
         },
         {
           selected: true,
-          stage: "source-coverage",
+          stage: 'source-coverage',
         },
       ],
     });
   });
 
-  it("supports duplicate removal and source coverage in the default postprocessor", async () => {
+  it('supports duplicate removal and source coverage in the default postprocessor', async () => {
     const postprocessor = createDefaultPostprocessor({
       nearDuplicateRemovalConfig: {
         enabled: true,
@@ -820,49 +820,49 @@ describe("runtime defaults", () => {
     const result = await postprocessor.postprocess(
       {
         request: {
-          originalQuery: { query: "Explain runtime sources" },
-          effectiveQuery: { query: "Explain runtime sources" },
+          originalQuery: { query: 'Explain runtime sources' },
+          effectiveQuery: { query: 'Explain runtime sources' },
         },
         candidates: [
           {
             chunk: {
-              id: "chunk-1",
-              content: "runtime primary chunk",
+              id: 'chunk-1',
+              content: 'runtime primary chunk',
             },
-            fingerprint: "runtime-fp",
-            sourceId: "docs/runtime",
+            fingerprint: 'runtime-fp',
+            sourceId: 'docs/runtime',
             score: 0.95,
           },
           {
             chunk: {
-              id: "chunk-2",
-              content: "runtime primary chunk",
+              id: 'chunk-2',
+              content: 'runtime primary chunk',
             },
-            fingerprint: "runtime-fp",
-            sourceId: "docs/runtime",
+            fingerprint: 'runtime-fp',
+            sourceId: 'docs/runtime',
             score: 0.9,
           },
           {
             chunk: {
-              id: "chunk-3",
-              content: "runtime secondary chunk",
+              id: 'chunk-3',
+              content: 'runtime secondary chunk',
             },
-            sourceId: "docs/runtime",
+            sourceId: 'docs/runtime',
             score: 0.85,
           },
           {
             chunk: {
-              id: "chunk-4",
-              content: "indexing chunk",
+              id: 'chunk-4',
+              content: 'indexing chunk',
             },
-            sourceId: "docs/indexing",
+            sourceId: 'docs/indexing',
             score: 0.8,
           },
         ],
       },
       {
-        requestId: "test",
-        input: { query: "Explain runtime sources" },
+        requestId: 'test',
+        input: { query: 'Explain runtime sources' },
         options: {},
         startedAt: Date.now(),
       },
@@ -872,24 +872,24 @@ describe("runtime defaults", () => {
       selectedCandidates: [
         {
           chunk: {
-            id: "chunk-1",
+            id: 'chunk-1',
           },
         },
         {
           chunk: {
-            id: "chunk-4",
+            id: 'chunk-4',
           },
         },
       ],
       droppedCandidates: [
         {
           chunk: {
-            id: "chunk-2",
+            id: 'chunk-2',
           },
         },
         {
           chunk: {
-            id: "chunk-3",
+            id: 'chunk-3',
           },
         },
       ],
@@ -898,18 +898,18 @@ describe("runtime defaults", () => {
       expect.arrayContaining([
         expect.objectContaining({
           candidate: expect.objectContaining({
-            chunk: expect.objectContaining({ id: "chunk-2" }),
+            chunk: expect.objectContaining({ id: 'chunk-2' }),
           }),
-          stage: "duplicate-removal",
-          reason: "duplicate",
+          stage: 'duplicate-removal',
+          reason: 'duplicate',
           selected: false,
         }),
         expect.objectContaining({
           candidate: expect.objectContaining({
-            chunk: expect.objectContaining({ id: "chunk-3" }),
+            chunk: expect.objectContaining({ id: 'chunk-3' }),
           }),
-          stage: "source-coverage",
-          reason: "source-coverage-quota",
+          stage: 'source-coverage',
+          reason: 'source-coverage-quota',
           selected: false,
         }),
       ]),

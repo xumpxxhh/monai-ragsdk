@@ -1,7 +1,7 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import * as srcExports from "../src/index.ts";
-import * as distExports from "../dist/index.js";
+import * as srcExports from '../src/index.ts';
+import * as distExports from '../dist/index.js';
 import type {
   Chunk,
   Document,
@@ -17,16 +17,14 @@ import type {
   RAGStageStrategies,
   Retriever,
   Vector,
-} from "../src/index.ts";
+} from '../src/index.ts';
 
-describe("core export surface", () => {
-  it("keeps dist runtime exports aligned with src runtime exports", () => {
-    expect(Object.keys(distExports).sort()).toEqual(
-      Object.keys(srcExports).sort(),
-    );
+describe('core export surface', () => {
+  it('keeps dist runtime exports aligned with src runtime exports', () => {
+    expect(Object.keys(distExports).sort()).toEqual(Object.keys(srcExports).sort());
   });
 
-  it("exposes schemas and error constructors from dist", () => {
+  it('exposes schemas and error constructors from dist', () => {
     expect(distExports.QuerySchema).toBeDefined();
     expect(distExports.ChunkSchema).toBeDefined();
     expect(distExports.DocumentSchema).toBeDefined();
@@ -49,7 +47,7 @@ describe("core export surface", () => {
     expect(distExports.GenerationError).toBeDefined();
   });
 
-  it("preserves the intended public types", () => {
+  it('preserves the intended public types', () => {
     expectTypeOf<Query>().toMatchObjectType<{
       query: string;
       metadata?: Record<string, unknown>;
@@ -104,8 +102,8 @@ describe("core export surface", () => {
       originalQuery: Query;
       effectiveQuery: Query;
     }>();
-    expectTypeOf<Retriever>().toHaveProperty("retrieve");
-    expectTypeOf<Generator>().toHaveProperty("generate");
+    expectTypeOf<Retriever>().toHaveProperty('retrieve');
+    expectTypeOf<Generator>().toHaveProperty('generate');
     expectTypeOf<RAGPipeline>().toBeFunction();
   });
 });

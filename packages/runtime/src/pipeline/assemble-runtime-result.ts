@@ -9,37 +9,37 @@ import type {
   RAGSelectionTraceEntry,
   RAGStageStrategies,
   RAGTimings,
-} from "@monai-ragsdk/core";
+} from '@monai-ragsdk/core';
 
-import type { PostRetrievalResult } from "../types/post-retrieval-result.js";
-import type { PostRetrievalSelectionTraceEntry } from "../types/post-retrieval-selection-trace.js";
-import type { RetrievalBudget } from "../types/retrieval-budget.js";
-import type { RetrievalCandidate } from "../types/retrieval-candidate.js";
-import type { RetrievalFilters } from "../types/retrieval-filters.js";
-import type { RetrievalRequest } from "../types/retrieval-request.js";
-import type { RetrievalRerankPolicy } from "../types/retrieval-rerank-policy.js";
-import type { RuntimeDebugInfo } from "../types/runtime-debug-info.js";
-import type { RuntimeGenerationResult } from "../types/runtime-generation-result.js";
-import type { RuntimeResult } from "../types/runtime-result.js";
-import type { RuntimeSearchResult } from "../types/runtime-search-result.js";
-import type { RuntimeRetrievalResult } from "../types/runtime-retrieval-result.js";
-import type { RuntimeStage } from "../types/runtime-stage.js";
-import { buildRuntimeCitations } from "./build-runtime-citations.js";
+import type { PostRetrievalResult } from '../types/post-retrieval-result.js';
+import type { PostRetrievalSelectionTraceEntry } from '../types/post-retrieval-selection-trace.js';
+import type { RetrievalBudget } from '../types/retrieval-budget.js';
+import type { RetrievalCandidate } from '../types/retrieval-candidate.js';
+import type { RetrievalFilters } from '../types/retrieval-filters.js';
+import type { RetrievalRequest } from '../types/retrieval-request.js';
+import type { RetrievalRerankPolicy } from '../types/retrieval-rerank-policy.js';
+import type { RuntimeDebugInfo } from '../types/runtime-debug-info.js';
+import type { RuntimeGenerationResult } from '../types/runtime-generation-result.js';
+import type { RuntimeResult } from '../types/runtime-result.js';
+import type { RuntimeSearchResult } from '../types/runtime-search-result.js';
+import type { RuntimeRetrievalResult } from '../types/runtime-retrieval-result.js';
+import type { RuntimeStage } from '../types/runtime-stage.js';
+import { buildRuntimeCitations } from './build-runtime-citations.js';
 
 function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
+  return typeof value === 'number' && Number.isFinite(value);
 }
 
 function isPositiveInt(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value > 0;
+  return typeof value === 'number' && Number.isInteger(value) && value > 0;
 }
 
 function isNonNegativeInt(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
 function readJsonString(value: JsonValue | undefined): string | undefined {
@@ -73,13 +73,9 @@ function toAuditBudget(budget?: RetrievalBudget): RAGBudget | undefined {
   }
 
   const next: RAGBudget = {
-    ...(isPositiveInt(budget.maxCandidates)
-      ? { maxCandidates: budget.maxCandidates }
-      : {}),
+    ...(isPositiveInt(budget.maxCandidates) ? { maxCandidates: budget.maxCandidates } : {}),
     ...(isPositiveInt(budget.maxChunks) ? { maxChunks: budget.maxChunks } : {}),
-    ...(isPositiveInt(budget.maxPromptChars)
-      ? { maxPromptChars: budget.maxPromptChars }
-      : {}),
+    ...(isPositiveInt(budget.maxPromptChars) ? { maxPromptChars: budget.maxPromptChars } : {}),
   };
 
   return Object.keys(next).length > 0 ? next : undefined;
@@ -102,8 +98,7 @@ function toAuditFilters(filters?: RetrievalFilters): RAGFilters | undefined {
       : {}),
     ...(filters.parentHierarchyPaths && filters.parentHierarchyPaths.length > 0
       ? {
-          parentHierarchyPaths:
-            filters.parentHierarchyPaths.filter(isNonEmptyString),
+          parentHierarchyPaths: filters.parentHierarchyPaths.filter(isNonEmptyString),
         }
       : {}),
     ...(isNonNegativeInt(filters.minHierarchyDepth)
@@ -124,9 +119,7 @@ function toAuditRerank(rerank?: RetrievalRerankPolicy): RAGRerank | undefined {
   }
 
   const next: RAGRerank = {
-    ...(isNonEmptyString(rerank.strategy)
-      ? { strategy: rerank.strategy.trim() }
-      : {}),
+    ...(isNonEmptyString(rerank.strategy) ? { strategy: rerank.strategy.trim() } : {}),
     ...(isPositiveInt(rerank.topK) ? { topK: rerank.topK } : {}),
     ...(isFiniteNumber(rerank.minScore) ? { minScore: rerank.minScore } : {}),
   };
@@ -134,9 +127,7 @@ function toAuditRerank(rerank?: RetrievalRerankPolicy): RAGRerank | undefined {
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
-function toRetrievedCandidates(
-  candidates: RetrievalCandidate[],
-): RAGRetrievedCandidate[] {
+function toRetrievedCandidates(candidates: RetrievalCandidate[]): RAGRetrievedCandidate[] {
   return candidates.map((candidate) => {
     const item: RAGRetrievedCandidate = {
       chunkId: candidate.chunk.id,
@@ -205,25 +196,22 @@ function toAuditSelectionTrace(
 }
 
 function toAuditTimings(
-  timings: Partial<Record<RuntimeStage | "total", number>>,
+  timings: Partial<Record<RuntimeStage | 'total', number>>,
 ): RAGTimings | undefined {
   const next: RAGTimings = {
-    ...(isFiniteNumber(timings["pre-retrieval"]) && timings["pre-retrieval"] >= 0
-      ? { preRetrieval: timings["pre-retrieval"] }
+    ...(isFiniteNumber(timings['pre-retrieval']) && timings['pre-retrieval'] >= 0
+      ? { preRetrieval: timings['pre-retrieval'] }
       : {}),
     ...(isFiniteNumber(timings.retrieval) && timings.retrieval >= 0
       ? { retrieval: timings.retrieval }
       : {}),
-    ...(isFiniteNumber(timings["post-retrieval"]) &&
-    timings["post-retrieval"] >= 0
-      ? { postRetrieval: timings["post-retrieval"] }
+    ...(isFiniteNumber(timings['post-retrieval']) && timings['post-retrieval'] >= 0
+      ? { postRetrieval: timings['post-retrieval'] }
       : {}),
     ...(isFiniteNumber(timings.generation) && timings.generation >= 0
       ? { generation: timings.generation }
       : {}),
-    ...(isFiniteNumber(timings.total) && timings.total >= 0
-      ? { total: timings.total }
-      : {}),
+    ...(isFiniteNumber(timings.total) && timings.total >= 0 ? { total: timings.total } : {}),
   };
 
   return Object.keys(next).length > 0 ? next : undefined;
@@ -234,9 +222,7 @@ function toAuditStrategies(input: {
   retrievalResult: RuntimeRetrievalResult;
   postResult: PostRetrievalResult;
 }): RAGStageStrategies | undefined {
-  const retrievalProvider = readJsonString(
-    input.retrievalResult.retrievalMetadata?.provider,
-  );
+  const retrievalProvider = readJsonString(input.retrievalResult.retrievalMetadata?.provider);
   const postRetrieval = uniqueStrings([
     input.request.rerank?.strategy,
     ...(input.postResult.selectionTrace?.map((entry) => entry.stage) ?? []),
@@ -260,11 +246,8 @@ function toAuditCounts(
   postResult: PostRetrievalResult,
 ): RAGCounts {
   const retrieved = retrievalResult.candidates.length;
-  const selected =
-    postResult.selectedCandidates?.length ?? postResult.chunks.length;
-  const dropped =
-    postResult.droppedCandidates?.length ??
-    Math.max(retrieved - selected, 0);
+  const selected = postResult.selectedCandidates?.length ?? postResult.chunks.length;
+  const dropped = postResult.droppedCandidates?.length ?? Math.max(retrieved - selected, 0);
 
   return {
     retrieved,
@@ -275,7 +258,7 @@ function toAuditCounts(
 }
 
 function readGenerationModel(
-  generationMetadata: RuntimeGenerationResult["generationMetadata"],
+  generationMetadata: RuntimeGenerationResult['generationMetadata'],
 ): string | undefined {
   return readJsonString(generationMetadata?.model);
 }
@@ -287,7 +270,7 @@ export type AssembleRetrievalSnapshotInput = {
   requestId: string;
   traceId: string;
   startedAt: number;
-  timings: Partial<Record<RuntimeStage | "total", number>>;
+  timings: Partial<Record<RuntimeStage | 'total', number>>;
   debug?: RuntimeDebugInfo;
 };
 
@@ -309,23 +292,18 @@ export function assembleRuntimeSearchResult(
     (candidate) => candidate.chunk.id,
   );
   const rewriteReason =
-    isNonEmptyString(input.request.rewriteReason) &&
-    input.request.rewriteReason !== "query-routing"
+    isNonEmptyString(input.request.rewriteReason) && input.request.rewriteReason !== 'query-routing'
       ? input.request.rewriteReason
       : undefined;
   const routeReason =
-    input.request.rewriteReason === "query-routing"
-      ? input.request.rewriteReason
-      : undefined;
+    input.request.rewriteReason === 'query-routing' ? input.request.rewriteReason : undefined;
   const strategies = toAuditStrategies(input);
   const filters = toAuditFilters(input.request.filters);
   const budget = toAuditBudget(input.request.budget);
-  const appliedBudget = toAuditBudget(
-    input.postResult.appliedBudget ?? input.request.budget,
-  );
+  const appliedBudget = toAuditBudget(input.postResult.appliedBudget ?? input.request.budget);
   const rerank = toAuditRerank(input.request.rerank);
   const timings = toAuditTimings(input.timings);
-  const snapshot: Omit<RuntimeSearchResult, "debug"> = {
+  const snapshot: Omit<RuntimeSearchResult, 'debug'> = {
     chunks: input.postResult.chunks,
     citations,
     originalQuery: input.request.originalQuery,
@@ -341,9 +319,7 @@ export function assembleRuntimeSearchResult(
       ? { subQueries: input.request.subQueries }
       : {}),
     ...(rewriteReason ? { rewriteReason } : {}),
-    ...(isNonEmptyString(input.request.route)
-      ? { route: input.request.route }
-      : {}),
+    ...(isNonEmptyString(input.request.route) ? { route: input.request.route } : {}),
     ...(routeReason ? { routeReason } : {}),
     ...(strategies ? { strategies } : {}),
     ...(isPositiveInt(input.request.topK) ? { topK: input.request.topK } : {}),
@@ -351,14 +327,9 @@ export function assembleRuntimeSearchResult(
     ...(budget ? { budget } : {}),
     ...(appliedBudget ? { appliedBudget } : {}),
     ...(rerank ? { rerank } : {}),
-    ...(input.request.indexingMode
-      ? { indexingMode: input.request.indexingMode }
-      : {}),
-    ...(droppedChunkIds && droppedChunkIds.length > 0
-      ? { droppedChunkIds }
-      : {}),
-    ...(input.postResult.selectionTrace &&
-    input.postResult.selectionTrace.length > 0
+    ...(input.request.indexingMode ? { indexingMode: input.request.indexingMode } : {}),
+    ...(droppedChunkIds && droppedChunkIds.length > 0 ? { droppedChunkIds } : {}),
+    ...(input.postResult.selectionTrace && input.postResult.selectionTrace.length > 0
       ? {
           selectionTrace: toAuditSelectionTrace(input.postResult.selectionTrace),
         }
@@ -367,14 +338,11 @@ export function assembleRuntimeSearchResult(
     isFiniteNumber(input.request.rerank?.minScore)
       ? {
           appliedScoreThreshold:
-            input.postResult.appliedScoreThreshold ??
-            input.request.rerank?.minScore,
+            input.postResult.appliedScoreThreshold ?? input.request.rerank?.minScore,
         }
       : {}),
     ...(timings ? { timings } : {}),
-    ...(input.postResult.promptContext
-      ? { promptContext: input.postResult.promptContext }
-      : {}),
+    ...(input.postResult.promptContext ? { promptContext: input.postResult.promptContext } : {}),
     ...(input.retrievalResult.retrievalMetadata
       ? { retrievalMetadata: input.retrievalResult.retrievalMetadata }
       : {}),
@@ -393,13 +361,9 @@ export function assembleRuntimeSearchResult(
  * 把四阶段产物收成对外 RuntimeResult。
  * 审计具名字段始终写入（不依赖 includeDebug）；debug 仍只在调用方显式打开时附带完整过程对象。
  */
-export function assembleRuntimeResult(
-  input: AssembleRuntimeResultInput,
-): RuntimeResult {
+export function assembleRuntimeResult(input: AssembleRuntimeResultInput): RuntimeResult {
   const snapshot = assembleRuntimeSearchResult(input);
-  const generationModel = readGenerationModel(
-    input.generationResult.generationMetadata,
-  );
+  const generationModel = readGenerationModel(input.generationResult.generationMetadata);
 
   return {
     ...snapshot,

@@ -1,6 +1,6 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-import { JsonObjectSchema } from "./json.js";
+import { JsonObjectSchema } from './json.js';
 
 export const DocumentSchema = z.object({
   id: z.string(),

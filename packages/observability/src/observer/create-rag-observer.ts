@@ -1,10 +1,10 @@
-import type { TraceExporter } from "../exporters/trace-exporter.js";
-import type { RAGErrorRecord } from "../types/rag-error-record.js";
-import type { RAGEvent } from "../types/rag-event.js";
-import type { RAGTrace } from "../types/rag-trace.js";
-import type { RAGTags } from "../types/rag-attributes.js";
-import { invokeObserverSafely } from "../utils/index.js";
-import type { RAGObserver } from "./rag-observer.js";
+import type { TraceExporter } from '../exporters/trace-exporter.js';
+import type { RAGErrorRecord } from '../types/rag-error-record.js';
+import type { RAGEvent } from '../types/rag-event.js';
+import type { RAGTrace } from '../types/rag-trace.js';
+import type { RAGTags } from '../types/rag-attributes.js';
+import { invokeObserverSafely } from '../utils/index.js';
+import type { RAGObserver } from './rag-observer.js';
 
 type TraceBuffer = {
   events: RAGEvent[];
@@ -32,26 +32,19 @@ function mergeTags(
   };
 }
 
-async function exportTrace(
-  exporters: TraceExporter[],
-  trace: RAGTrace,
-): Promise<void> {
+async function exportTrace(exporters: TraceExporter[], trace: RAGTrace): Promise<void> {
   await Promise.all(
-    exporters.map((exporter) =>
-      invokeObserverSafely(() => exporter.export(trace)),
-    ),
+    exporters.map((exporter) => invokeObserverSafely(() => exporter.export(trace))),
   );
 }
 
 async function runExporterLifecycle(
   exporters: TraceExporter[],
-  method: "flush" | "shutdown",
+  method: 'flush' | 'shutdown',
 ): Promise<void> {
-  const results = await Promise.allSettled(
-    exporters.map((exporter) => exporter[method]?.()),
-  );
+  const results = await Promise.allSettled(exporters.map((exporter) => exporter[method]?.()));
   const failures = results.filter(
-    (result): result is PromiseRejectedResult => result.status === "rejected",
+    (result): result is PromiseRejectedResult => result.status === 'rejected',
   );
 
   if (failures.length === 0) {
@@ -61,9 +54,7 @@ async function runExporterLifecycle(
   throw failures[0].reason;
 }
 
-export function createRAGObserver(
-  options: CreateRAGObserverOptions = {},
-): RAGObserver {
+export function createRAGObserver(options: CreateRAGObserverOptions = {}): RAGObserver {
   const exporters = options.exporters ?? [];
   const buffers = new Map<string, TraceBuffer>();
 
@@ -98,12 +89,8 @@ export function createRAGObserver(
 
       const normalizedTrace: RAGTrace = {
         ...trace,
-        ...(options.serviceName && !trace.serviceName
-          ? { serviceName: options.serviceName }
-          : {}),
-        ...(options.environment && !trace.environment
-          ? { environment: options.environment }
-          : {}),
+        ...(options.serviceName && !trace.serviceName ? { serviceName: options.serviceName } : {}),
+        ...(options.environment && !trace.environment ? { environment: options.environment } : {}),
         ...(mergeTags(options.defaultTags, trace.tags)
           ? { tags: mergeTags(options.defaultTags, trace.tags) }
           : {}),
@@ -117,11 +104,11 @@ export function createRAGObserver(
     },
 
     async flush() {
-      await runExporterLifecycle(exporters, "flush");
+      await runExporterLifecycle(exporters, 'flush');
     },
 
     async shutdown() {
-      await runExporterLifecycle(exporters, "shutdown");
+      await runExporterLifecycle(exporters, 'shutdown');
     },
   };
 }

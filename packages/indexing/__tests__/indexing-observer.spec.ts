@@ -1,10 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from 'vitest';
 
-import type {
-  RAGErrorRecord,
-  RAGEvent,
-  RAGTrace,
-} from "@monai-ragsdk/observability";
+import type { RAGErrorRecord, RAGEvent, RAGTrace } from '@monai-ragsdk/observability';
 
 import {
   IndexingError,
@@ -13,13 +9,13 @@ import {
   SimpleChunker,
   runIndexing,
   type Loader,
-} from "../src/index.ts";
+} from '../src/index.ts';
 
-describe("indexing observer integration", () => {
-  it("keeps indexing behavior unchanged when no observer is provided", async () => {
+describe('indexing observer integration', () => {
+  it('keeps indexing behavior unchanged when no observer is provided', async () => {
     const loader: Loader = {
       async load() {
-        return [{ id: "doc-1", content: "hello indexing" }];
+        return [{ id: 'doc-1', content: 'hello indexing' }];
       },
     };
 
@@ -37,7 +33,7 @@ describe("indexing observer integration", () => {
     });
   });
 
-  it("emits indexing events and trace summaries when an observer is provided", async () => {
+  it('emits indexing events and trace summaries when an observer is provided', async () => {
     const onEvent = vi.fn<(event: RAGEvent) => Promise<void>>();
     const onTraceEnd = vi.fn<(trace: RAGTrace) => Promise<void>>();
 
@@ -47,16 +43,16 @@ describe("indexing observer integration", () => {
         onTraceEnd,
       },
       trace: {
-        traceId: "trace-1",
-        dataset: "company-handbook",
-        version: "v1",
+        traceId: 'trace-1',
+        dataset: 'company-handbook',
+        version: 'v1',
         tags: {
-          app: "internal-kb",
+          app: 'internal-kb',
         },
       },
       loader: {
         async load() {
-          return [{ id: "doc-1", content: "hello indexing" }];
+          return [{ id: 'doc-1', content: 'hello indexing' }];
         },
       },
       chunker: new SimpleChunker({ chunkSize: 50, overlap: 0 }),
@@ -64,41 +60,39 @@ describe("indexing observer integration", () => {
       store: new MemoryVectorStore(),
     });
 
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ name: 'indexing.run.start' }));
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "indexing.run.start" }),
+      expect.objectContaining({ name: 'indexing.load.complete' }),
     );
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "indexing.load.complete" }),
+      expect.objectContaining({ name: 'indexing.chunk.complete' }),
     );
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "indexing.chunk.complete" }),
+      expect.objectContaining({ name: 'indexing.embed.complete' }),
     );
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "indexing.embed.complete" }),
-    );
-    expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "indexing.store.complete" }),
+      expect.objectContaining({ name: 'indexing.store.complete' }),
     );
     expect(onTraceEnd).toHaveBeenCalledWith(
       expect.objectContaining({
-        traceId: "trace-1",
-        dataset: "company-handbook",
-        version: "v1",
-        status: "ok",
+        traceId: 'trace-1',
+        dataset: 'company-handbook',
+        version: 'v1',
+        status: 'ok',
       }),
     );
   });
 
-  it("swallows observer failures without breaking runIndexing", async () => {
+  it('swallows observer failures without breaking runIndexing', async () => {
     const result = await runIndexing({
       observer: {
         async onEvent() {
-          throw new Error("observer failed");
+          throw new Error('observer failed');
         },
       },
       loader: {
         async load() {
-          return [{ id: "doc-1", content: "hello indexing" }];
+          return [{ id: 'doc-1', content: 'hello indexing' }];
         },
       },
       chunker: new SimpleChunker({ chunkSize: 50, overlap: 0 }),
@@ -109,7 +103,7 @@ describe("indexing observer integration", () => {
     expect(result.documentsIndexed).toBe(1);
   });
 
-  it("records stage failures while preserving existing onError behavior", async () => {
+  it('records stage failures while preserving existing onError behavior', async () => {
     const onError = vi.fn();
     const onEvent = vi.fn<(event: RAGEvent) => Promise<void>>();
     const onRecord = vi.fn<(record: RAGErrorRecord) => Promise<void>>();
@@ -123,14 +117,14 @@ describe("indexing observer integration", () => {
       },
       loader: {
         async load() {
-          return [{ id: "doc-fail", content: "trigger" }];
+          return [{ id: 'doc-fail', content: 'trigger' }];
         },
       },
       chunker: new SimpleChunker({ chunkSize: 20, overlap: 0 }),
       chunkTransformers: [
         {
           async transform() {
-            throw new Error("chunk transform failed");
+            throw new Error('chunk transform failed');
           },
         },
       ],
@@ -141,29 +135,29 @@ describe("indexing observer integration", () => {
 
     expect(result.failedDocuments).toBe(1);
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "indexing.transform_chunk.fail" }),
+      expect.objectContaining({ name: 'indexing.transform_chunk.fail' }),
     );
     expect(onRecord).toHaveBeenCalledWith(
       expect.objectContaining({
-        stage: "transform_chunk",
-        name: "indexing.transform_chunk.fail",
+        stage: 'transform_chunk',
+        name: 'indexing.transform_chunk.fail',
       }),
     );
     expect(onError).toHaveBeenCalledWith(
       expect.any(IndexingError),
-      expect.objectContaining({ stage: "transform-chunk" }),
+      expect.objectContaining({ stage: 'transform-chunk' }),
     );
     expect(onTraceEnd).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "ok",
+        status: 'ok',
         errors: expect.arrayContaining([
-          expect.objectContaining({ name: "indexing.transform_chunk.fail" }),
+          expect.objectContaining({ name: 'indexing.transform_chunk.fail' }),
         ]),
       }),
     );
   });
 
-  it("emits indexing.run.fail and trace error status on fatal failures", async () => {
+  it('emits indexing.run.fail and trace error status on fatal failures', async () => {
     const onEvent = vi.fn<(event: RAGEvent) => Promise<void>>();
     const onRecord = vi.fn<(record: RAGErrorRecord) => Promise<void>>();
     const onTraceEnd = vi.fn<(trace: RAGTrace) => Promise<void>>();
@@ -177,27 +171,21 @@ describe("indexing observer integration", () => {
         },
         loader: {
           async load() {
-            return [{ id: "doc-1", content: "fatal" }];
+            return [{ id: 'doc-1', content: 'fatal' }];
           },
         },
         chunker: new SimpleChunker({ chunkSize: 50, overlap: 0 }),
         embedder: {
           async embed() {
-            throw new Error("embedding failed");
+            throw new Error('embedding failed');
           },
         },
         store: new MemoryVectorStore(),
       }),
     ).rejects.toBeInstanceOf(IndexingError);
 
-    expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "indexing.run.fail" }),
-    );
-    expect(onRecord).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "indexing.run.fail" }),
-    );
-    expect(onTraceEnd).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "error" }),
-    );
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ name: 'indexing.run.fail' }));
+    expect(onRecord).toHaveBeenCalledWith(expect.objectContaining({ name: 'indexing.run.fail' }));
+    expect(onTraceEnd).toHaveBeenCalledWith(expect.objectContaining({ status: 'error' }));
   });
 });

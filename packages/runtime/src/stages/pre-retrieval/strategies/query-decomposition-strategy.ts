@@ -1,17 +1,14 @@
-import type { QueryStrategy } from "../query-strategy.js";
-import type {
-  RetrievalRequest,
-  RuntimeContext,
-} from "../../../types/index.js";
+import type { QueryStrategy } from '../query-strategy.js';
+import type { RetrievalRequest, RuntimeContext } from '../../../types/index.js';
 
-import { buildSubQueries, withSubQueries } from "./build-sub-queries.js";
-import { completeQueryStrategyModel } from "./complete-query-strategy.js";
-import type { LlmQueryStrategyOptions } from "./llm-query-strategy-options.js";
-import { parseQueryList } from "./parse-strategy-model-text.js";
+import { buildSubQueries, withSubQueries } from './build-sub-queries.js';
+import { completeQueryStrategyModel } from './complete-query-strategy.js';
+import type { LlmQueryStrategyOptions } from './llm-query-strategy-options.js';
+import { parseQueryList } from './parse-strategy-model-text.js';
 
 const DEFAULT_COUNT = 3;
 const DEFAULT_SYSTEM =
-  "你把复杂问题拆成彼此独立、可单独检索的子问题。不要回答问题，不要输出无法独立检索的碎片。";
+  '你把复杂问题拆成彼此独立、可单独检索的子问题。不要回答问题，不要输出无法独立检索的碎片。';
 
 export type QueryDecompositionStrategyOptions = LlmQueryStrategyOptions & {
   /** 最多拆出的子问题数；默认 3。 */
@@ -23,11 +20,11 @@ export type QueryDecompositionStrategyOptions = LlmQueryStrategyOptions & {
 function buildPrompt(query: string, count: number): string {
   return [
     `把下面的问题拆成最多 ${count} 个可独立检索的子问题。`,
-    "只输出 JSON：{\"queries\":[\"子问题1\",\"子问题2\"]}",
-    "若原问题已经足够简单，可以只返回一条与原问题等价的查询。",
-    "",
+    '只输出 JSON：{"queries":["子问题1","子问题2"]}',
+    '若原问题已经足够简单，可以只返回一条与原问题等价的查询。',
+    '',
     `问题：${query}`,
-  ].join("\n");
+  ].join('\n');
 }
 
 /**
@@ -42,10 +39,7 @@ export function createQueryDecompositionStrategy(
   const maxQueries = includeOriginal ? count + 1 : count;
 
   return {
-    async apply(
-      request: RetrievalRequest,
-      context: RuntimeContext,
-    ): Promise<RetrievalRequest> {
+    async apply(request: RetrievalRequest, context: RuntimeContext): Promise<RetrievalRequest> {
       const text = await completeQueryStrategyModel(
         options.model,
         {
@@ -57,10 +51,8 @@ export function createQueryDecompositionStrategy(
       );
 
       if (!text) {
-        if (options.onError === "throw") {
-          throw new Error(
-            "query decomposition strategy model returned empty text",
-          );
+        if (options.onError === 'throw') {
+          throw new Error('query decomposition strategy model returned empty text');
         }
 
         return request;
@@ -69,10 +61,8 @@ export function createQueryDecompositionStrategy(
       const generated = parseQueryList(text, count);
 
       if (generated.length === 0) {
-        if (options.onError === "throw") {
-          throw new Error(
-            "query decomposition strategy could not parse queries",
-          );
+        if (options.onError === 'throw') {
+          throw new Error('query decomposition strategy could not parse queries');
         }
 
         return request;
@@ -86,7 +76,7 @@ export function createQueryDecompositionStrategy(
           includeOriginal,
           maxQueries,
         }),
-        "query-decomposition",
+        'query-decomposition',
       );
     },
   };

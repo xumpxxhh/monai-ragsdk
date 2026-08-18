@@ -4,14 +4,14 @@ import {
   type Query,
   type RAGResponse,
   type Retriever,
-} from "../dist/index.js";
+} from '../dist/index.js';
 
 const retriever: Retriever = {
   async retrieve(_query) {
     return [
       {
-        id: "1",
-        content: "RAG is Retrieval Augmented Generation",
+        id: '1',
+        content: 'RAG is Retrieval Augmented Generation',
       },
     ];
   },
@@ -39,7 +39,7 @@ async function run(query: Query): Promise<RAGResponse> {
   });
 }
 
-const response = await run({ query: "What is RAG?" });
+const response = await run({ query: 'What is RAG?' });
 
-console.log("runtime-like demo passed");
+console.log('runtime-like demo passed');
 console.log(response);

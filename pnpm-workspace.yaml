@@ -1,3 +1,29 @@
 packages:
-  - "packages/*"
-  - "app/*"
+  - 'packages/*'
+  - 'apps/*'
+
+# 全仓同名依赖只在此声明版本；各包写 "catalog:"
+catalog:
+  typescript: '^6.0.2'
+  '@types/node': '^25.6.0'
+  '@types/pg': '^8.15.5'
+  tsx: '^4.21.0'
+  turbo: '^2.5.4'
+  vitest: '^4.1.4'
+  zod: '^4.3.6'
+  '@langchain/classic': '^1.0.30'
+  '@langchain/community': '^1.1.27'
+  '@langchain/core': '^1.1.39'
+  '@langchain/textsplitters': '^1.0.1'
+  chromadb: '^3.4.3'
+  pg: '^8.16.0'
+  eslint: '^9.39.0'
+  prettier: '^3.6.2'
+  typescript-eslint: '^8.46.0'
+  '@eslint/js': '^9.39.0'
+  'eslint-config-prettier': '^10.1.8'
+  'eslint-plugin-prettier': '^5.5.4'
+  'eslint-plugin-react': '^7.37.5'
+  'eslint-plugin-react-hooks': '^5.2.0'
+  'eslint-plugin-react-refresh': '^0.4.24'
+  globals: '^16.4.0'

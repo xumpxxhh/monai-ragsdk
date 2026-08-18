@@ -1,4 +1,4 @@
-import type { RAGTags } from "@monai-ragsdk/observability";
+import type { RAGTags } from '@monai-ragsdk/observability';
 
 export type RuntimeTraceOptions = {
   traceId?: string;

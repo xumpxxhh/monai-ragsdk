@@ -1,6 +1,6 @@
-import type { Chunk } from "@monai-ragsdk/core";
+import type { Chunk } from '@monai-ragsdk/core';
 
-import type { ChunkFilter, ChunkFilterContext } from "./chunk-filter.js";
+import type { ChunkFilter, ChunkFilterContext } from './chunk-filter.js';
 
 export type HashDedupChunkFilterOptions = {
   caseSensitive?: boolean;
@@ -17,10 +17,7 @@ export class HashDedupChunkFilter implements ChunkFilter {
     this.#collapseWhitespace = options.collapseWhitespace ?? true;
   }
 
-  async shouldKeep(
-    chunk: Chunk,
-    _context: ChunkFilterContext,
-  ): Promise<boolean> {
+  async shouldKeep(chunk: Chunk, _context: ChunkFilterContext): Promise<boolean> {
     const normalizedContent = this.#normalize(chunk.content);
 
     if (normalizedContent.length === 0) {
@@ -41,7 +38,7 @@ export class HashDedupChunkFilter implements ChunkFilter {
     let normalizedContent = content.trim();
 
     if (this.#collapseWhitespace) {
-      normalizedContent = normalizedContent.replace(/\s+/g, " ");
+      normalizedContent = normalizedContent.replace(/\s+/g, ' ');
     }
 
     if (!this.#caseSensitive) {

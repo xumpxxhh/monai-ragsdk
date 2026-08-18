@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 
 import {
   RAGResponseSchema,
@@ -6,15 +6,15 @@ import {
   type Query,
   type RAGPipeline,
   type Retriever,
-} from "../src/index.ts";
+} from '../src/index.ts';
 
-describe("core pipeline contract", () => {
-  it("supports a minimal typed pipeline flow", async () => {
+describe('core pipeline contract', () => {
+  it('supports a minimal typed pipeline flow', async () => {
     const retriever: Retriever = {
       async retrieve(query) {
         return [
           {
-            id: "chunk-1",
+            id: 'chunk-1',
             content: `retrieved for: ${query.query}`,
           },
         ];
@@ -23,7 +23,7 @@ describe("core pipeline contract", () => {
 
     const generator: Generator = {
       async generate({ query, chunks }) {
-        return `${query.query} -> ${chunks[0]?.content ?? "no chunk"}`;
+        return `${query.query} -> ${chunks[0]?.content ?? 'no chunk'}`;
       },
     };
 
@@ -43,17 +43,15 @@ describe("core pipeline contract", () => {
       });
     };
 
-    await expect(
-      pipeline({ query: "Explain the contract" }),
-    ).resolves.toMatchObject({
-      answer: "Explain the contract -> retrieved for: Explain the contract",
-      originalQuery: { query: "Explain the contract" },
-      effectiveQuery: { query: "Explain the contract" },
-      citations: [{ index: 1, chunkId: "chunk-1" }],
+    await expect(pipeline({ query: 'Explain the contract' })).resolves.toMatchObject({
+      answer: 'Explain the contract -> retrieved for: Explain the contract',
+      originalQuery: { query: 'Explain the contract' },
+      effectiveQuery: { query: 'Explain the contract' },
+      citations: [{ index: 1, chunkId: 'chunk-1' }],
       chunks: [
         {
-          id: "chunk-1",
-          content: "retrieved for: Explain the contract",
+          id: 'chunk-1',
+          content: 'retrieved for: Explain the contract',
         },
       ],
     });

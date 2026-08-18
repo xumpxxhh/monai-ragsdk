@@ -1,1 +1,1 @@
-export type { Document, DocumentMetadata } from "@monai-ragsdk/core";
+export type { Document, DocumentMetadata } from '@monai-ragsdk/core';

@@ -1,17 +1,17 @@
-import type { Chunk, JsonValue } from "@monai-ragsdk/core";
+import type { Chunk, JsonValue } from '@monai-ragsdk/core';
 import {
   createIndexingRetrievalCandidate,
   filterRetrievalCandidatesByIndexingFilters,
-} from "@monai-ragsdk/runtime";
+} from '@monai-ragsdk/runtime';
 import type {
   RetrievalCandidate,
   RetrievalRequest,
   RuntimeContext,
   RuntimeRetrievalResult,
   RuntimeRetriever,
-} from "@monai-ragsdk/runtime";
+} from '@monai-ragsdk/runtime';
 
-import { normalizeJsonObject } from "../../shared/json.js";
+import { normalizeJsonObject } from '../../shared/json.js';
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -72,12 +72,10 @@ export type LangChainRuntimeRetrieverOptions<
   filterByRequest?: boolean;
 };
 
-const DEFAULT_ID_PREFIX = "langchain-retrieved-chunk";
+const DEFAULT_ID_PREFIX = 'langchain-retrieved-chunk';
 
 function readNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : undefined;
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function toRagChunk(
@@ -92,21 +90,19 @@ function toRagChunk(
   };
 }
 
-function defaultExtractDocuments(
-  result: unknown,
-): LangChainRuntimeRetrieverDocumentLike[] {
+function defaultExtractDocuments(result: unknown): LangChainRuntimeRetrieverDocumentLike[] {
   if (!Array.isArray(result)) {
     throw new Error(
-      "LangChainRuntimeRetrieverAdapter expected retriever result to be an array. Provide extractDocuments() to customize result parsing.",
+      'LangChainRuntimeRetrieverAdapter expected retriever result to be an array. Provide extractDocuments() to customize result parsing.',
     );
   }
 
   return result.filter(
     (document): document is LangChainRuntimeRetrieverDocumentLike =>
-      typeof document === "object" &&
+      typeof document === 'object' &&
       document !== null &&
-      "pageContent" in document &&
-      typeof document.pageContent === "string",
+      'pageContent' in document &&
+      typeof document.pageContent === 'string',
   );
 }
 
@@ -150,27 +146,20 @@ export class LangChainRuntimeRetrieverAdapter<
 
         const score = this.#options.extractScore
           ? await this.#options.extractScore(document, index, request)
-          : (readNumber(document.score) ??
-            readNumber(document.metadata?.score));
+          : (readNumber(document.score) ?? readNumber(document.metadata?.score));
 
-        return createIndexingRetrievalCandidate(
-          toRagChunk(document, index, this.#idPrefix),
-          {
-            score,
-            route: request.route,
-            strategy: request.strategy,
-          },
-        );
+        return createIndexingRetrievalCandidate(toRagChunk(document, index, this.#idPrefix), {
+          score,
+          route: request.route,
+          strategy: request.strategy,
+        });
       }),
     );
 
     const filteredCandidates =
       this.#options.filterByRequest === false
         ? candidates
-        : filterRetrievalCandidatesByIndexingFilters(
-            candidates,
-            request.filters,
-          );
+        : filterRetrievalCandidatesByIndexingFilters(candidates, request.filters);
     const retrievalMetadata = this.#options.buildRetrievalMetadata
       ? await this.#options.buildRetrievalMetadata({
           result,

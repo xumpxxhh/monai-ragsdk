@@ -1,12 +1,12 @@
-import type { Chunk, JsonValue } from "@monai-ragsdk/core";
+import type { Chunk, JsonValue } from '@monai-ragsdk/core';
 import type {
   RetrievalRequest,
   RuntimeContext,
   RuntimeGenerationResult,
   RuntimeGenerator,
-} from "@monai-ragsdk/runtime";
+} from '@monai-ragsdk/runtime';
 
-import { mergeJsonObjects, normalizeJsonObject } from "../../shared/json.js";
+import { mergeJsonObjects, normalizeJsonObject } from '../../shared/json.js';
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -63,33 +63,31 @@ function defaultBuildPrompt(input: LangChainRuntimeGenerationInput): string {
     return input.promptContext;
   }
 
-  const contextText = input.chunks.map((chunk) => chunk.content).join("\n\n");
+  const contextText = input.chunks.map((chunk) => chunk.content).join('\n\n');
 
   if (!contextText) {
     return input.request.effectiveQuery.query;
   }
 
-  return [`query: ${input.request.effectiveQuery.query}`, contextText].join(
-    "\n\n",
-  );
+  return [`query: ${input.request.effectiveQuery.query}`, contextText].join('\n\n');
 }
 
 function readContentText(content: unknown): string | undefined {
-  if (typeof content === "string") {
+  if (typeof content === 'string') {
     return content;
   }
 
   if (Array.isArray(content)) {
     const segments = content.flatMap((segment) => {
-      if (typeof segment === "string") {
+      if (typeof segment === 'string') {
         return segment;
       }
 
       if (
-        typeof segment === "object" &&
+        typeof segment === 'object' &&
         segment !== null &&
-        "text" in segment &&
-        typeof segment.text === "string"
+        'text' in segment &&
+        typeof segment.text === 'string'
       ) {
         return segment.text;
       }
@@ -97,18 +95,18 @@ function readContentText(content: unknown): string | undefined {
       return [];
     });
 
-    return segments.length > 0 ? segments.join("\n") : undefined;
+    return segments.length > 0 ? segments.join('\n') : undefined;
   }
 
   return undefined;
 }
 
 function defaultExtractAnswer(result: unknown): string {
-  if (typeof result === "string") {
+  if (typeof result === 'string') {
     return result;
   }
 
-  if (typeof result === "object" && result !== null && "content" in result) {
+  if (typeof result === 'object' && result !== null && 'content' in result) {
     const answer = readContentText(result.content);
 
     if (answer !== undefined) {
@@ -117,25 +115,23 @@ function defaultExtractAnswer(result: unknown): string {
   }
 
   throw new Error(
-    "LangChainRuntimeGeneratorAdapter could not extract a string answer from generator output. Provide extractAnswer() to customize output parsing.",
+    'LangChainRuntimeGeneratorAdapter could not extract a string answer from generator output. Provide extractAnswer() to customize output parsing.',
   );
 }
 
-function defaultBuildGenerationMetadata(
-  result: unknown,
-): Record<string, JsonValue> | undefined {
-  if (typeof result !== "object" || result === null) {
+function defaultBuildGenerationMetadata(result: unknown): Record<string, JsonValue> | undefined {
+  if (typeof result !== 'object' || result === null) {
     return undefined;
   }
 
   return mergeJsonObjects(
-    "response_metadata" in result &&
-      typeof result.response_metadata === "object" &&
+    'response_metadata' in result &&
+      typeof result.response_metadata === 'object' &&
       result.response_metadata !== null
       ? normalizeJsonObject(result.response_metadata as Record<string, unknown>)
       : undefined,
-    "usage_metadata" in result &&
-      typeof result.usage_metadata === "object" &&
+    'usage_metadata' in result &&
+      typeof result.usage_metadata === 'object' &&
       result.usage_metadata !== null
       ? normalizeJsonObject(result.usage_metadata as Record<string, unknown>)
       : undefined,

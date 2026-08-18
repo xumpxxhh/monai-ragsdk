@@ -1,7 +1,6 @@
-import type { PostRetrievalStrategy } from "../post-retrieval-strategy.js";
-import type { RetrievalRequest } from "../../../types/index.js";
+import type { PostRetrievalStrategy } from '../post-retrieval-strategy.js';
 
-import { applyScoreThresholdStrategy } from "./post-retrieval-strategies.js";
+import { applyScoreThresholdStrategy } from './post-retrieval-strategies.js';
 
 export function createScoreThresholdStrategy(input?: {
   scoreThreshold?: number;
@@ -11,9 +10,7 @@ export function createScoreThresholdStrategy(input?: {
     async apply({ candidates, request }) {
       const scoreThreshold =
         input?.scoreThreshold ??
-        (input?.applyRequestScoreThreshold !== false
-          ? request.rerank?.minScore
-          : undefined);
+        (input?.applyRequestScoreThreshold !== false ? request.rerank?.minScore : undefined);
       const result = applyScoreThresholdStrategy(candidates, scoreThreshold);
 
       return {

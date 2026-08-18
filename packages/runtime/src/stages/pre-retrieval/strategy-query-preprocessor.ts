@@ -1,12 +1,8 @@
-import type { QueryPreprocessor } from "./query-preprocessor.js";
-import type { QueryStrategy } from "./query-strategy.js";
-import type {
-  RetrievalRequest,
-  RuntimeContext,
-  RuntimeQueryInput,
-} from "../../types/index.js";
+import type { QueryPreprocessor } from './query-preprocessor.js';
+import type { QueryStrategy } from './query-strategy.js';
+import type { RetrievalRequest, RuntimeContext, RuntimeQueryInput } from '../../types/index.js';
 
-import { NoopQueryPreprocessor } from "./noop-query-preprocessor.js";
+import { NoopQueryPreprocessor } from './noop-query-preprocessor.js';
 
 export type StrategyQueryPreprocessorOptions = {
   base?: QueryPreprocessor;
@@ -26,16 +22,13 @@ export class StrategyQueryPreprocessor implements QueryPreprocessor {
     this.#strategies = options.strategies;
   }
 
-  async preprocess(
-    input: RuntimeQueryInput,
-    context: RuntimeContext,
-  ): Promise<RetrievalRequest> {
+  async preprocess(input: RuntimeQueryInput, context: RuntimeContext): Promise<RetrievalRequest> {
     let request = await this.#base.preprocess(input, context);
 
     for (const strategy of this.#strategies) {
       request = await strategy.apply(request, context);
     }
-    console.log("###@@@request####\n", request);
+    console.log('###@@@request####\n', request);
     return request;
   }
 }

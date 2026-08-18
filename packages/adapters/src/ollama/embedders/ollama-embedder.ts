@@ -1,11 +1,7 @@
-import type { Chunk, Vector } from "@monai-ragsdk/core";
-import type { Embedder } from "@monai-ragsdk/indexing";
+import type { Chunk, Vector } from '@monai-ragsdk/core';
+import type { Embedder } from '@monai-ragsdk/indexing';
 
-import {
-  postOllamaJson,
-  type FetchLike,
-  type OllamaHttpOptions,
-} from "../shared/http.js";
+import { postOllamaJson, type FetchLike, type OllamaHttpOptions } from '../shared/http.js';
 
 export type OllamaEmbedderOptions = OllamaHttpOptions & {
   model: string;
@@ -29,10 +25,7 @@ export class OllamaEmbedder implements Embedder {
 
   constructor(options: OllamaEmbedderOptions) {
     this.#model = options.model;
-    this.#baseUrl = (options.baseUrl ?? "http://localhost:11434").replace(
-      /\/$/,
-      "",
-    );
+    this.#baseUrl = (options.baseUrl ?? 'http://localhost:11434').replace(/\/$/, '');
     this.#dimension = options.dimension;
     this.#batchSize = options.batchSize ?? 32;
     this.#http = {
@@ -43,11 +36,11 @@ export class OllamaEmbedder implements Embedder {
     };
 
     if (this.#dimension <= 0) {
-      throw new Error("dimension must be greater than 0");
+      throw new Error('dimension must be greater than 0');
     }
 
     if (this.#batchSize <= 0) {
-      throw new Error("batchSize must be greater than 0");
+      throw new Error('batchSize must be greater than 0');
     }
   }
 

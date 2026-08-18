@@ -1,7 +1,7 @@
-import type { PostRetrievalStrategy } from "../post-retrieval-strategy.js";
-import type { RetrievalBudget } from "../../../types/index.js";
+import type { PostRetrievalStrategy } from '../post-retrieval-strategy.js';
+import type { RetrievalBudget } from '../../../types/index.js';
 
-import { applyBudgetTrimStrategy } from "./post-retrieval-strategies.js";
+import { applyBudgetTrimStrategy } from './post-retrieval-strategies.js';
 
 export function createBudgetTrimStrategy(input?: {
   budget?: RetrievalBudget;
@@ -10,8 +10,7 @@ export function createBudgetTrimStrategy(input?: {
   return {
     async apply({ candidates, request }) {
       const budget =
-        input?.budget ??
-        (input?.applyRequestBudget === false ? undefined : request.budget);
+        input?.budget ?? (input?.applyRequestBudget === false ? undefined : request.budget);
       const result = applyBudgetTrimStrategy(candidates, budget);
 
       return {

@@ -2,14 +2,11 @@ import type {
   RuntimeContext,
   RuntimeStrategyModel,
   RuntimeStrategyModelInput,
-} from "@monai-ragsdk/runtime";
+} from '@monai-ragsdk/runtime';
 
-import {
-  postOpenAIJson,
-  type OpenAIHttpOptions,
-} from "../shared/http.js";
+import { postOpenAIJson, type OpenAIHttpOptions } from '../shared/http.js';
 
-export type OpenAIStrategyModelOptions = Omit<OpenAIHttpOptions, "apiKey"> & {
+export type OpenAIStrategyModelOptions = Omit<OpenAIHttpOptions, 'apiKey'> & {
   model: string;
   /** OpenAI 兼容 /chat/completions 根地址，须由调用方显式传入。 */
   baseUrl: string;
@@ -31,18 +28,18 @@ function resolveApiKey(apiKey?: string): string | undefined {
   return apiKey || process.env.OPENAI_API_KEY;
 }
 
-function readMessageContent(content: OpenAIChatMessage["content"]): string {
-  if (typeof content === "string") {
+function readMessageContent(content: OpenAIChatMessage['content']): string {
+  if (typeof content === 'string') {
     return content.trim();
   }
 
   if (!Array.isArray(content)) {
-    return "";
+    return '';
   }
 
   return content
-    .map((part) => (typeof part.text === "string" ? part.text : ""))
-    .join("")
+    .map((part) => (typeof part.text === 'string' ? part.text : ''))
+    .join('')
     .trim();
 }
 
@@ -57,23 +54,21 @@ export class OpenAIStrategyModel implements RuntimeStrategyModel {
     const apiKey = resolveApiKey(options.apiKey);
 
     if (!apiKey) {
-      throw new Error(
-        "OpenAIStrategyModel requires apiKey, or OPENAI_API_KEY",
-      );
+      throw new Error('OpenAIStrategyModel requires apiKey, or OPENAI_API_KEY');
     }
 
     const baseUrl = options.baseUrl.trim();
 
     if (!baseUrl) {
-      throw new Error("OpenAIStrategyModel requires baseUrl");
+      throw new Error('OpenAIStrategyModel requires baseUrl');
     }
 
     if (!options.model.trim()) {
-      throw new Error("OpenAIStrategyModel requires model");
+      throw new Error('OpenAIStrategyModel requires model');
     }
 
     this.#model = options.model;
-    this.#baseUrl = baseUrl.replace(/\/$/, "");
+    this.#baseUrl = baseUrl.replace(/\/$/, '');
     this.#defaultSystem = options.defaultSystem;
     this.#http = {
       apiKey,
@@ -84,18 +79,15 @@ export class OpenAIStrategyModel implements RuntimeStrategyModel {
     };
   }
 
-  async complete(
-    input: RuntimeStrategyModelInput,
-    _context: RuntimeContext,
-  ): Promise<string> {
+  async complete(input: RuntimeStrategyModelInput, _context: RuntimeContext): Promise<string> {
     const messages: Array<{ role: string; content: string }> = [];
     const system = input.system ?? this.#defaultSystem;
 
     if (system) {
-      messages.push({ role: "system", content: system });
+      messages.push({ role: 'system', content: system });
     }
 
-    messages.push({ role: "user", content: input.prompt });
+    messages.push({ role: 'user', content: input.prompt });
 
     const payload = await postOpenAIJson<OpenAIChatResponse>(
       `${this.#baseUrl}/chat/completions`,
@@ -110,7 +102,7 @@ export class OpenAIStrategyModel implements RuntimeStrategyModel {
     const answer = readMessageContent(payload.choices?.[0]?.message?.content);
 
     if (!answer) {
-      throw new Error("OpenAI-compatible strategy model returned an empty response");
+      throw new Error('OpenAI-compatible strategy model returned an empty response');
     }
 
     return answer;

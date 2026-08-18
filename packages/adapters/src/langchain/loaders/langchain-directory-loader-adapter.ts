@@ -2,12 +2,12 @@ import {
   DirectoryLoader,
   type LoadersMapping,
   UnknownHandling,
-} from "@langchain/classic/document_loaders/fs/directory";
+} from '@langchain/classic/document_loaders/fs/directory';
 
 import {
   LangChainLoaderAdapter,
   type LangChainLoaderAdapterOptions,
-} from "./langchain-loader-adapter.js";
+} from './langchain-loader-adapter.js';
 
 export { UnknownHandling };
 
@@ -16,7 +16,7 @@ export type LangChainDirectoryUnknownHandling =
 
 export type LangChainDirectoryLoaderAdapterOptions = Omit<
   LangChainLoaderAdapterOptions,
-  "loader"
+  'loader'
 > & {
   directoryPath: string;
   loaders: LoadersMapping;

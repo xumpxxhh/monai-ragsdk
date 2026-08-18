@@ -1,1 +1,1 @@
-export * from "./chroma-vector-store-adapter.js";
+export * from './chroma-vector-store-adapter.js';

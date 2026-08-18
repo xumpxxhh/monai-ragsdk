@@ -25,15 +25,15 @@
 
 ## type 取值
 
-| type | 说明 |
-|------|------|
-| `feat` | 功能新增、接口改造、能力增强（最常用） |
+| type       | 说明                                                       |
+| ---------- | ---------------------------------------------------------- |
+| `feat`     | 功能新增、接口改造、能力增强（最常用）                     |
 | `refactor` | 重构：重命名、架构调整、代码搬迁，不改变外部行为（最常用） |
-| `fix` | 缺陷修复、边界条件修正 |
-| `test` | 仅包含测试文件的新增或修改 |
-| `chore` | 格式化、依赖锁同步、脚本维护等机械性变更 |
-| `docs` | 文档更新（README、设计文档、API 文档） |
-| `temp` | **历史遗留，新提交禁用**。合并前应被 squash 或删除 |
+| `fix`      | 缺陷修复、边界条件修正                                     |
+| `test`     | 仅包含测试文件的新增或修改                                 |
+| `chore`    | 格式化、依赖锁同步、脚本维护等机械性变更                   |
+| `docs`     | 文档更新（README、设计文档、API 文档）                     |
+| `temp`     | **历史遗留，新提交禁用**。合并前应被 squash 或删除         |
 
 ### type 选择优先级
 
@@ -48,17 +48,18 @@
 
 使用 monorepo 下的真实包名，与目录结构一致：
 
-| scope | 对应路径 | 使用场景 |
-|-------|---------|---------|
-| `server` | `apps/server/` | 服务端逻辑、REST API、WebSocket |
-| `web` | `apps/web/` | 前端页面、组件、API 客户端 |
-| `core-engine` | `packages/core-engine/` | 引擎核心（executor、engine、scheduler 等） |
-| `plugin-sdk` | `packages/plugin-sdk/` | 插件 SDK（createPlugin、logger 等） |
-| `plugins` | `plugins/` | test-plugin / model-call-plugin 等插件包 |
-| `resource` | `packages/core-engine/resource/` | 子模块级精确 scope |
-| `scheduler` | `packages/core-engine/scheduler/` | 子模块级精确 scope |
+| scope         | 对应路径                          | 使用场景                                   |
+| ------------- | --------------------------------- | ------------------------------------------ |
+| `server`      | `apps/server/`                    | 服务端逻辑、REST API、WebSocket            |
+| `web`         | `apps/web/`                       | 前端页面、组件、API 客户端                 |
+| `core-engine` | `packages/core-engine/`           | 引擎核心（executor、engine、scheduler 等） |
+| `plugin-sdk`  | `packages/plugin-sdk/`            | 插件 SDK（createPlugin、logger 等）        |
+| `plugins`     | `plugins/`                        | test-plugin / model-call-plugin 等插件包   |
+| `resource`    | `packages/core-engine/resource/`  | 子模块级精确 scope                         |
+| `scheduler`   | `packages/core-engine/scheduler/` | 子模块级精确 scope                         |
 
 同一 commit 跨多层时：
+
 - 两层的可用 `server+web`、`core-engine+plugins` 等组合
 - 三层及以上或无明显主层时可省略 scope
 
@@ -72,13 +73,13 @@
 
 ### 常用 subject 模式
 
-| 模式 | 示例 |
-|------|------|
-| 主描述 + em-dash 补充 | `运行控制基础设施 — cancel/pause/resume` |
-| 括号引用 Issue ID | `移除 allocationLock 伪互斥锁 (CE-007)` |
-| 箭头表达重命名 | `同步 resource-scheduler → resource/wait-queue` |
-| 英文术语自然嵌入 | `适配新事件结构 workflowRunId 顶层字段` |
-| 并列对象 | `test-plugin 与 model-call-plugin 适配 configSchema` |
+| 模式                  | 示例                                                 |
+| --------------------- | ---------------------------------------------------- |
+| 主描述 + em-dash 补充 | `运行控制基础设施 — cancel/pause/resume`             |
+| 括号引用 Issue ID     | `移除 allocationLock 伪互斥锁 (CE-007)`              |
+| 箭头表达重命名        | `同步 resource-scheduler → resource/wait-queue`      |
+| 英文术语自然嵌入      | `适配新事件结构 workflowRunId 顶层字段`              |
+| 并列对象              | `test-plugin 与 model-call-plugin 适配 configSchema` |
 
 ## body 编写规范
 
@@ -109,6 +110,7 @@ plugin-sdk / core-engine  →  plugins 适配  →  server 对接  →  web UI  
 ```
 
 每批规则：
+
 - 文件无重叠，意图单一
 - 每批均可独立 `git revert` 而不破坏其他批次
 - 测试与源码可同批（`refactor: xxx` + test 同行改动）或紧邻独立提交（`test: xxx`）
@@ -135,14 +137,14 @@ plugin-sdk / core-engine  →  plugins 适配  →  server 对接  →  web UI  
 
 ### 不好的 subject
 
-| 示例 | 问题 |
-|------|------|
-| `调整一下` | 空泛，未说明具体调整了什么 |
-| `更新代码` | 过于宽泛，无具体信息 |
-| `修复了一个bug。` | 结尾有多余标点，且未说明修了什么 |
-| `在优化登录流程` | "在"字多余，应直接说"优化登录流程" |
-| `改了改样式` | 口语化，不专业 |
-| `runWorkflow 添加参数并修改事件结构和 resource scheduler` | 过长且混杂多个意图，应拆分 |
+| 示例                                                      | 问题                               |
+| --------------------------------------------------------- | ---------------------------------- |
+| `调整一下`                                                | 空泛，未说明具体调整了什么         |
+| `更新代码`                                                | 过于宽泛，无具体信息               |
+| `修复了一个bug。`                                         | 结尾有多余标点，且未说明修了什么   |
+| `在优化登录流程`                                          | "在"字多余，应直接说"优化登录流程" |
+| `改了改样式`                                              | 口语化，不专业                     |
+| `runWorkflow 添加参数并修改事件结构和 resource scheduler` | 过长且混杂多个意图，应拆分         |
 
 ## 历史兼容与纠偏
 

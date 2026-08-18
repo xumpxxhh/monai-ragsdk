@@ -1,27 +1,26 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 
-import type { Chunk, Document, JsonValue } from "@monai-ragsdk/core";
+import type { Chunk, Document } from '@monai-ragsdk/core';
 import {
   BasicMetadataExtractor,
   MemoryVectorStore,
   MockEmbedder,
   SimpleChunker,
-  runIndexing,
   type Embedder,
-} from "@monai-ragsdk/indexing";
+} from '@monai-ragsdk/indexing';
 
 import {
   createCollection,
   createDefaultRuntime,
   createIndexingRetrievalCandidate,
   filterRetrievalCandidatesByIndexingFilters,
-} from "../src/index.ts";
+} from '../src/index.ts';
 
-import type { RuntimeRunOptions } from "../src/types/index.js";
-import type { CollectionSearchResult } from "../src/collection/create-collection.js";
+import type { RuntimeRunOptions } from '../src/types/index.js';
+import type { CollectionSearchResult } from '../src/collection/create-collection.js';
 
-describe("stage 3 collection facade", () => {
-  it("ingest documents then search/ask returns grounding chunks", async () => {
+describe('stage 3 collection facade', () => {
+  it('ingest documents then search/ask returns grounding chunks', async () => {
     const indexedChunks = new Map<string, Chunk>();
     let generateCalls = 0;
 
@@ -40,31 +39,31 @@ describe("stage 3 collection facade", () => {
 
     const documents: Document[] = [
       {
-        id: "doc-1",
-        content: "hello monai-ragsdk collection",
+        id: 'doc-1',
+        content: 'hello monai-ragsdk collection',
         metadata: {
-          title: "Doc1",
-          headerPath: ["collection", "doc-1"],
+          title: 'Doc1',
+          headerPath: ['collection', 'doc-1'],
         },
       },
       {
-        id: "doc-2",
-        content: "runtime search should return chunks",
+        id: 'doc-2',
+        content: 'runtime search should return chunks',
         metadata: {
-          title: "Doc2",
-          headerPath: ["collection", "doc-2"],
+          title: 'Doc2',
+          headerPath: ['collection', 'doc-2'],
         },
       },
     ];
 
     const indexingOptions = {
-      mode: "incremental" as const,
+      mode: 'incremental' as const,
       chunker: new SimpleChunker({ chunkSize: 50, overlap: 0 }),
       metadataExtractors: [new BasicMetadataExtractor()],
       embedder,
       store,
       sourceIdResolver() {
-        return "docs/collection";
+        return 'docs/collection';
       },
       fingerprintResolver(document: Document) {
         return `fp:${document.id}`;
@@ -113,7 +112,7 @@ describe("stage 3 collection facade", () => {
           return {
             answer: `answer:${request.effectiveQuery.query}:${chunks
               .map((chunk) => chunk.id)
-              .join(",")}`,
+              .join(',')}`,
           };
         },
       },
@@ -132,48 +131,39 @@ describe("stage 3 collection facade", () => {
 
     const sources = await collection.listSources();
     expect(sources.length).toBeGreaterThan(0);
-    expect(sources.some((source) => source.sourceId === "docs/collection")).toBe(
-      true,
-    );
+    expect(sources.some((source) => source.sourceId === 'docs/collection')).toBe(true);
 
     const runtimeOptions: RuntimeRunOptions = { includeDebug: true };
     const searchResult = (await collection.search(
-      { query: "test collection", metadata: { tag: "unit" } },
+      { query: 'test collection', metadata: { tag: 'unit' } },
       runtimeOptions,
     )) satisfies CollectionSearchResult;
 
     expect(searchResult.chunks.length).toBeGreaterThan(0);
     expect(searchResult.citations.length).toBe(searchResult.chunks.length);
-    expect(searchResult.effectiveQuery.query).toBe("test collection");
-    expect(searchResult.originalQuery.query).toBe("test collection");
-    expect(searchResult).not.toHaveProperty("answer");
-    expect(searchResult).not.toHaveProperty("streamed");
-    expect(searchResult).not.toHaveProperty("generationMetadata");
-    expect(searchResult.timings).not.toHaveProperty("generation");
+    expect(searchResult.effectiveQuery.query).toBe('test collection');
+    expect(searchResult.originalQuery.query).toBe('test collection');
+    expect(searchResult).not.toHaveProperty('answer');
+    expect(searchResult).not.toHaveProperty('streamed');
+    expect(searchResult).not.toHaveProperty('generationMetadata');
+    expect(searchResult.timings).not.toHaveProperty('generation');
     expect(generateCalls).toBe(0);
 
-    const askResult = await collection.ask(
-      { query: "test ask" },
-      runtimeOptions,
-    );
+    const askResult = await collection.ask({ query: 'test ask' }, runtimeOptions);
 
     expect(generateCalls).toBe(1);
 
-    expect(askResult.answer).toContain("answer:test ask:");
+    expect(askResult.answer).toContain('answer:test ask:');
     expect(askResult.chunks.length).toBeGreaterThan(0);
     expect(askResult.citations.length).toBe(askResult.chunks.length);
 
     const deleted = await collection.deleteByFilters({
-      sourceIds: ["docs/collection"],
+      sourceIds: ['docs/collection'],
     });
     expect(deleted).toBe(true);
 
-    const afterDelete = await collection.search(
-      { query: "test after delete" },
-      runtimeOptions,
-    );
+    const afterDelete = await collection.search({ query: 'test after delete' }, runtimeOptions);
     expect(afterDelete.chunks.length).toBe(0);
     expect(afterDelete.citations.length).toBe(0);
   });
 });
-

@@ -1,20 +1,13 @@
-import type { Query } from "@monai-ragsdk/core";
+import type { Query } from '@monai-ragsdk/core';
 
 import type {
   PostRetrievalStrategy,
   PostRetrievalStrategyResult,
-} from "../post-retrieval-strategy.js";
+} from '../post-retrieval-strategy.js';
 
-import type {
-  RetrievalCandidate,
-  RetrievalRequest,
-  RuntimeContext,
-} from "../../../types/index.js";
+import type { RetrievalCandidate, RetrievalRequest, RuntimeContext } from '../../../types/index.js';
 
-import type {
-  RuntimeStrategyModel,
-  RuntimeStrategyModelInput,
-} from "../../../types/index.js";
+import type { RuntimeStrategyModel, RuntimeStrategyModelInput } from '../../../types/index.js';
 
 function extractJson(text: string): unknown | undefined {
   const trimmed = text.trim();
@@ -34,10 +27,10 @@ function extractJson(text: string): unknown | undefined {
 
 function parseCompressed(text: string): string | undefined {
   const json = extractJson(text);
-  if (json && typeof json === "object" && !Array.isArray(json)) {
+  if (json && typeof json === 'object' && !Array.isArray(json)) {
     const obj = json as Record<string, unknown>;
-    const value = obj["compressed"];
-    if (typeof value === "string") {
+    const value = obj['compressed'];
+    if (typeof value === 'string') {
       const trimmed = value.trim();
       return trimmed.length > 0 ? trimmed : undefined;
     }
@@ -64,27 +57,27 @@ export type ContextCompressionStrategyOptions = {
   chunkInputMaxChars?: number;
   /** 单次并发数，避免同时请求过多。 */
   maxConcurrency?: number;
-  onError?: "passthrough" | "throw";
+  onError?: 'passthrough' | 'throw';
 };
 
 function buildPrompt(
   query: Query,
-  chunk: RetrievalCandidate["chunk"],
+  chunk: RetrievalCandidate['chunk'],
   maxChars: number,
   chunkInputMaxChars: number,
 ): RuntimeStrategyModelInput {
-  const input = (chunk.content ?? "").slice(0, chunkInputMaxChars);
+  const input = (chunk.content ?? '').slice(0, chunkInputMaxChars);
 
   return {
     prompt: [
-      "你是上下文压缩器。",
+      '你是上下文压缩器。',
       `将下面的 chunk 压缩为不超过 ${maxChars} 字符的关键信息，确保不引入新事实。`,
-      "只输出 JSON：{\"compressed\":\"...\"}",
-      "",
+      '只输出 JSON：{"compressed":"..."}',
+      '',
       `query=${query.query}`,
-      "",
+      '',
       `chunk=${input}`,
-    ].join("\n"),
+    ].join('\n'),
     system: undefined,
   };
 }
@@ -109,10 +102,7 @@ async function mapWithConcurrency<T, R>(
     }
   }
 
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    () => worker(),
-  );
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
   await Promise.all(workers);
   return results;
 }
@@ -125,7 +115,7 @@ async function mapWithConcurrency<T, R>(
 export function createContextCompressionStrategy(
   options: ContextCompressionStrategyOptions,
 ): PostRetrievalStrategy {
-  const onError = options.onError ?? "passthrough";
+  const onError = options.onError ?? 'passthrough';
   const maxCharsPerChunk = options.maxCharsPerChunk ?? 400;
   const chunkInputMaxChars = options.chunkInputMaxChars ?? 2000;
   const maxConcurrency = options.maxConcurrency ?? 4;
@@ -142,7 +132,7 @@ export function createContextCompressionStrategy(
 
       const systemPrompt =
         options.systemPrompt ??
-        "你是上下文压缩器。不要编造新事实；若缺乏关键信息，输出尽量少的内容。";
+        '你是上下文压缩器。不要编造新事实；若缺乏关键信息，输出尽量少的内容。';
 
       const compressedChunks = await mapWithConcurrency(
         candidates,
@@ -170,7 +160,7 @@ export function createContextCompressionStrategy(
             }
             return compressed;
           } catch (error) {
-            if (onError === "throw") {
+            if (onError === 'throw') {
               throw error;
             }
             return candidate.chunk.content;
@@ -195,14 +185,15 @@ export function createContextCompressionStrategy(
         };
       });
 
-      const selectionTrace: PostRetrievalStrategyResult["selectionTrace"] =
-        nextCandidates.map((candidate) => ({
+      const selectionTrace: PostRetrievalStrategyResult['selectionTrace'] = nextCandidates.map(
+        (candidate) => ({
           candidate,
           selected: true,
-          reason: "selected",
-          stage: "context-ordering",
+          reason: 'selected',
+          stage: 'context-ordering',
           metadata: { compressed: true },
-        }));
+        }),
+      );
 
       return {
         selectedCandidates: nextCandidates,
@@ -212,4 +203,3 @@ export function createContextCompressionStrategy(
     },
   };
 }
-

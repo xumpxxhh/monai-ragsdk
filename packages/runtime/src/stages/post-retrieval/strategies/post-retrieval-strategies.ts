@@ -6,7 +6,7 @@ import type {
   RetrievalCandidate,
   RetrievalRequest,
   RuntimeContext,
-} from "../../../types/index.js";
+} from '../../../types/index.js';
 
 type CandidateDecision = {
   candidate: RetrievalCandidate;
@@ -42,7 +42,7 @@ export type NearDuplicateRemovalConfig = {
 export type SourceCoverageConfig = {
   enabled?: boolean;
   maxPerSource?: number;
-  distribution?: "balanced";
+  distribution?: 'balanced';
   getSourceKey?: (candidate: RetrievalCandidate) => string | undefined;
 };
 
@@ -87,7 +87,7 @@ export type SourceCoverageStrategyResult = {
 };
 
 function normalizeCandidateContent(candidate: RetrievalCandidate): string {
-  return candidate.chunk.content.trim().toLowerCase().replace(/\s+/g, " ");
+  return candidate.chunk.content.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 function tokenizeContent(content: string): Set<string> {
@@ -117,10 +117,7 @@ function calculateTokenSetSimilarity(left: string, right: string): number {
   return (2 * intersection) / (leftTokens.size + rightTokens.size);
 }
 
-function defaultDuplicateComparator(
-  left: RetrievalCandidate,
-  right: RetrievalCandidate,
-): number {
+function defaultDuplicateComparator(left: RetrievalCandidate, right: RetrievalCandidate): number {
   const leftScore = left.score ?? Number.NEGATIVE_INFINITY;
   const rightScore = right.score ?? Number.NEGATIVE_INFINITY;
 
@@ -134,10 +131,7 @@ function defaultDuplicateComparator(
 function resolveDuplicateComparator(
   config: NearDuplicateRemovalConfig | undefined,
 ): CandidateComparator {
-  return (
-    config?.comparator ??
-    ((left, right) => defaultDuplicateComparator(left, right))
-  );
+  return config?.comparator ?? ((left, right) => defaultDuplicateComparator(left, right));
 }
 
 function findDuplicateMatch(
@@ -171,10 +165,7 @@ function findDuplicateMatch(
     }
 
     const selectedContent = normalizeCandidateContent(selectedCandidate);
-    const similarity = calculateTokenSetSimilarity(
-      normalizedContent,
-      selectedContent,
-    );
+    const similarity = calculateTokenSetSimilarity(normalizedContent, selectedContent);
 
     if (similarity >= similarityThreshold) {
       return {
@@ -192,9 +183,7 @@ function defaultSourceKey(candidate: RetrievalCandidate): string | undefined {
   return candidate.sourceId;
 }
 
-function toTraceEntries(
-  decisions: CandidateDecision[],
-): PostRetrievalSelectionTraceEntry[] {
+function toTraceEntries(decisions: CandidateDecision[]): PostRetrievalSelectionTraceEntry[] {
   return decisions.map((decision) => ({
     candidate: decision.candidate,
     selected: decision.selected,
@@ -202,7 +191,7 @@ function toTraceEntries(
     stage: decision.stage,
     score: decision.candidate.score,
     order: decision.order,
-    metadata: decision.metadata as PostRetrievalSelectionTraceEntry["metadata"],
+    metadata: decision.metadata as PostRetrievalSelectionTraceEntry['metadata'],
   }));
 }
 
@@ -233,14 +222,13 @@ export function applyScoreThresholdStrategy(
     return {
       candidate,
       selected: !belowThreshold,
-      reason: belowThreshold ? "score-threshold" : "selected",
-      stage: "score-threshold",
+      reason: belowThreshold ? 'score-threshold' : 'selected',
+      stage: 'score-threshold',
       metadata: scoreThreshold === undefined ? undefined : { scoreThreshold },
     } satisfies CandidateDecision;
   });
 
-  const { selectedCandidates, droppedCandidates } =
-    buildSelectedAndDropped(decisions);
+  const { selectedCandidates, droppedCandidates } = buildSelectedAndDropped(decisions);
 
   return {
     selectedCandidates,
@@ -253,22 +241,22 @@ export function applyScoreThresholdStrategy(
 function trimByMaxItems(
   candidates: RetrievalCandidate[],
   maxItems: number | undefined,
-  reason: "max-candidates" | "max-chunks",
+  reason: 'max-candidates' | 'max-chunks',
 ): CandidateDecision[] {
   if (maxItems === undefined || maxItems < 0) {
     return candidates.map((candidate) => ({
       candidate,
       selected: true,
-      reason: "selected",
-      stage: "budget-trim",
+      reason: 'selected',
+      stage: 'budget-trim',
     }));
   }
 
   return candidates.map((candidate, index) => ({
     candidate,
     selected: index < maxItems,
-    reason: index < maxItems ? "selected" : reason,
-    stage: "budget-trim",
+    reason: index < maxItems ? 'selected' : reason,
+    stage: 'budget-trim',
     metadata: { limit: maxItems },
   }));
 }
@@ -281,8 +269,8 @@ function trimByPromptChars(
     return candidates.map((candidate) => ({
       candidate,
       selected: true,
-      reason: "selected",
-      stage: "budget-trim",
+      reason: 'selected',
+      stage: 'budget-trim',
     }));
   }
 
@@ -299,8 +287,8 @@ function trimByPromptChars(
     return {
       candidate,
       selected,
-      reason: selected ? "selected" : "max-prompt-chars",
-      stage: "budget-trim",
+      reason: selected ? 'selected' : 'max-prompt-chars',
+      stage: 'budget-trim',
       metadata: {
         maxPromptChars,
         nextChars,
@@ -315,9 +303,7 @@ function mergeDecisionLists(
 ): CandidateDecision[] {
   return baseCandidates.map((candidate) => {
     for (const group of decisionGroups) {
-      const matched = group.find(
-        (decision) => decision.candidate === candidate,
-      );
+      const matched = group.find((decision) => decision.candidate === candidate);
 
       if (matched && !matched.selected) {
         return matched;
@@ -327,8 +313,8 @@ function mergeDecisionLists(
     return {
       candidate,
       selected: true,
-      reason: "selected",
-      stage: "budget-trim",
+      reason: 'selected',
+      stage: 'budget-trim',
     } satisfies CandidateDecision;
   });
 }
@@ -347,8 +333,8 @@ export async function applyCandidatePredicateStrategy(
         ({
           candidate,
           selected: true,
-          reason: "selected",
-          stage: "predicate-filter",
+          reason: 'selected',
+          stage: 'predicate-filter',
         }) satisfies CandidateDecision,
     );
 
@@ -371,14 +357,13 @@ export async function applyCandidatePredicateStrategy(
       return {
         candidate,
         selected,
-        reason: selected ? "selected" : "predicate-filter",
-        stage: "predicate-filter",
+        reason: selected ? 'selected' : 'predicate-filter',
+        stage: 'predicate-filter',
       } satisfies CandidateDecision;
     }),
   );
 
-  const { selectedCandidates, droppedCandidates } =
-    buildSelectedAndDropped(decisions);
+  const { selectedCandidates, droppedCandidates } = buildSelectedAndDropped(decisions);
 
   return {
     selectedCandidates,
@@ -402,8 +387,8 @@ export function applyNearDuplicateRemovalStrategy(
         ({
           candidate,
           selected: true,
-          reason: "selected",
-          stage: "duplicate-removal",
+          reason: 'selected',
+          stage: 'duplicate-removal',
         }) satisfies CandidateDecision,
     );
 
@@ -423,17 +408,13 @@ export function applyNearDuplicateRemovalStrategy(
     decisions.set(candidate, {
       candidate,
       selected: true,
-      reason: "selected",
-      stage: "duplicate-removal",
+      reason: 'selected',
+      stage: 'duplicate-removal',
     });
   }
 
   for (const candidate of candidates) {
-    const duplicateMatch = findDuplicateMatch(
-      candidate,
-      selectedCandidates,
-      config,
-    );
+    const duplicateMatch = findDuplicateMatch(candidate, selectedCandidates, config);
 
     if (!duplicateMatch) {
       selectedCandidates.push(candidate);
@@ -447,8 +428,8 @@ export function applyNearDuplicateRemovalStrategy(
 
     if (currentPreferred) {
       matchedDecision.selected = false;
-      matchedDecision.reason = "duplicate";
-      matchedDecision.stage = "duplicate-removal";
+      matchedDecision.reason = 'duplicate';
+      matchedDecision.stage = 'duplicate-removal';
       matchedDecision.metadata = {
         duplicateOf: candidate.chunk.id,
         nearDuplicateSimilarity: similarity,
@@ -462,8 +443,8 @@ export function applyNearDuplicateRemovalStrategy(
       }
     } else {
       currentDecision.selected = false;
-      currentDecision.reason = "duplicate";
-      currentDecision.stage = "duplicate-removal";
+      currentDecision.reason = 'duplicate';
+      currentDecision.stage = 'duplicate-removal';
       currentDecision.metadata = {
         duplicateOf: matchedCandidate.chunk.id,
         nearDuplicateSimilarity: similarity,
@@ -472,9 +453,7 @@ export function applyNearDuplicateRemovalStrategy(
     }
   }
 
-  const finalDecisions = candidates.map(
-    (candidate) => decisions.get(candidate)!,
-  );
+  const finalDecisions = candidates.map((candidate) => decisions.get(candidate)!);
   const { selectedCandidates: deduplicatedCandidates, droppedCandidates } =
     buildSelectedAndDropped(finalDecisions);
 
@@ -493,25 +472,18 @@ export function applyBudgetTrimStrategy(
   const maxCandidatesDecisions = trimByMaxItems(
     candidates,
     budget?.maxCandidates,
-    "max-candidates",
+    'max-candidates',
   );
   const afterCandidateTrim = maxCandidatesDecisions
     .filter((decision) => decision.selected)
     .map((decision) => decision.candidate);
 
-  const maxChunksDecisions = trimByMaxItems(
-    afterCandidateTrim,
-    budget?.maxChunks,
-    "max-chunks",
-  );
+  const maxChunksDecisions = trimByMaxItems(afterCandidateTrim, budget?.maxChunks, 'max-chunks');
   const afterChunkTrim = maxChunksDecisions
     .filter((decision) => decision.selected)
     .map((decision) => decision.candidate);
 
-  const promptCharDecisions = trimByPromptChars(
-    afterChunkTrim,
-    budget?.maxPromptChars,
-  );
+  const promptCharDecisions = trimByPromptChars(afterChunkTrim, budget?.maxPromptChars);
 
   const decisions = mergeDecisionLists(
     candidates,
@@ -519,8 +491,7 @@ export function applyBudgetTrimStrategy(
     maxChunksDecisions,
     promptCharDecisions,
   );
-  const { selectedCandidates, droppedCandidates } =
-    buildSelectedAndDropped(decisions);
+  const { selectedCandidates, droppedCandidates } = buildSelectedAndDropped(decisions);
 
   return {
     selectedCandidates,
@@ -540,8 +511,8 @@ export function applySourceCoverageStrategy(
         ({
           candidate,
           selected: true,
-          reason: "selected",
-          stage: "source-coverage",
+          reason: 'selected',
+          stage: 'source-coverage',
         }) satisfies CandidateDecision,
     );
 
@@ -562,8 +533,8 @@ export function applySourceCoverageStrategy(
       return {
         candidate,
         selected: true,
-        reason: "selected",
-        stage: "source-coverage",
+        reason: 'selected',
+        stage: 'source-coverage',
       } satisfies CandidateDecision;
     }
 
@@ -577,10 +548,10 @@ export function applySourceCoverageStrategy(
     return {
       candidate,
       selected,
-      reason: selected ? "selected" : "source-coverage-quota",
-      stage: "source-coverage",
+      reason: selected ? 'selected' : 'source-coverage-quota',
+      stage: 'source-coverage',
       metadata: {
-        distribution: config.distribution ?? "balanced",
+        distribution: config.distribution ?? 'balanced',
         sourceKey,
         maxPerSource: config.maxPerSource,
         sourceDistribution: Object.fromEntries(sourceCounts),
@@ -588,8 +559,7 @@ export function applySourceCoverageStrategy(
     } satisfies CandidateDecision;
   });
 
-  const { selectedCandidates, droppedCandidates } =
-    buildSelectedAndDropped(decisions);
+  const { selectedCandidates, droppedCandidates } = buildSelectedAndDropped(decisions);
 
   return {
     selectedCandidates,
@@ -616,8 +586,8 @@ export function applyCandidateOrderingStrategy(
     selectionTrace: orderedCandidates.map((candidate, order) => ({
       candidate,
       selected: true,
-      reason: "selected",
-      stage: "context-ordering",
+      reason: 'selected',
+      stage: 'context-ordering',
       score: candidate.score,
       order,
     })),
@@ -651,9 +621,7 @@ export type LostInTheMiddleStrategyResult = CandidateOrderingStrategyResult;
 export function applyLostInTheMiddleStrategy(
   candidates: RetrievalCandidate[],
 ): LostInTheMiddleStrategyResult {
-  const sorted = [...candidates].sort(
-    (left, right) => (right.score ?? 0) - (left.score ?? 0),
-  );
+  const sorted = [...candidates].sort((left, right) => (right.score ?? 0) - (left.score ?? 0));
   const ordered: RetrievalCandidate[] = [];
   let left = 0;
   let right = sorted.length - 1;
@@ -678,11 +646,11 @@ export function applyLostInTheMiddleStrategy(
     selectionTrace: ordered.map((candidate, order) => ({
       candidate,
       selected: true,
-      reason: "selected",
-      stage: "context-ordering",
+      reason: 'selected',
+      stage: 'context-ordering',
       score: candidate.score,
       order,
-      metadata: { ordering: "lost-in-the-middle" },
+      metadata: { ordering: 'lost-in-the-middle' },
     })),
   };
 }

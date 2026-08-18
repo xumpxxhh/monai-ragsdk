@@ -6,7 +6,7 @@ import {
   MemoryVectorStore,
   MockEmbedder,
   runIndexing,
-} from "../dist/index.js";
+} from '../dist/index.js';
 
 const store = new MemoryVectorStore();
 
@@ -15,12 +15,12 @@ const result = await runIndexing({
     async load() {
       return [
         {
-          id: "demo/extensions",
+          id: 'demo/extensions',
           content:
-            "# Overview\n\n## Goals\n\nSDK extension points should stay composable.\n\nSDK extension points should stay composable.",
+            '# Overview\n\n## Goals\n\nSDK extension points should stay composable.\n\nSDK extension points should stay composable.',
           metadata: {
-            title: "Extension Demo",
-            source: "demo",
+            title: 'Extension Demo',
+            source: 'demo',
           },
         },
       ];
@@ -34,6 +34,6 @@ const result = await runIndexing({
   store,
 });
 
-console.log("indexing extension demo passed");
+console.log('indexing extension demo passed');
 console.log(result);
 console.log(store.getAll());

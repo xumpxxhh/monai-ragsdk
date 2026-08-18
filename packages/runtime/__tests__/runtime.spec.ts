@@ -1,15 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 
-import { RAGResponseSchema } from "@monai-ragsdk/core";
+import { RAGResponseSchema } from '@monai-ragsdk/core';
 
-import {
-  RuntimeError,
-  createDefaultRuntime,
-  createRuntime,
-} from "../src/index.ts";
+import { RuntimeError, createDefaultRuntime, createRuntime } from '../src/index.ts';
 
-describe("runtime pipeline", () => {
-  it("runs the minimal four-stage flow", async () => {
+describe('runtime pipeline', () => {
+  it('runs the minimal four-stage flow', async () => {
     const runtime = createDefaultRuntime({
       retriever: {
         async retrieve(request) {
@@ -17,14 +13,14 @@ describe("runtime pipeline", () => {
             candidates: [
               {
                 chunk: {
-                  id: "chunk-1",
+                  id: 'chunk-1',
                   content: `retrieved for: ${request.effectiveQuery.query}`,
                 },
                 score: 0.95,
               },
             ],
             retrievalMetadata: {
-              provider: "unit-test",
+              provider: 'unit-test',
             },
           };
         },
@@ -32,45 +28,42 @@ describe("runtime pipeline", () => {
       generator: {
         async generate({ request, chunks }) {
           return {
-            answer: `${request.effectiveQuery.query} -> ${chunks[0]?.content ?? "no chunk"}`,
+            answer: `${request.effectiveQuery.query} -> ${chunks[0]?.content ?? 'no chunk'}`,
             generationMetadata: {
-              provider: "unit-test",
+              provider: 'unit-test',
             },
           };
         },
       },
     });
 
-    await expect(
-      runtime.run({ query: "Explain runtime contract" }),
-    ).resolves.toMatchObject({
-      answer:
-        "Explain runtime contract -> retrieved for: Explain runtime contract",
+    await expect(runtime.run({ query: 'Explain runtime contract' })).resolves.toMatchObject({
+      answer: 'Explain runtime contract -> retrieved for: Explain runtime contract',
       chunks: [
         {
-          id: "chunk-1",
-          content: "retrieved for: Explain runtime contract",
+          id: 'chunk-1',
+          content: 'retrieved for: Explain runtime contract',
         },
       ],
-      originalQuery: { query: "Explain runtime contract" },
-      effectiveQuery: { query: "Explain runtime contract" },
+      originalQuery: { query: 'Explain runtime contract' },
+      effectiveQuery: { query: 'Explain runtime contract' },
       retrievalMetadata: {
-        provider: "unit-test",
+        provider: 'unit-test',
       },
       generationMetadata: {
-        provider: "unit-test",
+        provider: 'unit-test',
       },
       citations: [
         {
           index: 1,
-          chunkId: "chunk-1",
+          chunkId: 'chunk-1',
           score: 0.95,
         },
       ],
     });
   });
 
-  it("search runs retrieve-only and never calls the generator", async () => {
+  it('search runs retrieve-only and never calls the generator', async () => {
     let generateCalls = 0;
     const observerEvents: string[] = [];
 
@@ -86,14 +79,14 @@ describe("runtime pipeline", () => {
             candidates: [
               {
                 chunk: {
-                  id: "chunk-1",
+                  id: 'chunk-1',
                   content: `retrieved for: ${request.effectiveQuery.query}`,
                 },
                 score: 0.95,
               },
             ],
             retrievalMetadata: {
-              provider: "unit-test",
+              provider: 'unit-test',
             },
           };
         },
@@ -101,71 +94,71 @@ describe("runtime pipeline", () => {
       generator: {
         async generate() {
           generateCalls += 1;
-          throw new Error("search must not call generate()");
+          throw new Error('search must not call generate()');
         },
       },
     });
 
     const result = await runtime.search(
-      { query: "Explain runtime contract" },
+      { query: 'Explain runtime contract' },
       { includeDebug: true },
     );
 
     expect(generateCalls).toBe(0);
-    expect(result).not.toHaveProperty("answer");
-    expect(result).not.toHaveProperty("streamed");
-    expect(result).not.toHaveProperty("generationMetadata");
+    expect(result).not.toHaveProperty('answer');
+    expect(result).not.toHaveProperty('streamed');
+    expect(result).not.toHaveProperty('generationMetadata');
     expect(result.chunks).toEqual([
       {
-        id: "chunk-1",
-        content: "retrieved for: Explain runtime contract",
+        id: 'chunk-1',
+        content: 'retrieved for: Explain runtime contract',
       },
     ]);
     expect(result.citations).toEqual([
       {
         index: 1,
-        chunkId: "chunk-1",
+        chunkId: 'chunk-1',
         score: 0.95,
       },
     ]);
-    expect(result.originalQuery).toEqual({ query: "Explain runtime contract" });
+    expect(result.originalQuery).toEqual({ query: 'Explain runtime contract' });
     expect(result.effectiveQuery).toEqual({
-      query: "Explain runtime contract",
+      query: 'Explain runtime contract',
     });
-    expect(result.retrievalMetadata).toEqual({ provider: "unit-test" });
+    expect(result.retrievalMetadata).toEqual({ provider: 'unit-test' });
     expect(result.counts).toEqual({
       retrieved: 1,
       selected: 1,
       dropped: 0,
       finalChunks: 1,
     });
-    expect(result.timings).not.toHaveProperty("generation");
+    expect(result.timings).not.toHaveProperty('generation');
     expect(result.debug?.finalChunkCount).toBe(1);
-    expect(observerEvents).not.toContain("runtime.generation.start");
-    expect(observerEvents).toContain("runtime.search.complete");
+    expect(observerEvents).not.toContain('runtime.generation.start');
+    expect(observerEvents).toContain('runtime.search.complete');
   });
 
-  it("returns debug info when includeDebug is enabled", async () => {
+  it('returns debug info when includeDebug is enabled', async () => {
     const runtime = createRuntime({
       preprocessor: {
         async preprocess(input) {
           return {
             originalQuery: { query: input.query },
             effectiveQuery: { query: `${input.query} site:runtime` },
-            route: "runtime-docs",
-            rewriteReason: "prefer runtime docs",
-            strategy: "metadata-first",
-            indexingMode: "incremental",
+            route: 'runtime-docs',
+            rewriteReason: 'prefer runtime docs',
+            strategy: 'metadata-first',
+            indexingMode: 'incremental',
             filters: {
-              sourceIds: ["docs/runtime"],
-              hierarchyPaths: ["runtime/api"],
+              sourceIds: ['docs/runtime'],
+              hierarchyPaths: ['runtime/api'],
             },
             budget: {
               maxCandidates: 4,
               maxChunks: 1,
             },
             rerank: {
-              strategy: "score-threshold",
+              strategy: 'score-threshold',
               minScore: 0.7,
             },
           };
@@ -177,21 +170,21 @@ describe("runtime pipeline", () => {
             candidates: [
               {
                 chunk: {
-                  id: "chunk-1",
+                  id: 'chunk-1',
                   content: `retrieved for: ${request.effectiveQuery.query}`,
                 },
                 score: 0.91,
-                sourceId: "docs/runtime",
-                hierarchyPath: "runtime/api",
+                sourceId: 'docs/runtime',
+                hierarchyPath: 'runtime/api',
               },
               {
                 chunk: {
-                  id: "chunk-2",
+                  id: 'chunk-2',
                   content: `secondary for: ${request.effectiveQuery.query}`,
                 },
                 score: 0.5,
-                sourceId: "docs/runtime",
-                hierarchyPath: "runtime/faq",
+                sourceId: 'docs/runtime',
+                hierarchyPath: 'runtime/faq',
               },
             ],
           };
@@ -221,20 +214,17 @@ describe("runtime pipeline", () => {
       },
     });
 
-    const result = await runtime.run(
-      { query: "Explain debug mode" },
-      { includeDebug: true },
-    );
+    const result = await runtime.run({ query: 'Explain debug mode' }, { includeDebug: true });
 
     expect(result.debug).toMatchObject({
-      route: "runtime-docs",
-      rewriteReason: "prefer runtime docs",
-      retrievalStrategy: "metadata-first",
-      rerankStrategy: "score-threshold",
-      indexingMode: "incremental",
+      route: 'runtime-docs',
+      rewriteReason: 'prefer runtime docs',
+      retrievalStrategy: 'metadata-first',
+      rerankStrategy: 'score-threshold',
+      indexingMode: 'incremental',
       filters: {
-        sourceIds: ["docs/runtime"],
-        hierarchyPaths: ["runtime/api"],
+        sourceIds: ['docs/runtime'],
+        hierarchyPaths: ['runtime/api'],
       },
       retrievedCount: 2,
       selectedCount: 1,
@@ -245,15 +235,14 @@ describe("runtime pipeline", () => {
         maxChunks: 1,
       },
       appliedScoreThreshold: 0.7,
-      promptContext:
-        "query: Explain debug mode\n\nretrieved for: Explain debug mode site:runtime",
+      promptContext: 'query: Explain debug mode\n\nretrieved for: Explain debug mode site:runtime',
     });
-    expect(result.debug?.timings.total).toBeTypeOf("number");
+    expect(result.debug?.timings.total).toBeTypeOf('number');
     expect(result.streamed).toBe(false);
-    expect(result.requestId).toBeTypeOf("string");
-    expect(result.traceId).toBeTypeOf("string");
-    expect(result.startedAt).toBeTypeOf("number");
-    expect(result.endedAt).toBeTypeOf("number");
+    expect(result.requestId).toBeTypeOf('string');
+    expect(result.traceId).toBeTypeOf('string');
+    expect(result.startedAt).toBeTypeOf('number');
+    expect(result.endedAt).toBeTypeOf('number');
     expect(result.counts).toEqual({
       retrieved: 2,
       selected: 1,
@@ -261,8 +250,8 @@ describe("runtime pipeline", () => {
       finalChunks: 1,
     });
     expect(result.filters).toMatchObject({
-      sourceIds: ["docs/runtime"],
-      hierarchyPaths: ["runtime/api"],
+      sourceIds: ['docs/runtime'],
+      hierarchyPaths: ['runtime/api'],
     });
     expect(result.budget).toEqual({
       maxCandidates: 4,
@@ -273,20 +262,20 @@ describe("runtime pipeline", () => {
       maxChunks: 1,
     });
     expect(result.rerank).toEqual({
-      strategy: "score-threshold",
+      strategy: 'score-threshold',
       minScore: 0.7,
     });
-    expect(result.droppedChunkIds).toEqual(["chunk-2"]);
+    expect(result.droppedChunkIds).toEqual(['chunk-2']);
     expect(result.retrievedCandidates).toEqual([
       {
-        chunkId: "chunk-1",
+        chunkId: 'chunk-1',
         score: 0.91,
-        sourceId: "docs/runtime",
+        sourceId: 'docs/runtime',
       },
       {
-        chunkId: "chunk-2",
+        chunkId: 'chunk-2',
         score: 0.5,
-        sourceId: "docs/runtime",
+        sourceId: 'docs/runtime',
       },
     ]);
 
@@ -294,7 +283,7 @@ describe("runtime pipeline", () => {
     expect(RAGResponseSchema.parse(snapshot).counts).toEqual(result.counts);
   });
 
-  it("wraps stage failures as RuntimeError", async () => {
+  it('wraps stage failures as RuntimeError', async () => {
     const runtime = createRuntime({
       preprocessor: {
         async preprocess(input) {
@@ -306,7 +295,7 @@ describe("runtime pipeline", () => {
       },
       retriever: {
         async retrieve() {
-          throw new Error("retriever failed");
+          throw new Error('retriever failed');
         },
       },
       postprocessor: {
@@ -316,23 +305,21 @@ describe("runtime pipeline", () => {
       },
       generator: {
         async generate() {
-          return { answer: "never" };
+          return { answer: 'never' };
         },
       },
     });
 
-    await expect(runtime.run({ query: "fail here" })).rejects.toBeInstanceOf(
-      RuntimeError,
-    );
-    await expect(runtime.run({ query: "fail here" })).rejects.toMatchObject({
-      stage: "retrieval",
-      originalQuery: { query: "fail here" },
-      effectiveQuery: { query: "fail here" },
+    await expect(runtime.run({ query: 'fail here' })).rejects.toBeInstanceOf(RuntimeError);
+    await expect(runtime.run({ query: 'fail here' })).rejects.toMatchObject({
+      stage: 'retrieval',
+      originalQuery: { query: 'fail here' },
+      effectiveQuery: { query: 'fail here' },
       cause: expect.any(Error),
     });
   });
 
-  it("streams generation deltas then a final result", async () => {
+  it('streams generation deltas then a final result', async () => {
     const runtime = createDefaultRuntime({
       retriever: {
         async retrieve(request) {
@@ -340,7 +327,7 @@ describe("runtime pipeline", () => {
             candidates: [
               {
                 chunk: {
-                  id: "chunk-1",
+                  id: 'chunk-1',
                   content: `retrieved for: ${request.effectiveQuery.query}`,
                 },
               },
@@ -355,14 +342,14 @@ describe("runtime pipeline", () => {
           };
         },
         async *generateStream({ request }) {
-          yield { type: "delta" as const, text: "hello " };
-          yield { type: "delta" as const, text: "world" };
+          yield { type: 'delta' as const, text: 'hello ' };
+          yield { type: 'delta' as const, text: 'world' };
           yield {
-            type: "complete" as const,
+            type: 'complete' as const,
             result: {
-              answer: "hello world",
+              answer: 'hello world',
               generationMetadata: {
-                provider: "unit-test",
+                provider: 'unit-test',
                 query: request.effectiveQuery.query,
               },
             },
@@ -373,27 +360,27 @@ describe("runtime pipeline", () => {
 
     const events = [];
     for await (const event of runtime.runStream({
-      query: "Explain runtime contract",
+      query: 'Explain runtime contract',
     })) {
       events.push(event);
     }
 
     expect(events).toEqual([
-      { type: "delta", text: "hello " },
-      { type: "delta", text: "world" },
+      { type: 'delta', text: 'hello ' },
+      { type: 'delta', text: 'world' },
       {
-        type: "result",
+        type: 'result',
         result: expect.objectContaining({
-          answer: "hello world",
-          originalQuery: { query: "Explain runtime contract" },
+          answer: 'hello world',
+          originalQuery: { query: 'Explain runtime contract' },
           generationMetadata: {
-            provider: "unit-test",
-            query: "Explain runtime contract",
+            provider: 'unit-test',
+            query: 'Explain runtime contract',
           },
           citations: [
             {
               index: 1,
-              chunkId: "chunk-1",
+              chunkId: 'chunk-1',
             },
           ],
         }),
@@ -401,14 +388,14 @@ describe("runtime pipeline", () => {
     ]);
   });
 
-  it("falls back to a single delta when generateStream is absent", async () => {
+  it('falls back to a single delta when generateStream is absent', async () => {
     const runtime = createDefaultRuntime({
       retriever: {
         async retrieve() {
           return {
             candidates: [
               {
-                chunk: { id: "chunk-1", content: "ctx" },
+                chunk: { id: 'chunk-1', content: 'ctx' },
               },
             ],
           };
@@ -417,29 +404,29 @@ describe("runtime pipeline", () => {
       generator: {
         async generate() {
           return {
-            answer: "one-shot answer",
-            generationMetadata: { provider: "unit-test" },
+            answer: 'one-shot answer',
+            generationMetadata: { provider: 'unit-test' },
           };
         },
       },
     });
 
     const events = [];
-    for await (const event of runtime.runStream({ query: "fallback" })) {
+    for await (const event of runtime.runStream({ query: 'fallback' })) {
       events.push(event);
     }
 
     expect(events).toEqual([
-      { type: "delta", text: "one-shot answer" },
+      { type: 'delta', text: 'one-shot answer' },
       {
-        type: "result",
+        type: 'result',
         result: expect.objectContaining({
-          answer: "one-shot answer",
-          generationMetadata: { provider: "unit-test" },
+          answer: 'one-shot answer',
+          generationMetadata: { provider: 'unit-test' },
           citations: [
             {
               index: 1,
-              chunkId: "chunk-1",
+              chunkId: 'chunk-1',
             },
           ],
         }),
@@ -447,7 +434,7 @@ describe("runtime pipeline", () => {
     ]);
   });
 
-  it("wraps streamed generation failures as RuntimeError", async () => {
+  it('wraps streamed generation failures as RuntimeError', async () => {
     const runtime = createDefaultRuntime({
       retriever: {
         async retrieve() {
@@ -456,11 +443,11 @@ describe("runtime pipeline", () => {
       },
       generator: {
         async generate() {
-          return { answer: "never" };
+          return { answer: 'never' };
         },
         async *generateStream() {
-          yield { type: "delta" as const, text: "partial" };
-          throw new Error("stream failed");
+          yield { type: 'delta' as const, text: 'partial' };
+          throw new Error('stream failed');
         },
       },
     });
@@ -468,20 +455,20 @@ describe("runtime pipeline", () => {
     const deltas: string[] = [];
 
     await expect(async () => {
-      for await (const event of runtime.runStream({ query: "fail stream" })) {
-        if (event.type === "delta") {
+      for await (const event of runtime.runStream({ query: 'fail stream' })) {
+        if (event.type === 'delta') {
           deltas.push(event.text);
         }
       }
     }).rejects.toMatchObject({
-      stage: "generation",
-      originalQuery: { query: "fail stream" },
+      stage: 'generation',
+      originalQuery: { query: 'fail stream' },
     });
 
-    expect(deltas).toEqual(["partial"]);
+    expect(deltas).toEqual(['partial']);
   });
 
-  it("builds citations from selected candidates for both run and runStream", async () => {
+  it('builds citations from selected candidates for both run and runStream', async () => {
     const runtime = createDefaultRuntime({
       retriever: {
         async retrieve() {
@@ -489,17 +476,17 @@ describe("runtime pipeline", () => {
             candidates: [
               {
                 chunk: {
-                  id: "chunk-api",
-                  content: "runtime api",
+                  id: 'chunk-api',
+                  content: 'runtime api',
                   metadata: {
-                    sourceId: "docs/runtime",
-                    documentTitle: "Runtime API",
-                    hierarchyPath: ["runtime", "api"],
+                    sourceId: 'docs/runtime',
+                    documentTitle: 'Runtime API',
+                    hierarchyPath: ['runtime', 'api'],
                   },
                 },
                 score: 0.93,
-                sourceId: "docs/runtime",
-                hierarchyPath: "runtime/api",
+                sourceId: 'docs/runtime',
+                hierarchyPath: 'runtime/api',
               },
             ],
           };
@@ -507,29 +494,29 @@ describe("runtime pipeline", () => {
       },
       generator: {
         async generate() {
-          return { answer: "grounded answer" };
+          return { answer: 'grounded answer' };
         },
       },
     });
     const expectedCitations = [
       {
         index: 1,
-        chunkId: "chunk-api",
-        sourceId: "docs/runtime",
+        chunkId: 'chunk-api',
+        sourceId: 'docs/runtime',
         score: 0.93,
-        title: "Runtime API",
-        hierarchyPath: "runtime/api",
+        title: 'Runtime API',
+        hierarchyPath: 'runtime/api',
       },
     ];
 
-    await expect(runtime.run({ query: "cite me" })).resolves.toMatchObject({
-      answer: "grounded answer",
+    await expect(runtime.run({ query: 'cite me' })).resolves.toMatchObject({
+      answer: 'grounded answer',
       citations: expectedCitations,
     });
 
     let streamedResult;
-    for await (const event of runtime.runStream({ query: "cite me" })) {
-      if (event.type === "result") {
+    for await (const event of runtime.runStream({ query: 'cite me' })) {
+      if (event.type === 'result') {
         streamedResult = event.result;
       }
     }
@@ -537,7 +524,7 @@ describe("runtime pipeline", () => {
     expect(streamedResult?.citations).toEqual(expectedCitations);
   });
 
-  it("falls back to chunk metadata when selectedCandidates are absent", async () => {
+  it('falls back to chunk metadata when selectedCandidates are absent', async () => {
     const runtime = createRuntime({
       preprocessor: {
         async preprocess(input) {
@@ -557,12 +544,12 @@ describe("runtime pipeline", () => {
           return {
             chunks: [
               {
-                id: "chunk-meta",
-                content: "from metadata",
+                id: 'chunk-meta',
+                content: 'from metadata',
                 metadata: {
-                  sourceId: "docs/faq",
-                  title: "FAQ",
-                  hierarchyPath: ["runtime", "faq"],
+                  sourceId: 'docs/faq',
+                  title: 'FAQ',
+                  hierarchyPath: ['runtime', 'faq'],
                 },
               },
             ],
@@ -571,25 +558,25 @@ describe("runtime pipeline", () => {
       },
       generator: {
         async generate() {
-          return { answer: "ok" };
+          return { answer: 'ok' };
         },
       },
     });
 
-    await expect(runtime.run({ query: "meta cite" })).resolves.toMatchObject({
+    await expect(runtime.run({ query: 'meta cite' })).resolves.toMatchObject({
       citations: [
         {
           index: 1,
-          chunkId: "chunk-meta",
-          sourceId: "docs/faq",
-          title: "FAQ",
-          hierarchyPath: "runtime/faq",
+          chunkId: 'chunk-meta',
+          sourceId: 'docs/faq',
+          title: 'FAQ',
+          hierarchyPath: 'runtime/faq',
         },
       ],
     });
   });
 
-  it("returns an empty citations array when no chunks grounded the answer", async () => {
+  it('returns an empty citations array when no chunks grounded the answer', async () => {
     const runtime = createDefaultRuntime({
       retriever: {
         async retrieve() {
@@ -598,12 +585,12 @@ describe("runtime pipeline", () => {
       },
       generator: {
         async generate() {
-          return { answer: "no context" };
+          return { answer: 'no context' };
         },
       },
     });
 
-    await expect(runtime.run({ query: "empty" })).resolves.toMatchObject({
+    await expect(runtime.run({ query: 'empty' })).resolves.toMatchObject({
       chunks: [],
       citations: [],
     });

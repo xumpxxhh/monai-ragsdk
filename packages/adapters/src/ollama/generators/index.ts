@@ -1,1 +1,1 @@
-export * from "./ollama-runtime-generator.js";
+export * from './ollama-runtime-generator.js';

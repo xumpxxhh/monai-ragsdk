@@ -9,11 +9,12 @@
     "dist"
   ],
   "scripts": {
-    "build": "pnpm --filter @monai-ragsdk/core build && pnpm --filter @monai-ragsdk/observability build && tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
     "demo": "pnpm run build && tsx demo/minimal-runtime.ts",
     "demo:minimal": "pnpm run build && tsx demo/minimal-runtime.ts",
     "demo:custom": "pnpm run build && tsx demo/custom-runtime.ts",
-    "test": "pnpm run build && vitest run __tests__",
+    "test": "vitest run __tests__",
     "test:watch": "vitest __tests__"
   },
   "exports": {
@@ -26,5 +27,10 @@
     "@monai-ragsdk/core": "workspace:*",
     "@monai-ragsdk/observability": "workspace:*",
     "@monai-ragsdk/indexing": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

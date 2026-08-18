@@ -1,6 +1,6 @@
-import type { JsonValue } from "@monai-ragsdk/core";
+import type { JsonValue } from '@monai-ragsdk/core';
 
-import type { RetrievalCandidate } from "./retrieval-candidate.js";
+import type { RetrievalCandidate } from './retrieval-candidate.js';
 
 export type RuntimeRetrievalResult = {
   candidates: RetrievalCandidate[];

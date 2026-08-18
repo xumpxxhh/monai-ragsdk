@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 import {
   RAGBudgetSchema,
@@ -11,12 +11,10 @@ import {
   RAGSelectionTraceEntrySchema,
   RAGStageStrategiesSchema,
   RAGTimingsSchema,
-} from "../spec/rag-response.js";
+} from '../spec/rag-response.js';
 
 export type RAGCitation = z.infer<typeof RAGCitationSchema>;
-export type RAGSelectionTraceEntry = z.infer<
-  typeof RAGSelectionTraceEntrySchema
->;
+export type RAGSelectionTraceEntry = z.infer<typeof RAGSelectionTraceEntrySchema>;
 export type RAGStageStrategies = z.infer<typeof RAGStageStrategiesSchema>;
 export type RAGFilters = z.infer<typeof RAGFiltersSchema>;
 export type RAGBudget = z.infer<typeof RAGBudgetSchema>;

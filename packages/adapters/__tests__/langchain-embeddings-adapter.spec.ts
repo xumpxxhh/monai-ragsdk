@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from 'vitest';
 
-import { LangChainEmbeddingsAdapter } from "../src/index.ts";
+import { LangChainEmbeddingsAdapter } from '../src/index.ts';
 
-describe("LangChainEmbeddingsAdapter", () => {
-  it("converts chunk embeddings into rag vectors", async () => {
+describe('LangChainEmbeddingsAdapter', () => {
+  it('converts chunk embeddings into rag vectors', async () => {
     const adapter = new LangChainEmbeddingsAdapter({
       embeddings: {
         async embedDocuments(texts) {
@@ -14,32 +14,32 @@ describe("LangChainEmbeddingsAdapter", () => {
 
     const vectors = await adapter.embed([
       {
-        id: "chunk-1",
-        content: "hello",
-        metadata: { sourceDocumentId: "doc-1", chunkIndex: 0 },
+        id: 'chunk-1',
+        content: 'hello',
+        metadata: { sourceDocumentId: 'doc-1', chunkIndex: 0 },
       },
       {
-        id: "chunk-2",
-        content: "world!",
-        metadata: { sourceDocumentId: "doc-1", chunkIndex: 1 },
+        id: 'chunk-2',
+        content: 'world!',
+        metadata: { sourceDocumentId: 'doc-1', chunkIndex: 1 },
       },
     ]);
 
     expect(vectors).toEqual([
       {
-        id: "chunk-1",
+        id: 'chunk-1',
         values: [5, 1],
-        metadata: { sourceDocumentId: "doc-1", chunkIndex: 0 },
+        metadata: { sourceDocumentId: 'doc-1', chunkIndex: 0 },
       },
       {
-        id: "chunk-2",
+        id: 'chunk-2',
         values: [6, 2],
-        metadata: { sourceDocumentId: "doc-1", chunkIndex: 1 },
+        metadata: { sourceDocumentId: 'doc-1', chunkIndex: 1 },
       },
     ]);
   });
 
-  it("returns an empty vector list without calling embeddings for empty input", async () => {
+  it('returns an empty vector list without calling embeddings for empty input', async () => {
     const embedDocuments = vi.fn(async () => [[1, 2, 3]]);
     const adapter = new LangChainEmbeddingsAdapter({
       embeddings: {
@@ -53,7 +53,7 @@ describe("LangChainEmbeddingsAdapter", () => {
     expect(embedDocuments).not.toHaveBeenCalled();
   });
 
-  it("throws when embedding result count does not match chunk count", async () => {
+  it('throws when embedding result count does not match chunk count', async () => {
     const adapter = new LangChainEmbeddingsAdapter({
       embeddings: {
         async embedDocuments() {
@@ -64,11 +64,9 @@ describe("LangChainEmbeddingsAdapter", () => {
 
     await expect(
       adapter.embed([
-        { id: "chunk-1", content: "alpha" },
-        { id: "chunk-2", content: "beta" },
+        { id: 'chunk-1', content: 'alpha' },
+        { id: 'chunk-2', content: 'beta' },
       ]),
-    ).rejects.toThrow(
-      "Embedding result count mismatch: expected 2, received 1",
-    );
+    ).rejects.toThrow('Embedding result count mismatch: expected 2, received 1');
   });
 });

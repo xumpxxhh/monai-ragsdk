@@ -1,4 +1,4 @@
-import type { JsonValue } from "@monai-ragsdk/core";
+import type { JsonValue } from '@monai-ragsdk/core';
 
 export type RetrievalFilters = {
   sourceIds?: string[];

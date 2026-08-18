@@ -1,10 +1,6 @@
 {
   "extends": "../../tsconfig.json",
-  "references": [
-    { "path": "../core" },
-    { "path": "../indexing" },
-    { "path": "../runtime" }
-  ],
+  "references": [{ "path": "../core" }, { "path": "../indexing" }, { "path": "../runtime" }],
   "compilerOptions": {
     "composite": true,
     "module": "NodeNext",

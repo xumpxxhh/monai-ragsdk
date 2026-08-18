@@ -1,4 +1,4 @@
-import type { RuntimeResult } from "./runtime-result.js";
+import type { RuntimeResult } from './runtime-result.js';
 
 /**
  * 一次 retrieve-only search 的对外结果。
@@ -8,5 +8,5 @@ import type { RuntimeResult } from "./runtime-result.js";
  */
 export type RuntimeSearchResult = Omit<
   RuntimeResult,
-  "answer" | "streamed" | "generationModel" | "generationMetadata"
+  'answer' | 'streamed' | 'generationModel' | 'generationMetadata'
 >;

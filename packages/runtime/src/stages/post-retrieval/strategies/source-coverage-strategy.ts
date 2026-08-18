@@ -1,13 +1,11 @@
-import type { PostRetrievalStrategy } from "../post-retrieval-strategy.js";
+import type { PostRetrievalStrategy } from '../post-retrieval-strategy.js';
 
 import {
   applySourceCoverageStrategy,
   type SourceCoverageConfig,
-} from "./post-retrieval-strategies.js";
+} from './post-retrieval-strategies.js';
 
-export function createSourceCoverageStrategy(
-  config?: SourceCoverageConfig,
-): PostRetrievalStrategy {
+export function createSourceCoverageStrategy(config?: SourceCoverageConfig): PostRetrievalStrategy {
   return {
     async apply({ candidates }) {
       const result = applySourceCoverageStrategy(candidates, config);

@@ -1,6 +1,6 @@
-import type { RuntimeStrategyModel } from "../../../types/index.js";
+import type { RuntimeStrategyModel } from '../../../types/index.js';
 
-export type QueryStrategyErrorMode = "passthrough" | "throw";
+export type QueryStrategyErrorMode = 'passthrough' | 'throw';
 
 export type LlmQueryStrategyOptions = {
   model: RuntimeStrategyModel;

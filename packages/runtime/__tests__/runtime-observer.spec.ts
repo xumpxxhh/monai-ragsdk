@@ -1,15 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from 'vitest';
 
-import type {
-  RAGErrorRecord,
-  RAGEvent,
-  RAGTrace,
-} from "@monai-ragsdk/observability";
+import type { RAGErrorRecord, RAGEvent, RAGTrace } from '@monai-ragsdk/observability';
 
-import { RuntimeError, createRuntime } from "../src/index.ts";
+import { RuntimeError, createRuntime } from '../src/index.ts';
 
-describe("runtime observer integration", () => {
-  it("keeps runtime behavior unchanged when no observer is provided", async () => {
+describe('runtime observer integration', () => {
+  it('keeps runtime behavior unchanged when no observer is provided', async () => {
     const runtime = createRuntime({
       preprocessor: {
         async preprocess(input) {
@@ -25,8 +21,8 @@ describe("runtime observer integration", () => {
             candidates: [
               {
                 chunk: {
-                  id: "chunk-1",
-                  content: "retrieved content",
+                  id: 'chunk-1',
+                  content: 'retrieved content',
                 },
                 score: 0.9,
               },
@@ -44,27 +40,27 @@ describe("runtime observer integration", () => {
       generator: {
         async generate() {
           return {
-            answer: "answer",
+            answer: 'answer',
           };
         },
       },
     });
 
-    await expect(runtime.run({ query: "hello" })).resolves.toMatchObject({
-      answer: "answer",
-      chunks: [{ id: "chunk-1", content: "retrieved content" }],
+    await expect(runtime.run({ query: 'hello' })).resolves.toMatchObject({
+      answer: 'answer',
+      chunks: [{ id: 'chunk-1', content: 'retrieved content' }],
       citations: [
         {
           index: 1,
-          chunkId: "chunk-1",
+          chunkId: 'chunk-1',
         },
       ],
-      originalQuery: { query: "hello" },
-      effectiveQuery: { query: "hello" },
+      originalQuery: { query: 'hello' },
+      effectiveQuery: { query: 'hello' },
     });
   });
 
-  it("emits runtime events and trace summaries when an observer is provided", async () => {
+  it('emits runtime events and trace summaries when an observer is provided', async () => {
     const onEvent = vi.fn<(event: RAGEvent) => Promise<void>>();
     const onTraceEnd = vi.fn<(trace: RAGTrace) => Promise<void>>();
     const runtime = createRuntime({
@@ -77,11 +73,11 @@ describe("runtime observer integration", () => {
           return {
             originalQuery: { query: input.query },
             effectiveQuery: { query: `${input.query} rewritten` },
-            route: "kb",
-            rewriteReason: "prefer kb route",
-            strategy: "metadata-first",
+            route: 'kb',
+            rewriteReason: 'prefer kb route',
+            strategy: 'metadata-first',
             filters: {
-              sourceIds: ["docs/runtime"],
+              sourceIds: ['docs/runtime'],
             },
           };
         },
@@ -92,15 +88,15 @@ describe("runtime observer integration", () => {
             candidates: [
               {
                 chunk: {
-                  id: "chunk-1",
+                  id: 'chunk-1',
                   content: request.effectiveQuery.query,
                 },
                 score: 0.91,
               },
               {
                 chunk: {
-                  id: "chunk-2",
-                  content: "dropped",
+                  id: 'chunk-2',
+                  content: 'dropped',
                 },
                 score: 0.4,
               },
@@ -127,44 +123,44 @@ describe("runtime observer integration", () => {
     });
 
     await runtime.run(
-      { query: "hello" },
+      { query: 'hello' },
       {
-        requestId: "request-1",
+        requestId: 'request-1',
         trace: {
-          traceId: "trace-1",
+          traceId: 'trace-1',
           tags: {
-            app: "internal-kb",
+            app: 'internal-kb',
           },
         },
       },
     );
 
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "runtime.query.preprocess" }),
+      expect.objectContaining({ name: 'runtime.query.preprocess' }),
     );
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "runtime.retrieval.complete" }),
+      expect.objectContaining({ name: 'runtime.retrieval.complete' }),
     );
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "runtime.post_retrieval.select" }),
+      expect.objectContaining({ name: 'runtime.post_retrieval.select' }),
     );
     expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "runtime.generation.complete" }),
+      expect.objectContaining({ name: 'runtime.generation.complete' }),
     );
     expect(onTraceEnd).toHaveBeenCalledWith(
       expect.objectContaining({
-        traceId: "trace-1",
-        requestId: "request-1",
-        status: "ok",
+        traceId: 'trace-1',
+        requestId: 'request-1',
+        status: 'ok',
       }),
     );
   });
 
-  it("swallows observer failures without breaking runtime.run", async () => {
+  it('swallows observer failures without breaking runtime.run', async () => {
     const runtime = createRuntime({
       observer: {
         async onEvent() {
-          throw new Error("observer failed");
+          throw new Error('observer failed');
         },
       },
       preprocessor: {
@@ -181,8 +177,8 @@ describe("runtime observer integration", () => {
             candidates: [
               {
                 chunk: {
-                  id: "chunk-1",
-                  content: "retrieved content",
+                  id: 'chunk-1',
+                  content: 'retrieved content',
                 },
                 score: 0.9,
               },
@@ -200,18 +196,18 @@ describe("runtime observer integration", () => {
       generator: {
         async generate() {
           return {
-            answer: "answer",
+            answer: 'answer',
           };
         },
       },
     });
 
-    await expect(runtime.run({ query: "hello" })).resolves.toMatchObject({
-      answer: "answer",
+    await expect(runtime.run({ query: 'hello' })).resolves.toMatchObject({
+      answer: 'answer',
     });
   });
 
-  it("emits runtime.run.fail and error records on stage failures", async () => {
+  it('emits runtime.run.fail and error records on stage failures', async () => {
     const onEvent = vi.fn<(event: RAGEvent) => Promise<void>>();
     const onError = vi.fn<(error: RAGErrorRecord) => Promise<void>>();
     const onTraceEnd = vi.fn<(trace: RAGTrace) => Promise<void>>();
@@ -231,7 +227,7 @@ describe("runtime observer integration", () => {
       },
       retriever: {
         async retrieve() {
-          throw new Error("retriever failed");
+          throw new Error('retriever failed');
         },
       },
       postprocessor: {
@@ -241,30 +237,24 @@ describe("runtime observer integration", () => {
       },
       generator: {
         async generate() {
-          return { answer: "never" };
+          return { answer: 'never' };
         },
       },
     });
 
-    await expect(runtime.run({ query: "fail here" })).rejects.toBeInstanceOf(
-      RuntimeError,
-    );
+    await expect(runtime.run({ query: 'fail here' })).rejects.toBeInstanceOf(RuntimeError);
 
-    expect(onEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "runtime.run.fail" }),
-    );
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ name: 'runtime.run.fail' }));
     expect(onError).toHaveBeenCalledWith(
       expect.objectContaining({
-        stage: "retrieval",
-        name: "runtime.run.fail",
+        stage: 'retrieval',
+        name: 'runtime.run.fail',
         error: expect.objectContaining({
-          name: "RuntimeError",
-          message: "retriever failed",
+          name: 'RuntimeError',
+          message: 'retriever failed',
         }),
       }),
     );
-    expect(onTraceEnd).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "error" }),
-    );
+    expect(onTraceEnd).toHaveBeenCalledWith(expect.objectContaining({ status: 'error' }));
   });
 });

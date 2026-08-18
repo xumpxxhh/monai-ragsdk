@@ -1,8 +1,8 @@
-import { appendFile, mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { appendFile, mkdir, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
-import type { RAGTrace } from "../types/rag-trace.js";
-import type { TraceExporter } from "./trace-exporter.js";
+import type { RAGTrace } from '../types/rag-trace.js';
+import type { TraceExporter } from './trace-exporter.js';
 
 export interface JsonlTraceExporterOptions {
   filePath: string;
@@ -14,10 +14,8 @@ export interface JsonlTraceExporter extends TraceExporter {
   readonly filePath: string;
 }
 
-export function createJsonlTraceExporter(
-  options: JsonlTraceExporterOptions,
-): JsonlTraceExporter {
-  const encoding = options.encoding ?? "utf-8";
+export function createJsonlTraceExporter(options: JsonlTraceExporterOptions): JsonlTraceExporter {
+  const encoding = options.encoding ?? 'utf-8';
   const appendMode = options.append ?? true;
   let isInitialized = false;
   let isShutdown = false;
@@ -31,9 +29,9 @@ export function createJsonlTraceExporter(
     await mkdir(dirname(options.filePath), { recursive: true });
 
     if (appendMode) {
-      await appendFile(options.filePath, "", { encoding });
+      await appendFile(options.filePath, '', { encoding });
     } else {
-      await writeFile(options.filePath, "", { encoding });
+      await writeFile(options.filePath, '', { encoding });
     }
 
     isInitialized = true;
@@ -55,7 +53,7 @@ export function createJsonlTraceExporter(
     async export(trace: RAGTrace) {
       return enqueue(async () => {
         if (isShutdown) {
-          throw new Error("JSONL trace exporter has been shut down");
+          throw new Error('JSONL trace exporter has been shut down');
         }
 
         await ensureWritableFile();

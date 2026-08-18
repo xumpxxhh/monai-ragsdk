@@ -1,25 +1,17 @@
-import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
-import {
-  createJsonlTraceExporter,
-  createRAGObserver,
-} from "@monai-ragsdk/observability";
+import { createJsonlTraceExporter, createRAGObserver } from '@monai-ragsdk/observability';
 
-import {
-  MemoryVectorStore,
-  MockEmbedder,
-  SimpleChunker,
-  runIndexing,
-} from "../dist/index.js";
+import { MemoryVectorStore, MockEmbedder, SimpleChunker, runIndexing } from '../dist/index.js';
 
 const store = new MemoryVectorStore();
 const traceFilePath = fileURLToPath(
-  new URL("./.artifacts/run-indexing-trace.jsonl", import.meta.url),
+  new URL('./.artifacts/run-indexing-trace.jsonl', import.meta.url),
 );
 const observer = createRAGObserver({
-  serviceName: "indexing-demo",
-  environment: "local-demo",
+  serviceName: 'indexing-demo',
+  environment: 'local-demo',
   exporters: [
     createJsonlTraceExporter({
       filePath: traceFilePath,
@@ -33,11 +25,11 @@ const result = await runIndexing({
     async load() {
       return [
         {
-          id: "demo/doc-1",
+          id: 'demo/doc-1',
           content:
-            "Indexing should depend on the Loader interface only, while concrete loaders come from adapters or user code.",
+            'Indexing should depend on the Loader interface only, while concrete loaders come from adapters or user code.',
           metadata: {
-            source: "demo",
+            source: 'demo',
           },
         },
       ];
@@ -50,10 +42,10 @@ const result = await runIndexing({
   embedder: new MockEmbedder({ dimension: 6 }),
   observer,
   trace: {
-    dataset: "indexing-demo",
-    version: "v1",
+    dataset: 'indexing-demo',
+    version: 'v1',
     tags: {
-      scenario: "jsonl-trace-exporter",
+      scenario: 'jsonl-trace-exporter',
     },
   },
   store,
@@ -61,10 +53,10 @@ const result = await runIndexing({
 
 await observer.shutdown?.();
 
-const traceFileContent = await readFile(traceFilePath, "utf-8");
+const traceFileContent = await readFile(traceFilePath, 'utf-8');
 
-console.log("indexing demo passed");
-console.log("trace file:", traceFilePath);
+console.log('indexing demo passed');
+console.log('trace file:', traceFilePath);
 console.log(traceFileContent.trim());
 console.log(result);
 console.log(store.getAll());

@@ -1,9 +1,9 @@
-import type { Chunk, Vector } from "@monai-ragsdk/core";
-import type { Embedder } from "@monai-ragsdk/indexing";
+import type { Chunk, Vector } from '@monai-ragsdk/core';
+import type { Embedder } from '@monai-ragsdk/indexing';
 
-import { postOpenAIJson, type OpenAIHttpOptions } from "../shared/http.js";
+import { postOpenAIJson, type OpenAIHttpOptions } from '../shared/http.js';
 
-export type OpenAIEmbedderOptions = Omit<OpenAIHttpOptions, "apiKey"> & {
+export type OpenAIEmbedderOptions = Omit<OpenAIHttpOptions, 'apiKey'> & {
   model: string;
   /** OpenAI 兼容 /embeddings 的根地址，须由调用方显式传入，SDK 不内置厂商 URL。 */
   baseUrl: string;
@@ -38,19 +38,17 @@ export class OpenAIEmbedder implements Embedder {
     const apiKey = resolveApiKey(options.apiKey);
 
     if (!apiKey) {
-      throw new Error(
-        "OpenAIEmbedder requires apiKey, or EMBEDDING_API_KEY",
-      );
+      throw new Error('OpenAIEmbedder requires apiKey, or EMBEDDING_API_KEY');
     }
 
     const baseUrl = options.baseUrl.trim();
 
     if (!baseUrl) {
-      throw new Error("OpenAIEmbedder requires baseUrl");
+      throw new Error('OpenAIEmbedder requires baseUrl');
     }
 
     this.#model = options.model;
-    this.#baseUrl = baseUrl.replace(/\/$/, "");
+    this.#baseUrl = baseUrl.replace(/\/$/, '');
     this.#dimension = options.dimension;
     this.#batchSize = options.batchSize ?? 32;
     this.#http = {
@@ -62,11 +60,11 @@ export class OpenAIEmbedder implements Embedder {
     };
 
     if (this.#dimension <= 0) {
-      throw new Error("dimension must be greater than 0");
+      throw new Error('dimension must be greater than 0');
     }
 
     if (this.#batchSize <= 0) {
-      throw new Error("batchSize must be greater than 0");
+      throw new Error('batchSize must be greater than 0');
     }
   }
 
@@ -111,16 +109,11 @@ export class OpenAIEmbedder implements Embedder {
 }
 
 /** 兼容接口可能乱序返回，必须按 index 对齐到当前 batch。 */
-function readEmbeddings(
-  payload: OpenAIEmbeddingsResponse,
-  expectedCount: number,
-): number[][] {
+function readEmbeddings(payload: OpenAIEmbeddingsResponse, expectedCount: number): number[][] {
   const items = payload.data ?? [];
 
   if (items.length !== expectedCount) {
-    throw new Error(
-      `OpenAI returned ${items.length} embeddings for ${expectedCount} chunks`,
-    );
+    throw new Error(`OpenAI returned ${items.length} embeddings for ${expectedCount} chunks`);
   }
 
   const embeddings: number[][] = Array.from({ length: expectedCount });

@@ -1,4 +1,4 @@
-import type { RuntimeResult } from "./runtime-result.js";
+import type { RuntimeResult } from './runtime-result.js';
 
 /**
  * runtime.runStream() 对外事件。
@@ -6,10 +6,10 @@ import type { RuntimeResult } from "./runtime-result.js";
  */
 export type RuntimeStreamEvent =
   | {
-      type: "delta";
+      type: 'delta';
       text: string;
     }
   | {
-      type: "result";
+      type: 'result';
       result: RuntimeResult;
     };

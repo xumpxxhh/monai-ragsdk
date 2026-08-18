@@ -1,9 +1,4 @@
-import {
-  MemoryVectorStore,
-  MockEmbedder,
-  SimpleChunker,
-  runIndexing,
-} from "../dist/index.js";
+import { MemoryVectorStore, MockEmbedder, SimpleChunker, runIndexing } from '../dist/index.js';
 
 const store = new MemoryVectorStore();
 const embedder = new MockEmbedder({ dimension: 4 });
@@ -14,19 +9,19 @@ const first = await runIndexing({
     async load() {
       return [
         {
-          id: "guide",
-          content: "Incremental indexing skips unchanged sources.",
+          id: 'guide',
+          content: 'Incremental indexing skips unchanged sources.',
           metadata: {
-            sourceId: "docs/guide.md",
-            fingerprint: "fp-1",
+            sourceId: 'docs/guide.md',
+            fingerprint: 'fp-1',
           },
         },
         {
-          id: "faq",
-          content: "Stale sources are deleted after a later run.",
+          id: 'faq',
+          content: 'Stale sources are deleted after a later run.',
           metadata: {
-            sourceId: "docs/faq.md",
-            fingerprint: "fp-faq",
+            sourceId: 'docs/faq.md',
+            fingerprint: 'fp-faq',
           },
         },
       ];
@@ -35,7 +30,7 @@ const first = await runIndexing({
   chunker,
   embedder,
   store,
-  mode: "incremental",
+  mode: 'incremental',
 });
 
 const unchanged = await runIndexing({
@@ -43,19 +38,19 @@ const unchanged = await runIndexing({
     async load() {
       return [
         {
-          id: "guide",
-          content: "Incremental indexing skips unchanged sources.",
+          id: 'guide',
+          content: 'Incremental indexing skips unchanged sources.',
           metadata: {
-            sourceId: "docs/guide.md",
-            fingerprint: "fp-1",
+            sourceId: 'docs/guide.md',
+            fingerprint: 'fp-1',
           },
         },
         {
-          id: "faq",
-          content: "Stale sources are deleted after a later run.",
+          id: 'faq',
+          content: 'Stale sources are deleted after a later run.',
           metadata: {
-            sourceId: "docs/faq.md",
-            fingerprint: "fp-faq",
+            sourceId: 'docs/faq.md',
+            fingerprint: 'fp-faq',
           },
         },
       ];
@@ -64,7 +59,7 @@ const unchanged = await runIndexing({
   chunker,
   embedder,
   store,
-  mode: "incremental",
+  mode: 'incremental',
 });
 
 const replaced = await runIndexing({
@@ -72,19 +67,19 @@ const replaced = await runIndexing({
     async load() {
       return [
         {
-          id: "guide",
-          content: "Incremental indexing replaces sources when the fingerprint changes.",
+          id: 'guide',
+          content: 'Incremental indexing replaces sources when the fingerprint changes.',
           metadata: {
-            sourceId: "docs/guide.md",
-            fingerprint: "fp-2",
+            sourceId: 'docs/guide.md',
+            fingerprint: 'fp-2',
           },
         },
         {
-          id: "faq",
-          content: "Stale sources are deleted after a later run.",
+          id: 'faq',
+          content: 'Stale sources are deleted after a later run.',
           metadata: {
-            sourceId: "docs/faq.md",
-            fingerprint: "fp-faq",
+            sourceId: 'docs/faq.md',
+            fingerprint: 'fp-faq',
           },
         },
       ];
@@ -93,7 +88,7 @@ const replaced = await runIndexing({
   chunker,
   embedder,
   store,
-  mode: "incremental",
+  mode: 'incremental',
 });
 
 const stale = await runIndexing({
@@ -101,11 +96,11 @@ const stale = await runIndexing({
     async load() {
       return [
         {
-          id: "guide",
-          content: "Incremental indexing replaces sources when the fingerprint changes.",
+          id: 'guide',
+          content: 'Incremental indexing replaces sources when the fingerprint changes.',
           metadata: {
-            sourceId: "docs/guide.md",
-            fingerprint: "fp-2",
+            sourceId: 'docs/guide.md',
+            fingerprint: 'fp-2',
           },
         },
       ];
@@ -114,10 +109,10 @@ const stale = await runIndexing({
   chunker,
   embedder,
   store,
-  mode: "incremental",
+  mode: 'incremental',
 });
 
-console.log("indexing incremental demo passed");
+console.log('indexing incremental demo passed');
 console.log({
   first,
   unchanged,
@@ -129,7 +124,7 @@ console.log({
       store
         .getAll()
         .map((vector) => vector.metadata?.sourceId)
-        .filter((sourceId) => typeof sourceId === "string"),
+        .filter((sourceId) => typeof sourceId === 'string'),
     ),
   ],
 });

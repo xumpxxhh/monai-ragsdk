@@ -1,12 +1,12 @@
-import { Document } from "@langchain/core/documents";
-import { SimpleChatModel } from "@langchain/core/language_models/chat_models";
-import { BaseRetriever } from "@langchain/core/retrievers";
-import { NoopQueryPreprocessor, createDefaultRuntime } from "@monai-ragsdk/runtime";
+import { Document } from '@langchain/core/documents';
+import { SimpleChatModel } from '@langchain/core/language_models/chat_models';
+import { BaseRetriever } from '@langchain/core/retrievers';
+import { NoopQueryPreprocessor, createDefaultRuntime } from '@monai-ragsdk/runtime';
 
 import {
   createLangChainBaseRetrieverRuntimeAdapter,
   createLangChainChatModelRuntimeGenerator,
-} from "../src/index.js";
+} from '../src/index.js';
 
 class DemoRetriever extends BaseRetriever<{
   sourceId: string;
@@ -16,20 +16,20 @@ class DemoRetriever extends BaseRetriever<{
   async _getRelevantDocuments(query: string) {
     return [
       new Document({
-        id: "chunk-1",
+        id: 'chunk-1',
         pageContent: `runtime api for ${query}`,
         metadata: {
-          sourceId: "docs/runtime",
-          hierarchyPath: ["runtime", "api"],
+          sourceId: 'docs/runtime',
+          hierarchyPath: ['runtime', 'api'],
           score: 0.95,
         },
       }),
       new Document({
-        id: "chunk-2",
+        id: 'chunk-2',
         pageContent: `faq for ${query}`,
         metadata: {
-          sourceId: "docs/faq",
-          hierarchyPath: ["runtime", "faq"],
+          sourceId: 'docs/faq',
+          hierarchyPath: ['runtime', 'faq'],
           score: 0.42,
         },
       }),
@@ -39,18 +39,18 @@ class DemoRetriever extends BaseRetriever<{
 
 class DemoChatModel extends SimpleChatModel {
   _llmType() {
-    return "demo-chat-model";
+    return 'demo-chat-model';
   }
 
-  async _call(messages: import("@langchain/core/messages").BaseMessage[]) {
-    return `generated from: ${messages.map((message) => message.content).join("\n\n")}`;
+  async _call(messages: import('@langchain/core/messages').BaseMessage[]) {
+    return `generated from: ${messages.map((message) => message.content).join('\n\n')}`;
   }
 }
 
 const runtime = createDefaultRuntime({
   preprocessor: new NoopQueryPreprocessor({
     filters: {
-      sourceIds: ["docs/runtime"],
+      sourceIds: ['docs/runtime'],
     },
     rerank: {
       minScore: 0.6,
@@ -59,18 +59,18 @@ const runtime = createDefaultRuntime({
       maxChunks: 1,
       maxPromptChars: 120,
     },
-    strategy: "metadata-first",
-    route: "docs",
+    strategy: 'metadata-first',
+    route: 'docs',
   }),
   retriever: createLangChainBaseRetrieverRuntimeAdapter({
     retriever: new DemoRetriever(),
   }),
   generator: createLangChainChatModelRuntimeGenerator({
     model: new DemoChatModel({}),
-    systemPrompt: "You answer using runtime retrieved context only.",
+    systemPrompt: 'You answer using runtime retrieved context only.',
     buildGenerationMetadata() {
       return {
-        provider: "demo-generator",
+        provider: 'demo-generator',
       };
     },
   }),
@@ -78,12 +78,12 @@ const runtime = createDefaultRuntime({
 
 const result = await runtime.run(
   {
-    query: "Explain runtime adapters",
+    query: 'Explain runtime adapters',
   },
   {
     includeDebug: true,
   },
 );
 
-console.log("langchain runtime adapters demo passed");
+console.log('langchain runtime adapters demo passed');
 console.log(result);

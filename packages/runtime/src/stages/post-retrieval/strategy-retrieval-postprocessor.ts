@@ -1,13 +1,13 @@
-import type { RetrievalPostprocessor } from "./retrieval-postprocessor.js";
-import type { PostRetrievalStrategy } from "./post-retrieval-strategy.js";
+import type { RetrievalPostprocessor } from './retrieval-postprocessor.js';
+import type { PostRetrievalStrategy } from './post-retrieval-strategy.js';
 import type {
   PostRetrievalResult,
   RetrievalCandidate,
   RetrievalRequest,
   RuntimeContext,
-} from "../../types/index.js";
+} from '../../types/index.js';
 
-import { mergeSelectionTrace } from "./strategies/post-retrieval-strategies.js";
+import { mergeSelectionTrace } from './strategies/post-retrieval-strategies.js';
 
 export type StrategyRetrievalPostprocessorOptions = {
   strategies: PostRetrievalStrategy[];
@@ -29,7 +29,7 @@ function defaultPromptContext(
   return [
     `query: ${request.effectiveQuery.query}`,
     ...candidates.map((candidate) => candidate.chunk.content),
-  ].join("\n\n");
+  ].join('\n\n');
 }
 
 /**
@@ -39,7 +39,7 @@ function defaultPromptContext(
 export class StrategyRetrievalPostprocessor implements RetrievalPostprocessor {
   readonly #strategies: PostRetrievalStrategy[];
   readonly #includeSelectionTrace: boolean;
-  readonly #buildPromptContext: StrategyRetrievalPostprocessorOptions["buildPromptContext"];
+  readonly #buildPromptContext: StrategyRetrievalPostprocessorOptions['buildPromptContext'];
 
   constructor(options: StrategyRetrievalPostprocessorOptions) {
     this.#strategies = options.strategies;
@@ -56,17 +56,12 @@ export class StrategyRetrievalPostprocessor implements RetrievalPostprocessor {
   ): Promise<PostRetrievalResult> {
     let candidates = input.candidates;
     const droppedCandidates: RetrievalCandidate[] = [];
-    const selectionTraces: Array<
-      PostRetrievalResult["selectionTrace"]
-    > = [];
-    let appliedBudget: PostRetrievalResult["appliedBudget"];
-    let appliedScoreThreshold: PostRetrievalResult["appliedScoreThreshold"];
+    const selectionTraces: Array<PostRetrievalResult['selectionTrace']> = [];
+    let appliedBudget: PostRetrievalResult['appliedBudget'];
+    let appliedScoreThreshold: PostRetrievalResult['appliedScoreThreshold'];
 
     for (const strategy of this.#strategies) {
-      const result = await strategy.apply(
-        { request: input.request, candidates },
-        context,
-      );
+      const result = await strategy.apply({ request: input.request, candidates }, context);
       candidates = result.selectedCandidates;
       droppedCandidates.push(...result.droppedCandidates);
 

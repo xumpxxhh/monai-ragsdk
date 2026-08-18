@@ -1,15 +1,11 @@
-import type {
-  RetrievalBudget,
-  RetrievalCandidate,
-  RetrievalRequest,
-} from "../../types/index.js";
+import type { RetrievalBudget, RetrievalCandidate, RetrievalRequest } from '../../types/index.js';
 
 import type {
   CandidateComparator,
   CandidatePredicate,
   NearDuplicateRemovalConfig,
   SourceCoverageConfig,
-} from "./strategies/post-retrieval-strategies.js";
+} from './strategies/post-retrieval-strategies.js';
 
 export type PassthroughRetrievalPostprocessorOptions = {
   scoreThreshold?: number;

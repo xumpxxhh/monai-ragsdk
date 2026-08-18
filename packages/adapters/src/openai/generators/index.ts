@@ -1,1 +1,1 @@
-export * from "./openai-runtime-generator.js";
+export * from './openai-runtime-generator.js';

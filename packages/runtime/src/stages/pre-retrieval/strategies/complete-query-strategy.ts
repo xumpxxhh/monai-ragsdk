@@ -2,9 +2,9 @@ import type {
   RuntimeContext,
   RuntimeStrategyModel,
   RuntimeStrategyModelInput,
-} from "../../../types/index.js";
+} from '../../../types/index.js';
 
-import type { QueryStrategyErrorMode } from "./llm-query-strategy-options.js";
+import type { QueryStrategyErrorMode } from './llm-query-strategy-options.js';
 
 /**
  * 调用策略模型；默认吞掉失败以便检索仍能用原始 query。
@@ -14,14 +14,14 @@ export async function completeQueryStrategyModel(
   model: RuntimeStrategyModel,
   input: RuntimeStrategyModelInput,
   context: RuntimeContext,
-  onError: QueryStrategyErrorMode = "passthrough",
+  onError: QueryStrategyErrorMode = 'passthrough',
 ): Promise<string | undefined> {
   try {
     const text = await model.complete(input, context);
     const trimmed = text.trim();
     return trimmed.length > 0 ? trimmed : undefined;
   } catch (error) {
-    if (onError === "throw") {
+    if (onError === 'throw') {
       throw error;
     }
 

@@ -1,1 +1,1 @@
-export * from "./ollama-strategy-model.js";
+export * from './ollama-strategy-model.js';

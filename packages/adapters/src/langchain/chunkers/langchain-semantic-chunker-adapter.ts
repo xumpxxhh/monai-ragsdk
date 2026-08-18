@@ -1,20 +1,18 @@
-import type { Chunk, Document } from "@monai-ragsdk/core";
-import type { Chunker } from "@monai-ragsdk/indexing";
+import type { Chunk, Document } from '@monai-ragsdk/core';
+import type { Chunker } from '@monai-ragsdk/indexing';
 
 import {
   type LangChainDocumentLike,
   toLangChainDocument,
   toRagChunk,
-} from "../shared/document-mapper.js";
+} from '../shared/document-mapper.js';
 
 export type LangChainSemanticChunkerLike = {
   createDocuments?: (
     texts: string[],
     metadatas?: Array<Record<string, unknown>>,
   ) => Promise<LangChainDocumentLike[]>;
-  splitDocuments?: (
-    documents: LangChainDocumentLike[],
-  ) => Promise<LangChainDocumentLike[]>;
+  splitDocuments?: (documents: LangChainDocumentLike[]) => Promise<LangChainDocumentLike[]>;
 };
 
 export type LangChainSemanticChunkerAdapterOptions = {
@@ -68,7 +66,7 @@ export class LangChainSemanticChunkerAdapter implements Chunker {
     }
 
     throw new Error(
-      "LangChain semantic chunker must implement createDocuments() or splitDocuments()",
+      'LangChain semantic chunker must implement createDocuments() or splitDocuments()',
     );
   }
 }

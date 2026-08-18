@@ -1,14 +1,17 @@
-import type { DocumentInterface } from "@langchain/core/documents";
-import type { BaseRetriever } from "@langchain/core/retrievers";
-import type { RunnableConfig } from "@langchain/core/runnables";
-import type { RetrievalRequest, RuntimeContext } from "@monai-ragsdk/runtime";
+import type { DocumentInterface } from '@langchain/core/documents';
+import type { BaseRetriever } from '@langchain/core/retrievers';
+import type { RunnableConfig } from '@langchain/core/runnables';
+import type { RetrievalRequest, RuntimeContext } from '@monai-ragsdk/runtime';
 
 import {
   LangChainRuntimeRetrieverAdapter,
   type LangChainRuntimeRetrieverMetadataBuilder,
-} from "./langchain-runtime-retriever-adapter.js";
+} from './langchain-runtime-retriever-adapter.js';
 
 type MaybePromise<T> = T | Promise<T>;
+
+/** 对齐 LangChain Document metadata 的开放字典约束，避免 any。 */
+type LangChainDocumentMetadata = Record<string, unknown>;
 
 type RetrieverInvokeInput = {
   query: string;
@@ -16,14 +19,11 @@ type RetrieverInvokeInput = {
 };
 
 export type CreateLangChainBaseRetrieverRuntimeAdapterOptions<
-  Metadata extends Record<string, any> = Record<string, any>,
+  Metadata extends LangChainDocumentMetadata = LangChainDocumentMetadata,
 > = {
   retriever: BaseRetriever<Metadata>;
   idPrefix?: string;
-  mapQuery?: (
-    request: RetrievalRequest,
-    context: RuntimeContext,
-  ) => MaybePromise<string>;
+  mapQuery?: (request: RetrievalRequest, context: RuntimeContext) => MaybePromise<string>;
   mapRunnableConfig?: (
     request: RetrievalRequest,
     context: RuntimeContext,
@@ -33,33 +33,24 @@ export type CreateLangChainBaseRetrieverRuntimeAdapterOptions<
     index: number,
     request: RetrievalRequest,
   ) => MaybePromise<number | undefined>;
-  buildRetrievalMetadata?: LangChainRuntimeRetrieverMetadataBuilder<
-    DocumentInterface<Metadata>[]
-  >;
+  buildRetrievalMetadata?: LangChainRuntimeRetrieverMetadataBuilder<DocumentInterface<Metadata>[]>;
   filterByRequest?: boolean;
 };
 
 function readScoreFromMetadata(
-  document: DocumentInterface<Record<string, any>>,
+  document: DocumentInterface<LangChainDocumentMetadata>,
 ): number | undefined {
-  return typeof document.metadata?.score === "number" &&
-    Number.isFinite(document.metadata.score)
+  return typeof document.metadata?.score === 'number' && Number.isFinite(document.metadata.score)
     ? document.metadata.score
     : undefined;
 }
 
 export function createLangChainBaseRetrieverRuntimeAdapter<
-  Metadata extends Record<string, any> = Record<string, any>,
+  Metadata extends LangChainDocumentMetadata = LangChainDocumentMetadata,
 >(
   options: CreateLangChainBaseRetrieverRuntimeAdapterOptions<Metadata>,
-): LangChainRuntimeRetrieverAdapter<
-  RetrieverInvokeInput,
-  DocumentInterface<Metadata>[]
-> {
-  return new LangChainRuntimeRetrieverAdapter<
-    RetrieverInvokeInput,
-    DocumentInterface<Metadata>[]
-  >({
+): LangChainRuntimeRetrieverAdapter<RetrieverInvokeInput, DocumentInterface<Metadata>[]> {
+  return new LangChainRuntimeRetrieverAdapter<RetrieverInvokeInput, DocumentInterface<Metadata>[]>({
     retriever: {
       async invoke(input) {
         return options.retriever.invoke(input.query, input.config);
@@ -88,9 +79,7 @@ export function createLangChainBaseRetrieverRuntimeAdapter<
 
       return options.extractScore
         ? options.extractScore(typedDocument, index, request)
-        : readScoreFromMetadata(
-            typedDocument as DocumentInterface<Record<string, any>>,
-          );
+        : readScoreFromMetadata(typedDocument as DocumentInterface<LangChainDocumentMetadata>);
     },
     buildRetrievalMetadata: options.buildRetrievalMetadata,
     filterByRequest: options.filterByRequest,

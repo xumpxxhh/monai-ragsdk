@@ -1,14 +1,10 @@
-import {
-  MemoryVectorStore,
-  MockEmbedder,
-  runIndexing,
-} from "@monai-ragsdk/indexing";
+import { MemoryVectorStore, MockEmbedder, runIndexing } from '@monai-ragsdk/indexing';
 
 import {
   LangChainDocumentMetadataExtractor,
   LangChainHeaderAwareChunkTransformer,
   LangChainSemanticChunkerAdapter,
-} from "../src/index.js";
+} from '../src/index.js';
 
 const store = new MemoryVectorStore();
 
@@ -17,12 +13,11 @@ const result = await runIndexing({
     async load() {
       return [
         {
-          id: "langchain-ext-doc",
-          content:
-            "# Guide\n\n## Setup\n\nInstall dependencies.\n\nValidate results.",
+          id: 'langchain-ext-doc',
+          content: '# Guide\n\n## Setup\n\nInstall dependencies.\n\nValidate results.',
           metadata: {
-            source: "demo/langchain-extensions.md",
-            title: "LangChain Extensions Demo",
+            source: 'demo/langchain-extensions.md',
+            title: 'LangChain Extensions Demo',
           },
         },
       ];
@@ -33,13 +28,13 @@ const result = await runIndexing({
       async createDocuments() {
         return [
           {
-            id: "langchain-ext-doc#semantic-0",
-            pageContent: "Install dependencies.",
+            id: 'langchain-ext-doc#semantic-0',
+            pageContent: 'Install dependencies.',
             metadata: {
-              source: "demo/langchain-extensions.md",
-              title: "LangChain Extensions Demo",
-              "Header 1": "Guide",
-              "Header 2": "Setup",
+              source: 'demo/langchain-extensions.md',
+              title: 'LangChain Extensions Demo',
+              'Header 1': 'Guide',
+              'Header 2': 'Setup',
             },
           },
         ];
@@ -52,6 +47,6 @@ const result = await runIndexing({
   store,
 });
 
-console.log("langchain extension adapters demo passed");
+console.log('langchain extension adapters demo passed');
 console.log(result);
 console.log(store.getAll());

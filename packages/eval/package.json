@@ -9,12 +9,16 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
   }
 }

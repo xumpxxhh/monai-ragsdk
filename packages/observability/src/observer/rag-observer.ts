@@ -1,6 +1,6 @@
-import type { RAGErrorRecord } from "../types/rag-error-record.js";
-import type { RAGEvent } from "../types/rag-event.js";
-import type { RAGTrace } from "../types/rag-trace.js";
+import type { RAGErrorRecord } from '../types/rag-error-record.js';
+import type { RAGEvent } from '../types/rag-event.js';
+import type { RAGTrace } from '../types/rag-trace.js';
 
 export interface RAGObserver {
   onEvent?(event: RAGEvent): void | Promise<void>;

@@ -1,25 +1,22 @@
-import type { Query } from "@monai-ragsdk/core";
+import type { Query } from '@monai-ragsdk/core';
 
-import type { RuntimeRetriever } from "./runtime-retriever.js";
+import type { RuntimeRetriever } from './runtime-retriever.js';
 import type {
   RetrievalCandidate,
   RetrievalRequest,
   RuntimeContext,
   RuntimeRetrievalResult,
-} from "../../types/index.js";
+} from '../../types/index.js';
 
 import {
   fuseByReciprocalRankFusion,
   type FuseByReciprocalRankFusionOptions,
-} from "./fuse-by-rrf.js";
+} from './fuse-by-rrf.js';
 
 export type FanOutRetrieverOptions = {
   retriever: RuntimeRetriever;
   retrievers?: RuntimeRetriever[];
-  fuse?: (
-    rankedLists: RetrievalCandidate[][],
-    request: RetrievalRequest,
-  ) => RetrievalCandidate[];
+  fuse?: (rankedLists: RetrievalCandidate[][], request: RetrievalRequest) => RetrievalCandidate[];
   maxConcurrency?: number;
   rrf?: FuseByReciprocalRankFusionOptions;
 };
@@ -52,10 +49,7 @@ async function mapWithConcurrency<T, R>(
     }
   }
 
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    () => worker(),
-  );
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
   await Promise.all(workers);
   return results;
 }
@@ -66,7 +60,7 @@ async function mapWithConcurrency<T, R>(
  */
 export class FanOutRetriever implements RuntimeRetriever {
   readonly #retrievers: RuntimeRetriever[];
-  readonly #fuse: FanOutRetrieverOptions["fuse"];
+  readonly #fuse: FanOutRetrieverOptions['fuse'];
   readonly #maxConcurrency: number;
   readonly #rrf: FuseByReciprocalRankFusionOptions | undefined;
 
@@ -82,7 +76,7 @@ export class FanOutRetriever implements RuntimeRetriever {
     context: RuntimeContext,
   ): Promise<RuntimeRetrievalResult> {
     const subQueries = resolveSubQueries(request);
-    console.log("###@@@subQueries####\n", subQueries);
+    console.log('###@@@subQueries####\n', subQueries);
     if (subQueries.length === 1 && subQueries[0] === request.effectiveQuery) {
       return this.#retrievers[0]!.retrieve(request, context);
     }
@@ -96,9 +90,7 @@ export class FanOutRetriever implements RuntimeRetriever {
           effectiveQuery: subQuery,
         };
         const results = await Promise.all(
-          this.#retrievers.map((retriever) =>
-            retriever.retrieve(subRequest, context),
-          ),
+          this.#retrievers.map((retriever) => retriever.retrieve(subRequest, context)),
         );
 
         return results.flatMap((result) => result.candidates);
@@ -112,7 +104,7 @@ export class FanOutRetriever implements RuntimeRetriever {
     return {
       candidates: fusedCandidates,
       retrievalMetadata: {
-        provider: "fan-out",
+        provider: 'fan-out',
         subQueryCount: subQueries.length,
         retrieverCount: this.#retrievers.length,
         fusedCandidateCount: fusedCandidates.length,

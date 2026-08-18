@@ -1,7 +1,7 @@
-import type { RuntimeGenerator } from "./runtime-generator.js";
-import type { RuntimeContext } from "../../types/runtime-context.js";
-import type { RuntimeGenerationStreamEvent } from "../../types/runtime-generation-stream-event.js";
-import type { RuntimeGeneratorInput } from "../../types/runtime-generator-input.js";
+import type { RuntimeGenerator } from './runtime-generator.js';
+import type { RuntimeContext } from '../../types/runtime-context.js';
+import type { RuntimeGenerationStreamEvent } from '../../types/runtime-generation-stream-event.js';
+import type { RuntimeGeneratorInput } from '../../types/runtime-generator-input.js';
 
 /**
  * 统一 generator 流式入口：有 generateStream 就走真流式，否则一次 generate() 后当成单段 delta。
@@ -21,13 +21,13 @@ export async function* iterateRuntimeGeneratorStream(
 
   if (result.answer) {
     yield {
-      type: "delta",
+      type: 'delta',
       text: result.answer,
     };
   }
 
   yield {
-    type: "complete",
+    type: 'complete',
     result,
   };
 }

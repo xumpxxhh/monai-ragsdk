@@ -20,31 +20,44 @@
 ```html
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>页面标题 · 产品名</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>页面标题 · 产品名</title>
 
-  <!-- Tailwind Play CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css" />
+    <!-- Tailwind Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css"
+    />
 
-  <script>
-    // 在此注入这套原型的设计 token(见第 2 节)
-    tailwind.config = { /* ... */ };
-  </script>
-  <style>
-    /* 字体栈、滚动条、prefers-reduced-motion 等全局微调放这里 */
-    :root { font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif; }
-    @media (prefers-reduced-motion: reduce) {
-      * { animation: none !important; transition: none !important; }
-    }
-  </style>
-</head>
-<body class="bg-canvas text-ink antialiased">
-  <!-- 共享应用外壳(见第 3 节)+ 主内容区 -->
-</body>
+    <script>
+      // 在此注入这套原型的设计 token(见第 2 节)
+      tailwind.config = {/* ... */};
+    </script>
+    <style>
+      /* 字体栈、滚动条、prefers-reduced-motion 等全局微调放这里 */
+      :root {
+        font-family:
+          'PingFang SC',
+          'Microsoft YaHei',
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-canvas text-ink antialiased">
+    <!-- 共享应用外壳(见第 3 节)+ 主内容区 -->
+  </body>
 </html>
 ```
 
@@ -63,15 +76,15 @@
       extend: {
         colors: {
           // —— 以下为示例值,替换成你这套原型的 token ——
-          brand:   { DEFAULT: '#3A5BFF', hover: '#2E49D6', soft: '#EEF1FF' }, // 主色 + 悬停 + 浅底
-          canvas:  '#F6F7FB',   // 页面背景
-          surface: '#FFFFFF',   // 卡片 / 面板背景
-          ink:     '#1B1F2A',   // 主文字
-          muted:   '#6B7280',   // 次要文字
-          line:    '#E7E9EF',   // 边框 / 分隔线
+          brand: { DEFAULT: '#3A5BFF', hover: '#2E49D6', soft: '#EEF1FF' }, // 主色 + 悬停 + 浅底
+          canvas: '#F6F7FB', // 页面背景
+          surface: '#FFFFFF', // 卡片 / 面板背景
+          ink: '#1B1F2A', // 主文字
+          muted: '#6B7280', // 次要文字
+          line: '#E7E9EF', // 边框 / 分隔线
           success: '#16A34A',
           warning: '#D97706',
-          danger:  '#DC2626',
+          danger: '#DC2626',
         },
         borderRadius: { card: '12px', ctrl: '8px' }, // 卡片 / 控件圆角(自定,别千篇一律)
         boxShadow: { card: '0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.10)' },
@@ -99,10 +112,16 @@
     </div>
     <nav class="flex-1 p-3 space-y-1 text-sm">
       <!-- 当前页:加高亮类;其余:普通态 + 真实 href -->
-      <a href="document-list.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium">
+      <a
+        href="document-list.html"
+        class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium"
+      >
         <i class="fa-solid fa-folder-open w-4 text-center"></i> 文档管理
       </a>
-      <a href="qa.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+      <a
+        href="qa.html"
+        class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+      >
         <i class="fa-regular fa-comments w-4 text-center"></i> 智能问答
       </a>
     </nav>
@@ -110,9 +129,12 @@
 
   <!-- 右侧:顶栏 + 主内容 -->
   <div class="flex-1 flex flex-col min-w-0">
-    <header class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-6">
+    <header
+      class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-6"
+    >
       <div class="text-sm text-muted">
-        <span>文档管理</span> <i class="fa-solid fa-angle-right text-xs mx-1"></i> <span class="text-ink">文档列表</span>
+        <span>文档管理</span> <i class="fa-solid fa-angle-right text-xs mx-1"></i>
+        <span class="text-ink">文档列表</span>
       </div>
       <div class="flex items-center gap-4">
         <i class="fa-regular fa-bell text-muted"></i>
@@ -138,11 +160,17 @@ Antd 作为**交互范式与尺度**参考(按钮高度、表格分页、表单�
 
 ```html
 <!-- 主按钮 -->
-<button class="inline-flex items-center gap-2 h-9 px-4 rounded-ctrl bg-brand text-white text-sm font-medium hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
+<button
+  class="inline-flex items-center gap-2 h-9 px-4 rounded-ctrl bg-brand text-white text-sm font-medium hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+>
   <i class="fa-solid fa-plus"></i> 新建文档
 </button>
 <!-- 次按钮 -->
-<button class="h-9 px-4 rounded-ctrl border border-line bg-surface text-ink text-sm hover:border-brand hover:text-brand">取消</button>
+<button
+  class="h-9 px-4 rounded-ctrl border border-line bg-surface text-ink text-sm hover:border-brand hover:text-brand"
+>
+  取消
+</button>
 <!-- 危险按钮 -->
 <button class="h-9 px-4 rounded-ctrl text-danger text-sm hover:bg-danger/10">删除</button>
 ```
@@ -151,9 +179,14 @@ Antd 作为**交互范式与尺度**参考(按钮高度、表格分页、表单�
 
 ```html
 <div class="relative w-72">
-  <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm"></i>
-  <input type="text" placeholder="搜索文档名称 / 关键词"
-    class="w-full h-9 pl-9 pr-3 rounded-ctrl border border-line bg-surface text-sm focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+  <i
+    class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm"
+  ></i>
+  <input
+    type="text"
+    placeholder="搜索文档名称 / 关键词"
+    class="w-full h-9 pl-9 pr-3 rounded-ctrl border border-line bg-surface text-sm focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+  />
 </div>
 ```
 
@@ -174,7 +207,12 @@ Antd 作为**交互范式与尺度**参考(按钮高度、表格分页、表单�
     <tbody class="divide-y divide-line">
       <tr class="hover:bg-canvas/50">
         <td class="px-4 py-3 font-medium">2024 年安全运维手册.pdf</td>
-        <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success"><i class="fa-solid fa-circle text-[6px]"></i> 已解析</span></td>
+        <td class="px-4 py-3">
+          <span
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success"
+            ><i class="fa-solid fa-circle text-[6px]"></i> 已解析</span
+          >
+        </td>
         <td class="px-4 py-3 text-muted">张伟</td>
         <td class="px-4 py-3 text-muted">2026-06-15 14:22</td>
         <td class="px-4 py-3 text-right space-x-3">
@@ -191,8 +229,14 @@ Antd 作为**交互范式与尺度**参考(按钮高度、表格分页、表单�
 ### 状态标签(语义色)
 
 ```html
-<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">解析中</span>
-<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-danger/10 text-danger">解析失败</span>
+<span
+  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning"
+  >解析中</span
+>
+<span
+  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-danger/10 text-danger"
+  >解析失败</span
+>
 ```
 
 ### 卡片
@@ -203,7 +247,9 @@ Antd 作为**交互范式与尺度**参考(按钮高度、表格分页、表单�
     <h3 class="font-medium">本月上传</h3>
     <i class="fa-solid fa-arrow-trend-up text-success"></i>
   </div>
-  <p class="text-3xl font-semibold tracking-tight">128 <span class="text-base text-muted font-normal">份</span></p>
+  <p class="text-3xl font-semibold tracking-tight">
+    128 <span class="text-base text-muted font-normal">份</span>
+  </p>
   <p class="text-xs text-muted mt-1">较上月 +12%</p>
 </div>
 ```
@@ -216,11 +262,18 @@ Antd 作为**交互范式与尺度**参考(按钮高度、表格分页、表单�
   <div class="relative mx-auto mt-24 w-[480px] bg-surface rounded-card shadow-xl">
     <div class="flex items-center justify-between px-5 h-14 border-b border-line">
       <h3 class="font-medium">新建文档</h3>
-      <button onclick="closeModal('modal-create')" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+      <button onclick="closeModal('modal-create')" class="text-muted hover:text-ink">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
     <div class="p-5 space-y-4"><!-- 表单字段 --></div>
     <div class="px-5 h-14 border-t border-line flex items-center justify-end gap-3">
-      <button onclick="closeModal('modal-create')" class="h-9 px-4 rounded-ctrl border border-line text-sm">取消</button>
+      <button
+        onclick="closeModal('modal-create')"
+        class="h-9 px-4 rounded-ctrl border border-line text-sm"
+      >
+        取消
+      </button>
       <button class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm">确定</button>
     </div>
   </div>
@@ -235,7 +288,9 @@ Antd 作为**交互范式与尺度**参考(按钮高度、表格分页、表单�
   <i class="fa-regular fa-folder-open text-5xl text-line mb-4"></i>
   <p class="text-ink font-medium">还没有任何文档</p>
   <p class="text-sm text-muted mt-1">上传第一份文档,开始构建你的知识库</p>
-  <button class="mt-4 h-9 px-4 rounded-ctrl bg-brand text-white text-sm"><i class="fa-solid fa-upload mr-1"></i> 上传文档</button>
+  <button class="mt-4 h-9 px-4 rounded-ctrl bg-brand text-white text-sm">
+    <i class="fa-solid fa-upload mr-1"></i> 上传文档
+  </button>
 </div>
 <!-- 加载骨架 -->
 <div class="space-y-3 animate-pulse">
@@ -263,14 +318,21 @@ Antd 作为**交互范式与尺度**参考(按钮高度、表格分页、表单�
 
 ```html
 <script>
-  function openModal(id){ document.getElementById(id).classList.remove('hidden'); }
-  function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
+  function openModal(id) {
+    document.getElementById(id).classList.remove('hidden');
+  }
+  function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
+  }
 
-  function confirmDanger(msg, onOk){ if (window.confirm(msg)) onOk && onOk(); } // 原型期可用,或换成自定义确认弹窗
+  function confirmDanger(msg, onOk) {
+    if (window.confirm(msg)) onOk && onOk();
+  } // 原型期可用,或换成自定义确认弹窗
 
-  function toast(text){
+  function toast(text) {
     const t = document.createElement('div');
-    t.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[60] bg-ink text-white text-sm px-4 py-2 rounded-ctrl shadow-lg';
+    t.className =
+      'fixed top-5 left-1/2 -translate-x-1/2 z-[60] bg-ink text-white text-sm px-4 py-2 rounded-ctrl shadow-lg';
     t.textContent = text;
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 1800);

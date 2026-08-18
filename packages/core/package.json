@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm run build && vitest run __tests__",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run __tests__",
     "test:watch": "vitest __tests__",
     "demo:runtime-like": "tsx demo/runtime-like.ts",
     "demo:schema": "tsx demo/schema-parse.ts",
@@ -26,6 +27,11 @@
     }
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

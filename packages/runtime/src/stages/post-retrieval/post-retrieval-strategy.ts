@@ -4,7 +4,7 @@ import type {
   RetrievalCandidate,
   RetrievalRequest,
   RuntimeContext,
-} from "../../types/index.js";
+} from '../../types/index.js';
 
 /** 单个 post-retrieval 策略的输出；ordering 类策略只重排，dropped 可为空。 */
 export type PostRetrievalStrategyResult = {

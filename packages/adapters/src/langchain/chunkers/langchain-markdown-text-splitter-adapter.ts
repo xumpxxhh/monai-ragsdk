@@ -1,6 +1,6 @@
-import { MarkdownTextSplitter } from "@langchain/textsplitters";
+import { MarkdownTextSplitter } from '@langchain/textsplitters';
 
-import { LangChainTextSplitterAdapter } from "./langchain-text-splitter-adapter.js";
+import { LangChainTextSplitterAdapter } from './langchain-text-splitter-adapter.js';
 
 export type LangChainMarkdownTextSplitterAdapterOptions = ConstructorParameters<
   typeof MarkdownTextSplitter

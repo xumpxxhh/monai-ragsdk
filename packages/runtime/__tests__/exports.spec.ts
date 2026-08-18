@@ -1,7 +1,7 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import * as srcExports from "../src/index.ts";
-import * as distExports from "../dist/index.js";
+import * as srcExports from '../src/index.ts';
+import * as distExports from '../dist/index.js';
 import type {
   RetrievalCandidate,
   RetrievalRequest,
@@ -12,16 +12,14 @@ import type {
   RuntimeRunOptions,
   RuntimeSearchResult,
   RuntimeStage,
-} from "../src/index.ts";
+} from '../src/index.ts';
 
-describe("runtime export surface", () => {
-  it("keeps dist runtime exports aligned with src runtime exports", () => {
-    expect(Object.keys(distExports).sort()).toEqual(
-      Object.keys(srcExports).sort(),
-    );
+describe('runtime export surface', () => {
+  it('keeps dist runtime exports aligned with src runtime exports', () => {
+    expect(Object.keys(distExports).sort()).toEqual(Object.keys(srcExports).sort());
   });
 
-  it("exposes runtime constructors from dist", () => {
+  it('exposes runtime constructors from dist', () => {
     expect(distExports.RuntimeError).toBeDefined();
     expect(distExports.NoopQueryPreprocessor).toBeDefined();
     expect(distExports.PassthroughRetrievalPostprocessor).toBeDefined();
@@ -48,7 +46,7 @@ describe("runtime export surface", () => {
     expect(distExports.parseRewrittenQuery).toBeDefined();
     expect(distExports.parseQueryList).toBeDefined();
     expect(distExports.RuntimeStrategyModel).toBeUndefined();
-    expect(typeof distExports.OpenAIStrategyModel).toBe("undefined");
+    expect(typeof distExports.OpenAIStrategyModel).toBe('undefined');
     expect(distExports.createIndexingRetrievalFilters).toBeDefined();
     expect(distExports.createIndexingRetrievalCandidate).toBeDefined();
     expect(distExports.createRuntime).toBeDefined();
@@ -56,29 +54,29 @@ describe("runtime export surface", () => {
     expect(distExports.buildRuntimeCitations).toBeDefined();
   });
 
-  it("preserves the intended public types", () => {
+  it('preserves the intended public types', () => {
     expectTypeOf<RuntimeStage>().toEqualTypeOf<
-      "pre-retrieval" | "retrieval" | "post-retrieval" | "generation"
+      'pre-retrieval' | 'retrieval' | 'post-retrieval' | 'generation'
     >();
     expectTypeOf<RuntimeQueryInput>().toMatchObjectType<{
       query: string;
     }>();
-    expectTypeOf<RetrievalRequest>().toHaveProperty("originalQuery");
-    expectTypeOf<RetrievalCandidate>().toHaveProperty("chunk");
+    expectTypeOf<RetrievalRequest>().toHaveProperty('originalQuery');
+    expectTypeOf<RetrievalCandidate>().toHaveProperty('chunk');
     expectTypeOf<RuntimeRunOptions>().toMatchObjectType<{
       includeDebug?: boolean;
       requestId?: string;
     }>();
-    expectTypeOf<RuntimeResult>().toHaveProperty("answer");
-    expectTypeOf<RuntimeResult>().toHaveProperty("citations");
-    expectTypeOf<RuntimeResult>().toHaveProperty("counts");
-    expectTypeOf<RuntimeResult>().toHaveProperty("retrievedCandidates");
-    expectTypeOf<RuntimeResult>().toHaveProperty("requestId");
-    expectTypeOf<RuntimeResult>().toHaveProperty("traceId");
-    expectTypeOf<RuntimeSearchResult>().not.toHaveProperty("answer");
-    expectTypeOf<RuntimeSearchResult>().toHaveProperty("chunks");
-    expectTypeOf<RuntimeSearchResult>().toHaveProperty("citations");
-    expectTypeOf<RuntimeSearchResult>().toHaveProperty("originalQuery");
+    expectTypeOf<RuntimeResult>().toHaveProperty('answer');
+    expectTypeOf<RuntimeResult>().toHaveProperty('citations');
+    expectTypeOf<RuntimeResult>().toHaveProperty('counts');
+    expectTypeOf<RuntimeResult>().toHaveProperty('retrievedCandidates');
+    expectTypeOf<RuntimeResult>().toHaveProperty('requestId');
+    expectTypeOf<RuntimeResult>().toHaveProperty('traceId');
+    expectTypeOf<RuntimeSearchResult>().not.toHaveProperty('answer');
+    expectTypeOf<RuntimeSearchResult>().toHaveProperty('chunks');
+    expectTypeOf<RuntimeSearchResult>().toHaveProperty('citations');
+    expectTypeOf<RuntimeSearchResult>().toHaveProperty('originalQuery');
     expectTypeOf<RuntimeCitation>().toMatchObjectType<{
       index: number;
       chunkId: string;
@@ -89,8 +87,8 @@ describe("runtime export surface", () => {
       compressed?: boolean;
       originalContent?: string;
     }>();
-    expectTypeOf<Runtime>().toHaveProperty("run");
-    expectTypeOf<Runtime>().toHaveProperty("search");
-    expectTypeOf<Runtime>().toHaveProperty("runStream");
+    expectTypeOf<Runtime>().toHaveProperty('run');
+    expectTypeOf<Runtime>().toHaveProperty('search');
+    expectTypeOf<Runtime>().toHaveProperty('runStream');
   });
 });

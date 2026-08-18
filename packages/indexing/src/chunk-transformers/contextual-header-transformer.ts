@@ -1,9 +1,6 @@
-import type { Chunk, JsonValue } from "@monai-ragsdk/core";
+import type { Chunk, JsonValue } from '@monai-ragsdk/core';
 
-import type {
-  ChunkTransformer,
-  ChunkTransformContext,
-} from "./chunk-transformer.js";
+import type { ChunkTransformer, ChunkTransformContext } from './chunk-transformer.js';
 
 export type ContextualHeaderTransformerOptions = {
   metadataKey?: string;
@@ -19,16 +16,13 @@ export class ContextualHeaderTransformer implements ChunkTransformer {
   readonly #includeInContent: boolean;
 
   constructor(options: ContextualHeaderTransformerOptions = {}) {
-    this.#metadataKey = options.metadataKey ?? "headerPath";
-    this.#contentPrefix = options.contentPrefix ?? "Context:";
-    this.#separator = options.separator ?? " > ";
+    this.#metadataKey = options.metadataKey ?? 'headerPath';
+    this.#contentPrefix = options.contentPrefix ?? 'Context:';
+    this.#separator = options.separator ?? ' > ';
     this.#includeInContent = options.includeInContent ?? true;
   }
 
-  async transform(
-    chunk: Chunk,
-    context: ChunkTransformContext,
-  ): Promise<Chunk> {
+  async transform(chunk: Chunk, context: ChunkTransformContext): Promise<Chunk> {
     const headerPath = this.#getHeaderPath(chunk, context);
 
     if (headerPath.length === 0) {
@@ -76,7 +70,7 @@ export class ContextualHeaderTransformer implements ChunkTransformer {
   #resolveChunkEnd(chunk: Chunk, context: ChunkTransformContext): number {
     const end = chunk.metadata?.end;
 
-    if (typeof end === "number" && Number.isFinite(end)) {
+    if (typeof end === 'number' && Number.isFinite(end)) {
       return Math.max(0, Math.min(end, context.document.content.length));
     }
 

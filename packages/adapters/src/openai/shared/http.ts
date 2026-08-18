@@ -31,11 +31,7 @@ function isRetryableError(error: unknown): boolean {
     return false;
   }
 
-  return (
-    error.name === "AbortError" ||
-    error.name === "TimeoutError" ||
-    error.name === "TypeError"
-  );
+  return error.name === 'AbortError' || error.name === 'TimeoutError' || error.name === 'TypeError';
 }
 
 /** 向 OpenAI 兼容接口发 JSON POST；仅对 429/5xx 与瞬时网络错误重试。 */
@@ -56,9 +52,9 @@ export async function postOpenAIJson<T>(
 
     try {
       const response = await fetchImpl(url, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "content-type": "application/json",
+          'content-type': 'application/json',
           authorization: `Bearer ${options.apiKey}`,
         },
         body: JSON.stringify(body),
@@ -91,13 +87,10 @@ export async function postOpenAIJson<T>(
         continue;
       }
 
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new Error(
-          `OpenAI-compatible request timed out after ${timeoutMs}ms`,
-          {
-            cause: error,
-          },
-        );
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`OpenAI-compatible request timed out after ${timeoutMs}ms`, {
+          cause: error,
+        });
       }
 
       throw error;
@@ -106,24 +99,20 @@ export async function postOpenAIJson<T>(
     }
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("OpenAI-compatible request failed");
+  throw lastError instanceof Error ? lastError : new Error('OpenAI-compatible request failed');
 }
 
-async function* readUtf8Lines(
-  body: ReadableStream<Uint8Array>,
-): AsyncGenerator<string> {
+async function* readUtf8Lines(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
+  let buffer = '';
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
       const lines = buffer.split(/\r?\n/);
-      buffer = lines.pop() ?? "";
+      buffer = lines.pop() ?? '';
 
       for (const line of lines) {
         yield line;
@@ -151,17 +140,15 @@ function readOpenAIDeltaText(payload: {
 }): string {
   const content = payload.choices?.[0]?.delta?.content;
 
-  if (typeof content === "string") {
+  if (typeof content === 'string') {
     return content;
   }
 
   if (!Array.isArray(content)) {
-    return "";
+    return '';
   }
 
-  return content
-    .map((part) => (typeof part.text === "string" ? part.text : ""))
-    .join("");
+  return content.map((part) => (typeof part.text === 'string' ? part.text : '')).join('');
 }
 
 /**
@@ -185,10 +172,10 @@ export async function* postOpenAISse(
 
     try {
       const response = await fetchImpl(url, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "content-type": "application/json",
-          accept: "text/event-stream",
+          'content-type': 'application/json',
+          accept: 'text/event-stream',
           authorization: `Bearer ${options.apiKey}`,
         },
         body: JSON.stringify(body),
@@ -216,7 +203,7 @@ export async function* postOpenAISse(
       clearTimeout(timeout);
 
       if (!response.body) {
-        throw new Error("OpenAI-compatible stream returned an empty body");
+        throw new Error('OpenAI-compatible stream returned an empty body');
       }
 
       startedStreaming = true;
@@ -224,13 +211,13 @@ export async function* postOpenAISse(
       for await (const line of readUtf8Lines(response.body)) {
         const trimmed = line.trim();
 
-        if (!trimmed || trimmed.startsWith(":") || !trimmed.startsWith("data:")) {
+        if (!trimmed || trimmed.startsWith(':') || !trimmed.startsWith('data:')) {
           continue;
         }
 
-        const data = trimmed.slice("data:".length).trim();
+        const data = trimmed.slice('data:'.length).trim();
 
-        if (data === "[DONE]") {
+        if (data === '[DONE]') {
           return;
         }
 
@@ -243,9 +230,7 @@ export async function* postOpenAISse(
           }>;
         };
         const errorMessage =
-          typeof payload.error === "string"
-            ? payload.error
-            : payload.error?.message;
+          typeof payload.error === 'string' ? payload.error : payload.error?.message;
 
         if (errorMessage) {
           throw new Error(`OpenAI-compatible stream error: ${errorMessage}`);
@@ -271,13 +256,10 @@ export async function* postOpenAISse(
         continue;
       }
 
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new Error(
-          `OpenAI-compatible request timed out after ${timeoutMs}ms`,
-          {
-            cause: error,
-          },
-        );
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`OpenAI-compatible request timed out after ${timeoutMs}ms`, {
+          cause: error,
+        });
       }
 
       throw error;
@@ -288,5 +270,5 @@ export async function* postOpenAISse(
 
   throw lastError instanceof Error
     ? lastError
-    : new Error("OpenAI-compatible stream request failed");
+    : new Error('OpenAI-compatible stream request failed');
 }

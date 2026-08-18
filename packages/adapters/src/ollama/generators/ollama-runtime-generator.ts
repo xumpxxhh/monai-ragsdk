@@ -3,13 +3,9 @@ import type {
   RuntimeGenerationStreamEvent,
   RuntimeGenerator,
   RuntimeGeneratorInput,
-} from "@monai-ragsdk/runtime";
+} from '@monai-ragsdk/runtime';
 
-import {
-  postOllamaJson,
-  postOllamaNdjson,
-  type OllamaHttpOptions,
-} from "../shared/http.js";
+import { postOllamaJson, postOllamaNdjson, type OllamaHttpOptions } from '../shared/http.js';
 
 export type OllamaRuntimeGeneratorOptions = OllamaHttpOptions & {
   model: string;
@@ -33,13 +29,10 @@ export class OllamaRuntimeGenerator implements RuntimeGenerator {
 
   constructor(options: OllamaRuntimeGeneratorOptions) {
     this.#model = options.model;
-    this.#baseUrl = (options.baseUrl ?? "http://localhost:11434").replace(
-      /\/$/,
-      "",
-    );
+    this.#baseUrl = (options.baseUrl ?? 'http://localhost:11434').replace(/\/$/, '');
     this.#systemPrompt =
       options.systemPrompt ??
-      "只根据提供的上下文回答问题。如果上下文不足以回答，就明确说明无法判断。";
+      '只根据提供的上下文回答问题。如果上下文不足以回答，就明确说明无法判断。';
     this.#http = {
       timeoutMs: options.timeoutMs,
       retries: options.retries,
@@ -48,20 +41,17 @@ export class OllamaRuntimeGenerator implements RuntimeGenerator {
     };
   }
 
-  async generate(
-    input: RuntimeGeneratorInput,
-  ): Promise<RuntimeGenerationResult> {
+  async generate(input: RuntimeGeneratorInput): Promise<RuntimeGenerationResult> {
     const payload = await postOllamaJson<OllamaChatResponse>(
       `${this.#baseUrl}/api/chat`,
       this.#buildChatBody(input, false),
       this.#http,
     );
 
-    const answer =
-      payload.message?.content?.trim() || payload.response?.trim() || "";
+    const answer = payload.message?.content?.trim() || payload.response?.trim() || '';
 
     if (!answer) {
-      throw new Error("Ollama returned an empty chat response");
+      throw new Error('Ollama returned an empty chat response');
     }
 
     return {
@@ -71,10 +61,8 @@ export class OllamaRuntimeGenerator implements RuntimeGenerator {
   }
 
   /** NDJSON 增量输出；run() 仍走 generate()。 */
-  async *generateStream(
-    input: RuntimeGeneratorInput,
-  ): AsyncIterable<RuntimeGenerationStreamEvent> {
-    let answer = "";
+  async *generateStream(input: RuntimeGeneratorInput): AsyncIterable<RuntimeGenerationStreamEvent> {
+    let answer = '';
 
     for await (const text of postOllamaNdjson(
       `${this.#baseUrl}/api/chat`,
@@ -83,17 +71,17 @@ export class OllamaRuntimeGenerator implements RuntimeGenerator {
     )) {
       answer += text;
       yield {
-        type: "delta",
+        type: 'delta',
         text,
       };
     }
 
     if (!answer.trim()) {
-      throw new Error("Ollama returned an empty chat response");
+      throw new Error('Ollama returned an empty chat response');
     }
 
     yield {
-      type: "complete",
+      type: 'complete',
       result: {
         answer,
         generationMetadata: this.#buildMetadata(input, true),
@@ -109,14 +97,14 @@ export class OllamaRuntimeGenerator implements RuntimeGenerator {
 
     const contextText = input.chunks
       .map((chunk, index) => `[${index + 1}] ${chunk.content}`)
-      .join("\n\n");
+      .join('\n\n');
 
     return [
       `问题：${input.request.effectiveQuery.query}`,
-      "",
-      "上下文：",
-      contextText || "（无检索上下文）",
-    ].join("\n");
+      '',
+      '上下文：',
+      contextText || '（无检索上下文）',
+    ].join('\n');
   }
 
   #buildChatBody(input: RuntimeGeneratorInput, stream: boolean) {
@@ -125,11 +113,11 @@ export class OllamaRuntimeGenerator implements RuntimeGenerator {
       stream,
       messages: [
         {
-          role: "system",
+          role: 'system',
           content: this.#systemPrompt,
         },
         {
-          role: "user",
+          role: 'user',
           content: this.#buildPrompt(input),
         },
       ],
@@ -138,7 +126,7 @@ export class OllamaRuntimeGenerator implements RuntimeGenerator {
 
   #buildMetadata(input: RuntimeGeneratorInput, streamed: boolean) {
     return {
-      provider: "ollama",
+      provider: 'ollama',
       model: this.#model,
       streamed,
       chunkIds: input.chunks.map((chunk) => chunk.id),

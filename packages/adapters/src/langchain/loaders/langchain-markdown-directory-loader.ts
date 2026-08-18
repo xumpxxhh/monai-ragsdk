@@ -1,11 +1,11 @@
-import { TextLoader } from "@langchain/classic/document_loaders/fs/text";
-import type { LoadersMapping } from "@langchain/classic/document_loaders/fs/directory";
+import { TextLoader } from '@langchain/classic/document_loaders/fs/text';
+import type { LoadersMapping } from '@langchain/classic/document_loaders/fs/directory';
 
 import {
   LangChainDirectoryLoaderAdapter,
   UnknownHandling,
   type LangChainDirectoryUnknownHandling,
-} from "./langchain-directory-loader-adapter.js";
+} from './langchain-directory-loader-adapter.js';
 
 export type LangChainMarkdownDirectoryLoaderOptions = {
   path: string;
@@ -15,7 +15,7 @@ export type LangChainMarkdownDirectoryLoaderOptions = {
   unknown?: LangChainDirectoryUnknownHandling;
 };
 
-const DEFAULT_EXTENSIONS = [".md", ".markdown"];
+const DEFAULT_EXTENSIONS = ['.md', '.markdown'];
 const DEFAULT_UNKNOWN_HANDLING = UnknownHandling.Ignore;
 
 const createMarkdownLoaders = (extensions: string[]): LoadersMapping => {

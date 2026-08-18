@@ -1,4 +1,4 @@
-import type { Chunk, JsonValue } from "@monai-ragsdk/core";
+import type { Chunk, JsonValue } from '@monai-ragsdk/core';
 
 export type RetrievalCandidate = {
   chunk: Chunk;

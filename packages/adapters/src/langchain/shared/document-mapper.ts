@@ -1,7 +1,7 @@
-import { Document as LangChainDocument } from "@langchain/core/documents";
-import type { Chunk, Document, JsonValue } from "@monai-ragsdk/core";
+import { Document as LangChainDocument } from '@langchain/core/documents';
+import type { Chunk, Document, JsonValue } from '@monai-ragsdk/core';
 
-import { mergeJsonObjects, normalizeJsonObject } from "../../shared/json.js";
+import { mergeJsonObjects, normalizeJsonObject } from '../../shared/json.js';
 
 export type LangChainDocumentLike = {
   pageContent: string;

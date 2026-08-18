@@ -1,2 +1,1 @@
-export * from "./create-collection.js";
-
+export * from './create-collection.js';

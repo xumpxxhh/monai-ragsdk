@@ -1,1 +1,1 @@
-export * from "./pg-vector-store-adapter.js";
+export * from './pg-vector-store-adapter.js';

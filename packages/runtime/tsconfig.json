@@ -1,10 +1,6 @@
 {
   "extends": "../../tsconfig.json",
-  "references": [
-    { "path": "../core" },
-    { "path": "../observability" },
-    { "path": "../indexing" }
-  ],
+  "references": [{ "path": "../core" }, { "path": "../observability" }, { "path": "../indexing" }],
   "compilerOptions": {
     "composite": true,
     "module": "NodeNext",

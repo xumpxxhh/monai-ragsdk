@@ -1,10 +1,6 @@
-import type { Chunk, JsonValue } from "@monai-ragsdk/core";
+import type { Chunk, JsonValue } from '@monai-ragsdk/core';
 
-import type {
-  RetrievalCandidate,
-  RetrievalFilters,
-  RetrievalRequest,
-} from "../types/index.js";
+import type { RetrievalCandidate, RetrievalFilters, RetrievalRequest } from '../types/index.js';
 
 export type IndexingRetrievalFilterInput = {
   sourceIds?: string[];
@@ -18,10 +14,7 @@ export type IndexingRetrievalFilterInput = {
   metadata?: Record<string, JsonValue>;
 };
 
-export type CreateIndexingRetrievalRequestOptions = Omit<
-  RetrievalRequest,
-  "filters"
-> & {
+export type CreateIndexingRetrievalRequestOptions = Omit<RetrievalRequest, 'filters'> & {
   filters?: IndexingRetrievalFilterInput | RetrievalFilters;
 };
 
@@ -38,19 +31,14 @@ export type RetrievalFilterMatchResult = {
   matchedFilters: string[];
 };
 
-function isRecord(
-  value: JsonValue | undefined,
-): value is Record<string, JsonValue> {
+function isRecord(value: JsonValue | undefined): value is Record<string, JsonValue> {
   return (
-    value !== undefined &&
-    value !== null &&
-    !Array.isArray(value) &&
-    typeof value === "object"
+    value !== undefined && value !== null && !Array.isArray(value) && typeof value === 'object'
   );
 }
 
 function readString(value: JsonValue | undefined): string | undefined {
-  return typeof value === "string" && value.length > 0 ? value : undefined;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
 function readStringArray(value: JsonValue | undefined): string[] {
@@ -58,21 +46,15 @@ function readStringArray(value: JsonValue | undefined): string[] {
     return [];
   }
 
-  return value.filter(
-    (entry): entry is string => typeof entry === "string" && entry.length > 0,
-  );
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
 }
 
 function readNumber(value: JsonValue | undefined): number | undefined {
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : undefined;
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
-function serializePath(
-  value: string | string[] | undefined,
-): string | undefined {
-  if (typeof value === "string") {
+function serializePath(value: string | string[] | undefined): string | undefined {
+  if (typeof value === 'string') {
     return value.length > 0 ? value : undefined;
   }
 
@@ -81,42 +63,28 @@ function serializePath(
   }
 
   const segments = value.filter(
-    (segment): segment is string =>
-      typeof segment === "string" && segment.length > 0,
+    (segment): segment is string => typeof segment === 'string' && segment.length > 0,
   );
 
-  return segments.length > 0 ? segments.join("/") : undefined;
+  return segments.length > 0 ? segments.join('/') : undefined;
 }
 
-function normalizeArray(
-  values: Array<string | undefined>,
-): string[] | undefined {
+function normalizeArray(values: Array<string | undefined>): string[] | undefined {
   const normalized = Array.from(
     new Set(
-      values.filter(
-        (value): value is string =>
-          typeof value === "string" && value.length > 0,
-      ),
+      values.filter((value): value is string => typeof value === 'string' && value.length > 0),
     ),
   );
 
   return normalized.length > 0 ? normalized : undefined;
 }
 
-function jsonEquals(
-  left: JsonValue | undefined,
-  right: JsonValue | undefined,
-): boolean {
+function jsonEquals(left: JsonValue | undefined, right: JsonValue | undefined): boolean {
   if (left === right) {
     return true;
   }
 
-  if (
-    left === undefined ||
-    right === undefined ||
-    left === null ||
-    right === null
-  ) {
+  if (left === undefined || right === undefined || left === null || right === null) {
     return left === right;
   }
 
@@ -136,7 +104,7 @@ function jsonEquals(
     return left.every((entry, index) => jsonEquals(entry, right[index]));
   }
 
-  if (typeof left === "object" && typeof right === "object") {
+  if (typeof left === 'object' && typeof right === 'object') {
     const leftKeys = Object.keys(left).sort();
     const rightKeys = Object.keys(right).sort();
 
@@ -145,8 +113,7 @@ function jsonEquals(
     }
 
     return leftKeys.every(
-      (key, index) =>
-        key === rightKeys[index] && jsonEquals(left[key], right[key]),
+      (key, index) => key === rightKeys[index] && jsonEquals(left[key], right[key]),
     );
   }
 
@@ -160,20 +127,15 @@ export function createIndexingRetrievalFilters(
     return undefined;
   }
 
-  const hierarchyPath = serializePath(
-    "hierarchyPath" in input ? input.hierarchyPath : undefined,
-  );
+  const hierarchyPath = serializePath('hierarchyPath' in input ? input.hierarchyPath : undefined);
   const parentHierarchyPath = serializePath(
-    "parentHierarchyPath" in input ? input.parentHierarchyPath : undefined,
+    'parentHierarchyPath' in input ? input.parentHierarchyPath : undefined,
   );
 
   const filters: RetrievalFilters = {
     sourceIds: normalizeArray(input.sourceIds ?? []),
     fingerprints: normalizeArray(input.fingerprints ?? []),
-    hierarchyPaths: normalizeArray([
-      ...(input.hierarchyPaths ?? []),
-      hierarchyPath,
-    ]),
+    hierarchyPaths: normalizeArray([...(input.hierarchyPaths ?? []), hierarchyPath]),
     parentHierarchyPaths: normalizeArray([
       ...(input.parentHierarchyPaths ?? []),
       parentHierarchyPath,
@@ -213,15 +175,12 @@ export function createIndexingRetrievalCandidate(
 ): RetrievalCandidate {
   const metadata = isRecord(chunk.metadata) ? chunk.metadata : undefined;
   const hierarchyPathSegments = readStringArray(metadata?.hierarchyPath);
-  const parentHierarchyPathSegments = readStringArray(
-    metadata?.parentHierarchyPath,
-  );
+  const parentHierarchyPathSegments = readStringArray(metadata?.parentHierarchyPath);
   const hierarchyPath = serializePath(hierarchyPathSegments);
   const parentHierarchyPath = serializePath(parentHierarchyPathSegments);
   const fallbackHierarchyDepth =
     hierarchyPathSegments.length > 0 ? hierarchyPathSegments.length : undefined;
-  const hierarchyDepth =
-    readNumber(metadata?.hierarchyDepth) ?? fallbackHierarchyDepth;
+  const hierarchyDepth = readNumber(metadata?.hierarchyDepth) ?? fallbackHierarchyDepth;
 
   const candidate: RetrievalCandidate = {
     chunk,
@@ -258,36 +217,27 @@ export function matchRetrievalCandidateFilters(
   const matchedFilters: string[] = [];
 
   if (filters.sourceIds) {
-    if (
-      !candidate.sourceId ||
-      !filters.sourceIds.includes(candidate.sourceId)
-    ) {
+    if (!candidate.sourceId || !filters.sourceIds.includes(candidate.sourceId)) {
       return { matched: false, matchedFilters };
     }
 
-    matchedFilters.push("sourceIds");
+    matchedFilters.push('sourceIds');
   }
 
   if (filters.fingerprints) {
-    if (
-      !candidate.fingerprint ||
-      !filters.fingerprints.includes(candidate.fingerprint)
-    ) {
+    if (!candidate.fingerprint || !filters.fingerprints.includes(candidate.fingerprint)) {
       return { matched: false, matchedFilters };
     }
 
-    matchedFilters.push("fingerprints");
+    matchedFilters.push('fingerprints');
   }
 
   if (filters.hierarchyPaths) {
-    if (
-      !candidate.hierarchyPath ||
-      !filters.hierarchyPaths.includes(candidate.hierarchyPath)
-    ) {
+    if (!candidate.hierarchyPath || !filters.hierarchyPaths.includes(candidate.hierarchyPath)) {
       return { matched: false, matchedFilters };
     }
 
-    matchedFilters.push("hierarchyPaths");
+    matchedFilters.push('hierarchyPaths');
   }
 
   if (filters.parentHierarchyPaths) {
@@ -298,7 +248,7 @@ export function matchRetrievalCandidateFilters(
       return { matched: false, matchedFilters };
     }
 
-    matchedFilters.push("parentHierarchyPaths");
+    matchedFilters.push('parentHierarchyPaths');
   }
 
   if (filters.minHierarchyDepth !== undefined) {
@@ -309,7 +259,7 @@ export function matchRetrievalCandidateFilters(
       return { matched: false, matchedFilters };
     }
 
-    matchedFilters.push("minHierarchyDepth");
+    matchedFilters.push('minHierarchyDepth');
   }
 
   if (filters.maxHierarchyDepth !== undefined) {
@@ -320,13 +270,11 @@ export function matchRetrievalCandidateFilters(
       return { matched: false, matchedFilters };
     }
 
-    matchedFilters.push("maxHierarchyDepth");
+    matchedFilters.push('maxHierarchyDepth');
   }
 
   if (filters.metadata) {
-    const metadata = isRecord(candidate.chunk.metadata)
-      ? candidate.chunk.metadata
-      : undefined;
+    const metadata = isRecord(candidate.chunk.metadata) ? candidate.chunk.metadata : undefined;
 
     for (const [key, expectedValue] of Object.entries(filters.metadata)) {
       if (!jsonEquals(metadata?.[key], expectedValue)) {
@@ -334,7 +282,7 @@ export function matchRetrievalCandidateFilters(
       }
     }
 
-    matchedFilters.push("metadata");
+    matchedFilters.push('metadata');
   }
 
   return {

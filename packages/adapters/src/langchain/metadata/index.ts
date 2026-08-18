@@ -1,1 +1,1 @@
-export * from "./langchain-document-metadata-extractor.js";
+export * from './langchain-document-metadata-extractor.js';

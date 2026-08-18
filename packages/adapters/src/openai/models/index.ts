@@ -1,1 +1,1 @@
-export * from "./openai-strategy-model.js";
+export * from './openai-strategy-model.js';

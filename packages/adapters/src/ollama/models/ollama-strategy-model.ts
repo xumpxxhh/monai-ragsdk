@@ -2,12 +2,9 @@ import type {
   RuntimeContext,
   RuntimeStrategyModel,
   RuntimeStrategyModelInput,
-} from "@monai-ragsdk/runtime";
+} from '@monai-ragsdk/runtime';
 
-import {
-  postOllamaJson,
-  type OllamaHttpOptions,
-} from "../shared/http.js";
+import { postOllamaJson, type OllamaHttpOptions } from '../shared/http.js';
 
 export type OllamaStrategyModelOptions = OllamaHttpOptions & {
   model: string;
@@ -31,10 +28,7 @@ export class OllamaStrategyModel implements RuntimeStrategyModel {
 
   constructor(options: OllamaStrategyModelOptions) {
     this.#model = options.model;
-    this.#baseUrl = (options.baseUrl ?? "http://localhost:11434").replace(
-      /\/$/,
-      "",
-    );
+    this.#baseUrl = (options.baseUrl ?? 'http://localhost:11434').replace(/\/$/, '');
     this.#defaultSystem = options.defaultSystem;
     this.#http = {
       timeoutMs: options.timeoutMs,
@@ -44,18 +38,15 @@ export class OllamaStrategyModel implements RuntimeStrategyModel {
     };
   }
 
-  async complete(
-    input: RuntimeStrategyModelInput,
-    _context: RuntimeContext,
-  ): Promise<string> {
+  async complete(input: RuntimeStrategyModelInput, _context: RuntimeContext): Promise<string> {
     const messages: Array<{ role: string; content: string }> = [];
     const system = input.system ?? this.#defaultSystem;
 
     if (system) {
-      messages.push({ role: "system", content: system });
+      messages.push({ role: 'system', content: system });
     }
 
-    messages.push({ role: "user", content: input.prompt });
+    messages.push({ role: 'user', content: input.prompt });
 
     const payload = await postOllamaJson<OllamaChatResponse>(
       `${this.#baseUrl}/api/chat`,
@@ -67,10 +58,10 @@ export class OllamaStrategyModel implements RuntimeStrategyModel {
       this.#http,
     );
 
-    const answer = (payload.message?.content ?? payload.response ?? "").trim();
+    const answer = (payload.message?.content ?? payload.response ?? '').trim();
 
     if (!answer) {
-      throw new Error("Ollama strategy model returned an empty response");
+      throw new Error('Ollama strategy model returned an empty response');
     }
 
     return answer;

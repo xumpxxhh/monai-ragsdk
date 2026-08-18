@@ -1,6 +1,6 @@
-import { TokenTextSplitter } from "@langchain/textsplitters";
+import { TokenTextSplitter } from '@langchain/textsplitters';
 
-import { LangChainTextSplitterAdapter } from "./langchain-text-splitter-adapter.js";
+import { LangChainTextSplitterAdapter } from './langchain-text-splitter-adapter.js';
 
 export type LangChainTokenTextSplitterAdapterOptions = ConstructorParameters<
   typeof TokenTextSplitter

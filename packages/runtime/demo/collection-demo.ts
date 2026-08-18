@@ -3,17 +3,18 @@ import {
   createDefaultRuntime,
   createIndexingRetrievalCandidate,
   filterRetrievalCandidatesByIndexingFilters,
-} from "../dist/index.js";
+} from '../dist/index.js';
 
+import type { Chunk } from '@monai-ragsdk/core';
 import {
   BasicMetadataExtractor,
   MemoryVectorStore,
   MockEmbedder,
   SimpleChunker,
   type Embedder,
-} from "@monai-ragsdk/indexing";
+} from '@monai-ragsdk/indexing';
 
-const indexedChunks = new Map<string, any>();
+const indexedChunks = new Map<string, Chunk>();
 let generateCalls = 0;
 
 const baseEmbedder = new MockEmbedder({ dimension: 6 });
@@ -31,13 +32,13 @@ const store = new MemoryVectorStore();
 
 const collection = createCollection({
   indexing: {
-    mode: "incremental",
+    mode: 'incremental',
     chunker: new SimpleChunker({ chunkSize: 60, overlap: 0 }),
     metadataExtractors: [new BasicMetadataExtractor()],
     embedder,
     store,
     sourceIdResolver() {
-      return "docs/collection-demo";
+      return 'docs/collection-demo';
     },
     fingerprintResolver(document) {
       return `fp:${document.id}`;
@@ -63,10 +64,7 @@ const collection = createCollection({
         });
 
         return {
-          candidates: filterRetrievalCandidatesByIndexingFilters(
-            candidates,
-            request.filters,
-          ),
+          candidates: filterRetrievalCandidatesByIndexingFilters(candidates, request.filters),
           retrievalMetadata: { vectorsTotal: vectors.length },
         };
       },
@@ -77,7 +75,7 @@ const collection = createCollection({
         return {
           answer: `answer:${request.effectiveQuery.query}:${chunks
             .map((chunk) => chunk.id)
-            .join(",")}`,
+            .join(',')}`,
         };
       },
     },
@@ -86,42 +84,41 @@ const collection = createCollection({
 
 const documents = [
   {
-    id: "doc-1",
-    content: "Collection demo：先 ingest 再 search/ask。",
-    metadata: { title: "Doc1", headerPath: ["collection", "demo", "doc-1"] },
+    id: 'doc-1',
+    content: 'Collection demo：先 ingest 再 search/ask。',
+    metadata: { title: 'Doc1', headerPath: ['collection', 'demo', 'doc-1'] },
   },
 ];
 
 await collection.ingest(documents);
 
 const sources = await collection.listSources();
-console.log("collection demo listSources passed", {
+console.log('collection demo listSources passed', {
   count: sources.length,
-  hasSource: sources.some((s) => s.sourceId === "docs/collection-demo"),
+  hasSource: sources.some((s) => s.sourceId === 'docs/collection-demo'),
 });
 
-const searchResult = await collection.search({ query: "demo search" });
-console.log("collection demo search passed", {
+const searchResult = await collection.search({ query: 'demo search' });
+console.log('collection demo search passed', {
   chunks: searchResult.chunks.length,
   citations: searchResult.citations.length,
   generateCalls,
 });
 
-const askResult = await collection.ask({ query: "demo ask" });
-console.log("collection demo ask passed", {
+const askResult = await collection.ask({ query: 'demo ask' });
+console.log('collection demo ask passed', {
   answer: askResult.answer,
   chunks: askResult.chunks.length,
   citations: askResult.citations.length,
 });
 
 const deleted = await collection.deleteByFilters({
-  sourceIds: ["docs/collection-demo"],
+  sourceIds: ['docs/collection-demo'],
 });
-console.log("collection demo deleteByFilters passed", { deleted });
+console.log('collection demo deleteByFilters passed', { deleted });
 
-const afterDelete = await collection.search({ query: "demo after delete" });
-console.log("collection demo after delete passed", {
+const afterDelete = await collection.search({ query: 'demo after delete' });
+console.log('collection demo after delete passed', {
   chunks: afterDelete.chunks.length,
   citations: afterDelete.citations.length,
 });
-

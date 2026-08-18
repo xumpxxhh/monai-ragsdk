@@ -30,11 +30,7 @@ function isRetryableError(error: unknown): boolean {
     return false;
   }
 
-  return (
-    error.name === "AbortError" ||
-    error.name === "TimeoutError" ||
-    error.name === "TypeError"
-  );
+  return error.name === 'AbortError' || error.name === 'TimeoutError' || error.name === 'TypeError';
 }
 
 export async function postOllamaJson<T>(
@@ -54,18 +50,16 @@ export async function postOllamaJson<T>(
 
     try {
       const response = await fetchImpl(url, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "content-type": "application/json",
+          'content-type': 'application/json',
         },
         body: JSON.stringify(body),
         signal: controller.signal,
       });
 
       if (!response.ok) {
-        const error = new Error(
-          `Ollama request failed: ${response.status} ${response.statusText}`,
-        );
+        const error = new Error(`Ollama request failed: ${response.status} ${response.statusText}`);
 
         if (attempt < retries && isRetryableStatus(response.status)) {
           lastError = error;
@@ -85,7 +79,7 @@ export async function postOllamaJson<T>(
         continue;
       }
 
-      if (error instanceof Error && error.name === "AbortError") {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new Error(`Ollama request timed out after ${timeoutMs}ms`, {
           cause: error,
         });
@@ -97,24 +91,20 @@ export async function postOllamaJson<T>(
     }
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("Ollama request failed");
+  throw lastError instanceof Error ? lastError : new Error('Ollama request failed');
 }
 
-async function* readUtf8Lines(
-  body: ReadableStream<Uint8Array>,
-): AsyncGenerator<string> {
+async function* readUtf8Lines(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
+  let buffer = '';
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
       const lines = buffer.split(/\r?\n/);
-      buffer = lines.pop() ?? "";
+      buffer = lines.pop() ?? '';
 
       for (const line of lines) {
         yield line;
@@ -154,18 +144,16 @@ export async function* postOllamaNdjson(
 
     try {
       const response = await fetchImpl(url, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "content-type": "application/json",
+          'content-type': 'application/json',
         },
         body: JSON.stringify(body),
         signal: controller.signal,
       });
 
       if (!response.ok) {
-        const error = new Error(
-          `Ollama request failed: ${response.status} ${response.statusText}`,
-        );
+        const error = new Error(`Ollama request failed: ${response.status} ${response.statusText}`);
 
         if (attempt < retries && isRetryableStatus(response.status)) {
           lastError = error;
@@ -179,7 +167,7 @@ export async function* postOllamaNdjson(
       clearTimeout(timeout);
 
       if (!response.body) {
-        throw new Error("Ollama stream returned an empty body");
+        throw new Error('Ollama stream returned an empty body');
       }
 
       startedStreaming = true;
@@ -202,8 +190,7 @@ export async function* postOllamaNdjson(
           throw new Error(`Ollama stream error: ${payload.error}`);
         }
 
-        const text =
-          payload.message?.content ?? payload.response ?? "";
+        const text = payload.message?.content ?? payload.response ?? '';
 
         if (text) {
           yield text;
@@ -227,7 +214,7 @@ export async function* postOllamaNdjson(
         continue;
       }
 
-      if (error instanceof Error && error.name === "AbortError") {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new Error(`Ollama request timed out after ${timeoutMs}ms`, {
           cause: error,
         });
@@ -239,7 +226,5 @@ export async function* postOllamaNdjson(
     }
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("Ollama stream request failed");
+  throw lastError instanceof Error ? lastError : new Error('Ollama stream request failed');
 }

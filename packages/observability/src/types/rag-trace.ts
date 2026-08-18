@@ -1,8 +1,8 @@
-import type { RAGErrorRecord } from "./rag-error-record.js";
-import type { RAGEvent, RAGEventScope } from "./rag-event.js";
-import type { RAGMetric } from "./rag-metric.js";
-import type { RAGTags } from "./rag-attributes.js";
-import type { TraceIdSource } from "./trace-context.js";
+import type { RAGErrorRecord } from './rag-error-record.js';
+import type { RAGEvent, RAGEventScope } from './rag-event.js';
+import type { RAGMetric } from './rag-metric.js';
+import type { RAGTags } from './rag-attributes.js';
+import type { TraceIdSource } from './trace-context.js';
 
 export interface RAGTrace {
   traceId: string;
@@ -18,7 +18,7 @@ export interface RAGTrace {
   startedAt: number;
   endedAt?: number;
   durationMs?: number;
-  status: "ok" | "error";
+  status: 'ok' | 'error';
   tags?: RAGTags;
   events: RAGEvent[];
   errors?: RAGErrorRecord[];

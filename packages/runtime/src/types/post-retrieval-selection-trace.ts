@@ -1,24 +1,24 @@
-import type { JsonValue } from "@monai-ragsdk/core";
+import type { JsonValue } from '@monai-ragsdk/core';
 
-import type { RetrievalCandidate } from "./retrieval-candidate.js";
+import type { RetrievalCandidate } from './retrieval-candidate.js';
 
 export type PostRetrievalSelectionStage =
-  | "score-threshold"
-  | "predicate-filter"
-  | "duplicate-removal"
-  | "budget-trim"
-  | "source-coverage"
-  | "context-ordering";
+  | 'score-threshold'
+  | 'predicate-filter'
+  | 'duplicate-removal'
+  | 'budget-trim'
+  | 'source-coverage'
+  | 'context-ordering';
 
 export type PostRetrievalSelectionReason =
-  | "selected"
-  | "predicate-filter"
-  | "duplicate"
-  | "score-threshold"
-  | "source-coverage-quota"
-  | "max-candidates"
-  | "max-chunks"
-  | "max-prompt-chars";
+  | 'selected'
+  | 'predicate-filter'
+  | 'duplicate'
+  | 'score-threshold'
+  | 'source-coverage-quota'
+  | 'max-candidates'
+  | 'max-chunks'
+  | 'max-prompt-chars';
 
 export type PostRetrievalSelectionTraceEntry = {
   candidate: RetrievalCandidate;

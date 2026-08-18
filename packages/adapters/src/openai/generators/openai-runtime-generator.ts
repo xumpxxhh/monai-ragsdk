@@ -3,15 +3,11 @@ import type {
   RuntimeGenerationStreamEvent,
   RuntimeGenerator,
   RuntimeGeneratorInput,
-} from "@monai-ragsdk/runtime";
+} from '@monai-ragsdk/runtime';
 
-import {
-  postOpenAIJson,
-  postOpenAISse,
-  type OpenAIHttpOptions,
-} from "../shared/http.js";
+import { postOpenAIJson, postOpenAISse, type OpenAIHttpOptions } from '../shared/http.js';
 
-export type OpenAIRuntimeGeneratorOptions = Omit<OpenAIHttpOptions, "apiKey"> & {
+export type OpenAIRuntimeGeneratorOptions = Omit<OpenAIHttpOptions, 'apiKey'> & {
   model: string;
   /** OpenAI 兼容 /chat/completions 的根地址，须由调用方显式传入，SDK 不内置厂商 URL。 */
   baseUrl: string;
@@ -34,18 +30,18 @@ function resolveApiKey(apiKey?: string): string | undefined {
   return apiKey || process.env.OPENAI_API_KEY;
 }
 
-function readMessageContent(content: OpenAIChatMessage["content"]): string {
-  if (typeof content === "string") {
+function readMessageContent(content: OpenAIChatMessage['content']): string {
+  if (typeof content === 'string') {
     return content.trim();
   }
 
   if (!Array.isArray(content)) {
-    return "";
+    return '';
   }
 
   return content
-    .map((part) => (typeof part.text === "string" ? part.text : ""))
-    .join("")
+    .map((part) => (typeof part.text === 'string' ? part.text : ''))
+    .join('')
     .trim();
 }
 
@@ -60,26 +56,24 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
     const apiKey = resolveApiKey(options.apiKey);
 
     if (!apiKey) {
-      throw new Error(
-        "OpenAIRuntimeGenerator requires apiKey, or OPENAI_API_KEY",
-      );
+      throw new Error('OpenAIRuntimeGenerator requires apiKey, or OPENAI_API_KEY');
     }
 
     const baseUrl = options.baseUrl.trim();
 
     if (!baseUrl) {
-      throw new Error("OpenAIRuntimeGenerator requires baseUrl");
+      throw new Error('OpenAIRuntimeGenerator requires baseUrl');
     }
 
     if (!options.model.trim()) {
-      throw new Error("OpenAIRuntimeGenerator requires model");
+      throw new Error('OpenAIRuntimeGenerator requires model');
     }
 
     this.#model = options.model;
-    this.#baseUrl = baseUrl.replace(/\/$/, "");
+    this.#baseUrl = baseUrl.replace(/\/$/, '');
     this.#systemPrompt =
       options.systemPrompt ??
-      "只根据提供的上下文回答问题。如果上下文不足以回答，就明确说明无法判断。";
+      '只根据提供的上下文回答问题。如果上下文不足以回答，就明确说明无法判断。';
     this.#http = {
       apiKey,
       timeoutMs: options.timeoutMs,
@@ -89,9 +83,7 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
     };
   }
 
-  async generate(
-    input: RuntimeGeneratorInput,
-  ): Promise<RuntimeGenerationResult> {
+  async generate(input: RuntimeGeneratorInput): Promise<RuntimeGenerationResult> {
     const payload = await postOpenAIJson<OpenAIChatResponse>(
       `${this.#baseUrl}/chat/completions`,
       this.#buildChatBody(input, false),
@@ -101,7 +93,7 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
     const answer = readMessageContent(payload.choices?.[0]?.message?.content);
 
     if (!answer) {
-      throw new Error("OpenAI-compatible chat returned an empty response");
+      throw new Error('OpenAI-compatible chat returned an empty response');
     }
 
     return {
@@ -111,10 +103,8 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
   }
 
   /** SSE 增量输出；run() 仍走 generate()，避免把流式超时套到非流式 JSON 调用。 */
-  async *generateStream(
-    input: RuntimeGeneratorInput,
-  ): AsyncIterable<RuntimeGenerationStreamEvent> {
-    let answer = "";
+  async *generateStream(input: RuntimeGeneratorInput): AsyncIterable<RuntimeGenerationStreamEvent> {
+    let answer = '';
 
     for await (const text of postOpenAISse(
       `${this.#baseUrl}/chat/completions`,
@@ -123,17 +113,17 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
     )) {
       answer += text;
       yield {
-        type: "delta",
+        type: 'delta',
         text,
       };
     }
 
     if (!answer.trim()) {
-      throw new Error("OpenAI-compatible chat returned an empty response");
+      throw new Error('OpenAI-compatible chat returned an empty response');
     }
 
     yield {
-      type: "complete",
+      type: 'complete',
       result: {
         answer,
         generationMetadata: this.#buildMetadata(input, true),
@@ -149,14 +139,14 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
 
     const contextText = input.chunks
       .map((chunk, index) => `[${index + 1}] ${chunk.content}`)
-      .join("\n\n");
+      .join('\n\n');
 
     return [
       `问题：${input.request.effectiveQuery.query}`,
-      "",
-      "上下文：",
-      contextText || "（无检索上下文）",
-    ].join("\n");
+      '',
+      '上下文：',
+      contextText || '（无检索上下文）',
+    ].join('\n');
   }
 
   #buildChatBody(input: RuntimeGeneratorInput, stream: boolean) {
@@ -165,11 +155,11 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
       stream,
       messages: [
         {
-          role: "system",
+          role: 'system',
           content: this.#systemPrompt,
         },
         {
-          role: "user",
+          role: 'user',
           content: this.#buildPrompt(input),
         },
       ],
@@ -178,7 +168,7 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
 
   #buildMetadata(input: RuntimeGeneratorInput, streamed: boolean) {
     return {
-      provider: "openai",
+      provider: 'openai',
       model: this.#model,
       streamed,
       chunkIds: input.chunks.map((chunk) => chunk.id),

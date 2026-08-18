@@ -1,6 +1,6 @@
-import type { Query } from "@monai-ragsdk/core";
+import type { Query } from '@monai-ragsdk/core';
 
-import type { RetrievalRequest } from "../../../types/index.js";
+import type { RetrievalRequest } from '../../../types/index.js';
 
 function normalize(query: string): string {
   return query.trim().toLowerCase();
@@ -59,10 +59,7 @@ export function withSubQueries(
   }
 
   // 只有一条且等于 effectiveQuery 时不必挂 subQueries，FanOut 会退化为单次检索
-  if (
-    subQueries.length === 1 &&
-    subQueries[0]?.query === request.effectiveQuery.query
-  ) {
+  if (subQueries.length === 1 && subQueries[0]?.query === request.effectiveQuery.query) {
     return request;
   }
 

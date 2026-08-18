@@ -1,26 +1,26 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from 'vitest';
 
-import { LangChainRuntimeRetrieverAdapter } from "../src/index.ts";
+import { LangChainRuntimeRetrieverAdapter } from '../src/index.ts';
 
-describe("LangChainRuntimeRetrieverAdapter", () => {
-  it("maps LangChain retriever output into runtime candidates and applies runtime filters", async () => {
+describe('LangChainRuntimeRetrieverAdapter', () => {
+  it('maps LangChain retriever output into runtime candidates and applies runtime filters', async () => {
     const invoke = vi.fn(async () => [
       {
-        id: "chunk-1",
-        pageContent: "runtime api",
+        id: 'chunk-1',
+        pageContent: 'runtime api',
         score: 0.91,
         metadata: {
-          sourceId: "docs/runtime",
-          hierarchyPath: ["runtime", "api"],
+          sourceId: 'docs/runtime',
+          hierarchyPath: ['runtime', 'api'],
         },
       },
       {
-        id: "chunk-2",
-        pageContent: "runtime faq",
+        id: 'chunk-2',
+        pageContent: 'runtime faq',
         score: 0.67,
         metadata: {
-          sourceId: "docs/faq",
-          hierarchyPath: ["runtime", "faq"],
+          sourceId: 'docs/faq',
+          hierarchyPath: ['runtime', 'faq'],
         },
       },
     ]);
@@ -30,47 +30,47 @@ describe("LangChainRuntimeRetrieverAdapter", () => {
 
     const result = await adapter.retrieve(
       {
-        originalQuery: { query: "Explain runtime" },
-        effectiveQuery: { query: "Explain runtime site:docs" },
-        route: "docs",
-        strategy: "metadata-first",
+        originalQuery: { query: 'Explain runtime' },
+        effectiveQuery: { query: 'Explain runtime site:docs' },
+        route: 'docs',
+        strategy: 'metadata-first',
         filters: {
-          sourceIds: ["docs/runtime"],
-          hierarchyPaths: ["runtime/api"],
+          sourceIds: ['docs/runtime'],
+          hierarchyPaths: ['runtime/api'],
         },
       },
       {
-        requestId: "test",
-        input: { query: "Explain runtime" },
+        requestId: 'test',
+        input: { query: 'Explain runtime' },
         options: {},
         startedAt: Date.now(),
       },
     );
 
-    expect(invoke).toHaveBeenCalledWith("Explain runtime site:docs");
+    expect(invoke).toHaveBeenCalledWith('Explain runtime site:docs');
     expect(result).toMatchObject({
       candidates: [
         {
           chunk: {
-            id: "chunk-1",
-            content: "runtime api",
+            id: 'chunk-1',
+            content: 'runtime api',
             metadata: {
-              sourceId: "docs/runtime",
-              hierarchyPath: ["runtime", "api"],
+              sourceId: 'docs/runtime',
+              hierarchyPath: ['runtime', 'api'],
             },
           },
           score: 0.91,
-          route: "docs",
-          strategy: "metadata-first",
-          sourceId: "docs/runtime",
-          hierarchyPath: "runtime/api",
-          matchedFilters: ["sourceIds", "hierarchyPaths"],
+          route: 'docs',
+          strategy: 'metadata-first',
+          sourceId: 'docs/runtime',
+          hierarchyPath: 'runtime/api',
+          matchedFilters: ['sourceIds', 'hierarchyPaths'],
         },
       ],
     });
   });
 
-  it("supports custom request mapping and retrieval metadata building", async () => {
+  it('supports custom request mapping and retrieval metadata building', async () => {
     const adapter = new LangChainRuntimeRetrieverAdapter<
       { query: string; topK?: number },
       {
@@ -83,16 +83,16 @@ describe("LangChainRuntimeRetrieverAdapter", () => {
       retriever: {
         async invoke(input) {
           expect(input).toEqual({
-            query: "Explain runtime site:docs",
+            query: 'Explain runtime site:docs',
             topK: 2,
           });
 
           return {
             documents: [
               {
-                pageContent: "runtime body",
+                pageContent: 'runtime body',
                 metadata: {
-                  sourceId: "docs/runtime",
+                  sourceId: 'docs/runtime',
                 },
               },
             ],
@@ -118,13 +118,13 @@ describe("LangChainRuntimeRetrieverAdapter", () => {
 
     const result = await adapter.retrieve(
       {
-        originalQuery: { query: "Explain runtime" },
-        effectiveQuery: { query: "Explain runtime site:docs" },
+        originalQuery: { query: 'Explain runtime' },
+        effectiveQuery: { query: 'Explain runtime site:docs' },
         topK: 2,
       },
       {
-        requestId: "test",
-        input: { query: "Explain runtime" },
+        requestId: 'test',
+        input: { query: 'Explain runtime' },
         options: {},
         startedAt: Date.now(),
       },
@@ -134,6 +134,6 @@ describe("LangChainRuntimeRetrieverAdapter", () => {
       originalCandidateCount: 1,
       finalCandidateCount: 1,
     });
-    expect(result.candidates[0]?.chunk.content).toBe("runtime body");
+    expect(result.candidates[0]?.chunk.content).toBe('runtime body');
   });
 });

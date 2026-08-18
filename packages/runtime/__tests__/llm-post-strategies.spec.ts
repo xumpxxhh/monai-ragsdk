@@ -1,16 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 
-import type { RuntimeContext, RuntimeStrategyModel } from "../src/index.ts";
+import type { RuntimeContext, RuntimeStrategyModel } from '../src/index.ts';
 
 import {
   createContextCompressionStrategy,
   createLlmRerankStrategy,
   StrategyRetrievalPostprocessor,
-} from "../src/index.ts";
+} from '../src/index.ts';
 
 const context: RuntimeContext = {
-  requestId: "req-1",
-  input: { query: "pgvector 是什么？" },
+  requestId: 'req-1',
+  input: { query: 'pgvector 是什么？' },
   options: {},
   startedAt: Date.now(),
 };
@@ -23,14 +23,14 @@ function jsonModel(payload: unknown): RuntimeStrategyModel {
   };
 }
 
-describe("post-retrieval LLM strategies", () => {
-  it("llm reranks candidates and writes back candidate.score", async () => {
+describe('post-retrieval LLM strategies', () => {
+  it('llm reranks candidates and writes back candidate.score', async () => {
     const strategy = createLlmRerankStrategy({
       model: jsonModel({
         ranked: [
-          { chunkId: "c2", score: 0.99 },
-          { chunkId: "c1", score: 0.1 },
-          { chunkId: "c3", score: 0.5 },
+          { chunkId: 'c2', score: 0.99 },
+          { chunkId: 'c1', score: 0.1 },
+          { chunkId: 'c3', score: 0.5 },
         ],
       }),
     });
@@ -38,21 +38,21 @@ describe("post-retrieval LLM strategies", () => {
     const result = await strategy.apply(
       {
         request: {
-          originalQuery: { query: "pgvector" },
-          effectiveQuery: { query: "pgvector" },
-          rerank: { strategy: "llm-rerank" },
+          originalQuery: { query: 'pgvector' },
+          effectiveQuery: { query: 'pgvector' },
+          rerank: { strategy: 'llm-rerank' },
         },
         candidates: [
           {
-            chunk: { id: "c1", content: "c1" },
+            chunk: { id: 'c1', content: 'c1' },
             score: 0.2,
           },
           {
-            chunk: { id: "c2", content: "c2" },
+            chunk: { id: 'c2', content: 'c2' },
             score: 0.9,
           },
           {
-            chunk: { id: "c3", content: "c3" },
+            chunk: { id: 'c3', content: 'c3' },
             score: 0.3,
           },
         ],
@@ -60,18 +60,14 @@ describe("post-retrieval LLM strategies", () => {
       context,
     );
 
-    expect(result.selectedCandidates.map((c) => c.chunk.id)).toEqual([
-      "c2",
-      "c1",
-      "c3",
-    ]);
-    const c2 = result.selectedCandidates.find((c) => c.chunk.id === "c2")!;
+    expect(result.selectedCandidates.map((c) => c.chunk.id)).toEqual(['c2', 'c1', 'c3']);
+    const c2 = result.selectedCandidates.find((c) => c.chunk.id === 'c2')!;
     expect(c2.score).toBe(0.99);
   });
 
-  it("compresses each candidate chunk.content", async () => {
+  it('compresses each candidate chunk.content', async () => {
     const strategy = createContextCompressionStrategy({
-      model: jsonModel({ compressed: "compressed" }),
+      model: jsonModel({ compressed: 'compressed' }),
       maxCharsPerChunk: 50,
       maxConcurrency: 2,
     });
@@ -79,41 +75,41 @@ describe("post-retrieval LLM strategies", () => {
     const result = await strategy.apply(
       {
         request: {
-          originalQuery: { query: "pgvector" },
-          effectiveQuery: { query: "pgvector" },
+          originalQuery: { query: 'pgvector' },
+          effectiveQuery: { query: 'pgvector' },
         },
         candidates: [
-          { chunk: { id: "c1", content: "long long long" }, score: 0.1 },
-          { chunk: { id: "c2", content: "more more more" }, score: 0.2 },
+          { chunk: { id: 'c1', content: 'long long long' }, score: 0.1 },
+          { chunk: { id: 'c2', content: 'more more more' }, score: 0.2 },
         ],
       },
       context,
     );
 
     expect(result.selectedCandidates.map((c) => c.chunk.content)).toEqual([
-      "compressed",
-      "compressed",
+      'compressed',
+      'compressed',
     ]);
     expect(result.selectedCandidates.map((c) => c.originalContent)).toEqual([
-      "long long long",
-      "more more more",
+      'long long long',
+      'more more more',
     ]);
     expect(result.selectedCandidates.every((c) => c.compressed)).toBe(true);
   });
 
-  it("works in StrategyRetrievalPostprocessor chain (rerank + compression)", async () => {
+  it('works in StrategyRetrievalPostprocessor chain (rerank + compression)', async () => {
     const postprocessor = new StrategyRetrievalPostprocessor({
       strategies: [
         createLlmRerankStrategy({
           model: jsonModel({
             ranked: [
-              { chunkId: "c2", score: 0.9 },
-              { chunkId: "c1", score: 0.1 },
+              { chunkId: 'c2', score: 0.9 },
+              { chunkId: 'c1', score: 0.1 },
             ],
           }),
         }),
         createContextCompressionStrategy({
-          model: jsonModel({ compressed: "sum" }),
+          model: jsonModel({ compressed: 'sum' }),
           maxConcurrency: 2,
         }),
       ],
@@ -122,19 +118,18 @@ describe("post-retrieval LLM strategies", () => {
     const result = await postprocessor.postprocess(
       {
         request: {
-          originalQuery: { query: "pgvector" },
-          effectiveQuery: { query: "pgvector" },
+          originalQuery: { query: 'pgvector' },
+          effectiveQuery: { query: 'pgvector' },
         },
         candidates: [
-          { chunk: { id: "c1", content: "c1" }, score: 0.2 },
-          { chunk: { id: "c2", content: "c2" }, score: 0.3 },
+          { chunk: { id: 'c1', content: 'c1' }, score: 0.2 },
+          { chunk: { id: 'c2', content: 'c2' }, score: 0.3 },
         ],
       },
       context,
     );
 
-    expect(result.chunks.map((c) => c.id)).toEqual(["c2", "c1"]);
-    expect(result.chunks.map((c) => c.content)).toEqual(["sum", "sum"]);
+    expect(result.chunks.map((c) => c.id)).toEqual(['c2', 'c1']);
+    expect(result.chunks.map((c) => c.content)).toEqual(['sum', 'sum']);
   });
 });
-

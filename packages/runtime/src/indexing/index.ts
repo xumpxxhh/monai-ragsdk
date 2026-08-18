@@ -1,1 +1,1 @@
-export * from "./query-protocol.js";
+export * from './query-protocol.js';

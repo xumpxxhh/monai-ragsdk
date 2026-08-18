@@ -1,11 +1,8 @@
-import type { RetrievalCandidate } from "../../types/index.js";
+import type { RetrievalCandidate } from '../../types/index.js';
 
 export type FuseByReciprocalRankFusionOptions = {
   k?: number;
-  enrichCandidate?: (
-    candidate: RetrievalCandidate,
-    score: number,
-  ) => RetrievalCandidate;
+  enrichCandidate?: (candidate: RetrievalCandidate, score: number) => RetrievalCandidate;
 };
 
 const DEFAULT_RRF_K = 60;

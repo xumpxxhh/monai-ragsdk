@@ -1,5 +1,5 @@
-import type { RAGTrace } from "../types/rag-trace.js";
-import type { TraceExporter } from "./trace-exporter.js";
+import type { RAGTrace } from '../types/rag-trace.js';
+import type { TraceExporter } from './trace-exporter.js';
 
 export interface MemoryTraceExporter extends TraceExporter {
   getTraces(): RAGTrace[];

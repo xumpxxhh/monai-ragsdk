@@ -1,4 +1,4 @@
-import type { Chunk, Vector } from "@monai-ragsdk/core";
+import type { Chunk, Vector } from '@monai-ragsdk/core';
 
 export const toRagVector = (chunk: Chunk, values: number[]): Vector => {
   return {

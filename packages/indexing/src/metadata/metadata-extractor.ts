@@ -1,6 +1,6 @@
-import type { Chunk, Document, JsonValue } from "@monai-ragsdk/core";
+import type { Chunk, Document, JsonValue } from '@monai-ragsdk/core';
 
-import type { IndexingMode } from "../types/indexing-context.js";
+import type { IndexingMode } from '../types/indexing-context.js';
 
 export type MetadataExtractionContext = {
   document: Document;

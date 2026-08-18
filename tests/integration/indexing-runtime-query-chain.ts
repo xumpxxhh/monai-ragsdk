@@ -1,14 +1,14 @@
 import {
   assertIndexingRuntimeQueryScenario,
   runIndexingRuntimeQueryScenario,
-} from "../shared/indexing-runtime-query-chain-scenario.ts";
+} from '../shared/indexing-runtime-query-chain-scenario.ts';
 
 async function main() {
   const scenario = await runIndexingRuntimeQueryScenario();
 
   assertIndexingRuntimeQueryScenario(scenario);
 
-  console.log("indexing + runtime integration passed");
+  console.log('indexing + runtime integration passed');
   console.log({
     indexingResult: scenario.indexingResult,
     answer: scenario.runtimeResult.answer,

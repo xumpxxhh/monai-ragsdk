@@ -1,14 +1,13 @@
-import type { RetrievalPostprocessor } from "./retrieval-postprocessor.js";
+import type { RetrievalPostprocessor } from './retrieval-postprocessor.js';
 
 import {
   PassthroughRetrievalPostprocessor,
   type PassthroughRetrievalPostprocessorOptions,
-} from "./passthrough-retrieval-postprocessor.js";
+} from './passthrough-retrieval-postprocessor.js';
 
-export type CreateDefaultPostprocessorOptions =
-  PassthroughRetrievalPostprocessorOptions & {
-    debug?: boolean;
-  };
+export type CreateDefaultPostprocessorOptions = PassthroughRetrievalPostprocessorOptions & {
+  debug?: boolean;
+};
 
 export function createDefaultPostprocessor(
   options: CreateDefaultPostprocessorOptions = {},

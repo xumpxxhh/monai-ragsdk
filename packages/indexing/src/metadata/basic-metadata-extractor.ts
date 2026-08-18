@@ -1,9 +1,6 @@
-import type { Chunk, JsonValue } from "@monai-ragsdk/core";
+import type { Chunk, JsonValue } from '@monai-ragsdk/core';
 
-import type {
-  MetadataExtractionContext,
-  MetadataExtractor,
-} from "./metadata-extractor.js";
+import type { MetadataExtractionContext, MetadataExtractor } from './metadata-extractor.js';
 
 export type BasicMetadataExtractorOptions = {
   includeIndexingMode?: boolean;
@@ -18,8 +15,7 @@ export class BasicMetadataExtractor implements MetadataExtractor {
 
   constructor(options: BasicMetadataExtractorOptions = {}) {
     this.#includeIndexingMode = options.includeIndexingMode ?? true;
-    this.#includeIncrementalMetadata =
-      options.includeIncrementalMetadata ?? true;
+    this.#includeIncrementalMetadata = options.includeIncrementalMetadata ?? true;
     this.#includeHierarchyMetadata = options.includeHierarchyMetadata ?? true;
   }
 
@@ -49,7 +45,7 @@ export class BasicMetadataExtractor implements MetadataExtractor {
 
     const title = context.document.metadata?.title;
 
-    if (typeof title === "string" && title.trim().length > 0) {
+    if (typeof title === 'string' && title.trim().length > 0) {
       metadata.documentTitle = title;
     }
 
@@ -72,7 +68,7 @@ export class BasicMetadataExtractor implements MetadataExtractor {
 
 function resolveHierarchyPath(
   chunk: Chunk,
-  document: MetadataExtractionContext["document"],
+  document: MetadataExtractionContext['document'],
 ): string[] {
   const chunkHierarchyPath = readPathMetadata(chunk.metadata?.headerPath);
 
@@ -89,7 +85,6 @@ function readPathMetadata(value: JsonValue | undefined): string[] {
   }
 
   return value.filter(
-    (segment): segment is string =>
-      typeof segment === "string" && segment.length > 0,
+    (segment): segment is string => typeof segment === 'string' && segment.length > 0,
   );
 }

@@ -1,7 +1,7 @@
-import type { Chunk, Vector } from "@monai-ragsdk/core";
+import type { Chunk, Vector } from '@monai-ragsdk/core';
 
-import { DEFAULT_VECTOR_DIMENSION } from "../defaults/index.js";
-import type { Embedder } from "./embedder.js";
+import { DEFAULT_VECTOR_DIMENSION } from '../defaults/index.js';
+import type { Embedder } from './embedder.js';
 
 export type MockEmbedderOptions = {
   dimension?: number;
@@ -14,7 +14,7 @@ export class MockEmbedder implements Embedder {
     this.#dimension = options.dimension ?? DEFAULT_VECTOR_DIMENSION;
 
     if (this.#dimension <= 0) {
-      throw new Error("dimension must be greater than 0");
+      throw new Error('dimension must be greater than 0');
     }
   }
 
@@ -33,8 +33,6 @@ export class MockEmbedder implements Embedder {
       values[index % this.#dimension] += content.charCodeAt(index);
     }
 
-    return values.map((value, index) =>
-      Number(((value % 997) / (index + 1 || 1)).toFixed(6)),
-    );
+    return values.map((value, index) => Number(((value % 997) / (index + 1 || 1)).toFixed(6)));
   }
 }

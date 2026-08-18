@@ -1,6 +1,6 @@
-import type { Document } from "@monai-ragsdk/core";
+import type { Document } from '@monai-ragsdk/core';
 
-import type { DocumentTransformer } from "./document-transformer.js";
+import type { DocumentTransformer } from './document-transformer.js';
 
 export type ContentCleanupTransformerOptions = {
   collapseBlankLinesTo?: number;
@@ -16,20 +16,20 @@ export class ContentCleanupTransformer implements DocumentTransformer {
     this.#trimTrailingWhitespace = options.trimTrailingWhitespace ?? true;
 
     if (this.#collapseBlankLinesTo < 1) {
-      throw new Error("collapseBlankLinesTo must be greater than 0");
+      throw new Error('collapseBlankLinesTo must be greater than 0');
     }
   }
 
   async transform(document: Document): Promise<Document> {
-    let content = document.content.replace(/\r\n/g, "\n");
+    let content = document.content.replace(/\r\n/g, '\n');
 
     if (this.#trimTrailingWhitespace) {
-      content = content.replace(/[ \t]+$/gm, "");
+      content = content.replace(/[ \t]+$/gm, '');
     }
 
     content = content
-      .replace(/\t/g, " ")
-      .replace(/\n{3,}/g, "\n".repeat(this.#collapseBlankLinesTo));
+      .replace(/\t/g, ' ')
+      .replace(/\n{3,}/g, '\n'.repeat(this.#collapseBlankLinesTo));
 
     return {
       ...document,

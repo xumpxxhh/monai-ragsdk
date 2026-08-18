@@ -1,10 +1,10 @@
-import type { PostRetrievalStrategy } from "../post-retrieval-strategy.js";
-import type { RuntimeContext } from "../../../types/index.js";
+import type { PostRetrievalStrategy } from '../post-retrieval-strategy.js';
+import type { RuntimeContext } from '../../../types/index.js';
 
 import {
   applyNearDuplicateRemovalStrategy,
   type NearDuplicateRemovalConfig,
-} from "./post-retrieval-strategies.js";
+} from './post-retrieval-strategies.js';
 
 export function createNearDuplicateRemovalStrategy(
   config?: NearDuplicateRemovalConfig,

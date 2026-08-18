@@ -1,4 +1,4 @@
-import type { RuntimeGenerationResult } from "./runtime-generation-result.js";
+import type { RuntimeGenerationResult } from './runtime-generation-result.js';
 
 /**
  * generator 流式事件：delta 是增量文本，complete 携带与 generate() 同构的最终结果。
@@ -6,10 +6,10 @@ import type { RuntimeGenerationResult } from "./runtime-generation-result.js";
  */
 export type RuntimeGenerationStreamEvent =
   | {
-      type: "delta";
+      type: 'delta';
       text: string;
     }
   | {
-      type: "complete";
+      type: 'complete';
       result: RuntimeGenerationResult;
     };

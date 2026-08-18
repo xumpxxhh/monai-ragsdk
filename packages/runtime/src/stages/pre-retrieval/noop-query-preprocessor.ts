@@ -1,4 +1,4 @@
-import type { QueryPreprocessor } from "./query-preprocessor.js";
+import type { QueryPreprocessor } from './query-preprocessor.js';
 import type {
   RetrievalBudget,
   RetrievalFilters,
@@ -6,13 +6,13 @@ import type {
   RetrievalRequest,
   RuntimeContext,
   RuntimeQueryInput,
-} from "../../types/index.js";
+} from '../../types/index.js';
 
 export type NoopQueryPreprocessorOptions = {
   topK?: number;
   strategy?: string;
   route?: string;
-  indexingMode?: "full" | "incremental";
+  indexingMode?: 'full' | 'incremental';
   filters?: RetrievalFilters;
   budget?: RetrievalBudget;
   rerank?: RetrievalRerankPolicy;
@@ -21,10 +21,7 @@ export type NoopQueryPreprocessorOptions = {
 export class NoopQueryPreprocessor implements QueryPreprocessor {
   constructor(private readonly options: NoopQueryPreprocessorOptions = {}) {}
 
-  async preprocess(
-    input: RuntimeQueryInput,
-    _context: RuntimeContext,
-  ): Promise<RetrievalRequest> {
+  async preprocess(input: RuntimeQueryInput, _context: RuntimeContext): Promise<RetrievalRequest> {
     const query = { query: input.query };
 
     return {

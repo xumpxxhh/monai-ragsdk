@@ -1,8 +1,8 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-import { ChunkSchema } from "./chunk.js";
-import { JsonObjectSchema } from "./json.js";
-import { QuerySchema } from "./query.js";
+import { ChunkSchema } from './chunk.js';
+import { JsonObjectSchema } from './json.js';
+import { QuerySchema } from './query.js';
 
 /** 审计用有限数字：NaN / Infinity 不能落盘对账。 */
 const FiniteNumberSchema = z.number().finite();
@@ -141,9 +141,9 @@ function refineAuditSnapshot(
   // citations 必须与进入生成的 chunks 等长同序，否则 [n] 对不上上下文
   if (value.citations.length !== value.chunks.length) {
     ctx.addIssue({
-      code: "custom",
-      path: ["citations"],
-      message: "citations must be the same length as chunks",
+      code: 'custom',
+      path: ['citations'],
+      message: 'citations must be the same length as chunks',
     });
   } else {
     for (let index = 0; index < value.chunks.length; index += 1) {
@@ -155,17 +155,17 @@ function refineAuditSnapshot(
 
       if (citation.index !== index + 1) {
         ctx.addIssue({
-          code: "custom",
-          path: ["citations", index, "index"],
-          message: "citation index must be 1-based and match chunk order",
+          code: 'custom',
+          path: ['citations', index, 'index'],
+          message: 'citation index must be 1-based and match chunk order',
         });
       }
 
       if (citation.chunkId !== chunk.id) {
         ctx.addIssue({
-          code: "custom",
-          path: ["citations", index, "chunkId"],
-          message: "citation chunkId must match chunks[i].id",
+          code: 'custom',
+          path: ['citations', index, 'chunkId'],
+          message: 'citation chunkId must match chunks[i].id',
         });
       }
     }
@@ -174,18 +174,18 @@ function refineAuditSnapshot(
   if (value.startedAt !== undefined && value.endedAt !== undefined) {
     if (value.endedAt < value.startedAt) {
       ctx.addIssue({
-        code: "custom",
-        path: ["endedAt"],
-        message: "endedAt must be greater than or equal to startedAt",
+        code: 'custom',
+        path: ['endedAt'],
+        message: 'endedAt must be greater than or equal to startedAt',
       });
     }
   }
 
   if (value.counts && value.counts.finalChunks !== value.chunks.length) {
     ctx.addIssue({
-      code: "custom",
-      path: ["counts", "finalChunks"],
-      message: "counts.finalChunks must equal chunks.length",
+      code: 'custom',
+      path: ['counts', 'finalChunks'],
+      message: 'counts.finalChunks must equal chunks.length',
     });
   }
 
@@ -195,9 +195,9 @@ function refineAuditSnapshot(
     value.counts.dropped !== value.droppedChunkIds.length
   ) {
     ctx.addIssue({
-      code: "custom",
-      path: ["counts", "dropped"],
-      message: "counts.dropped must equal droppedChunkIds.length",
+      code: 'custom',
+      path: ['counts', 'dropped'],
+      message: 'counts.dropped must equal droppedChunkIds.length',
     });
   }
 
@@ -207,9 +207,9 @@ function refineAuditSnapshot(
     value.counts.retrieved !== value.retrievedCandidates.length
   ) {
     ctx.addIssue({
-      code: "custom",
-      path: ["counts", "retrieved"],
-      message: "counts.retrieved must equal retrievedCandidates.length",
+      code: 'custom',
+      path: ['counts', 'retrieved'],
+      message: 'counts.retrieved must equal retrievedCandidates.length',
     });
   }
 }
@@ -240,7 +240,7 @@ export const RAGResponseSchema = z
     budget: RAGBudgetSchema.optional(),
     appliedBudget: RAGBudgetSchema.optional(),
     rerank: RAGRerankSchema.optional(),
-    indexingMode: z.enum(["full", "incremental"]).optional(),
+    indexingMode: z.enum(['full', 'incremental']).optional(),
     droppedChunkIds: z.array(z.string().min(1)).optional(),
     retrievedCandidates: z.array(RAGRetrievedCandidateSchema).optional(),
     selectionTrace: z.array(RAGSelectionTraceEntrySchema).optional(),

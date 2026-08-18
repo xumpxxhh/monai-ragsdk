@@ -1,17 +1,13 @@
-import type { QueryStrategy } from "../query-strategy.js";
-import type {
-  RetrievalRequest,
-  RuntimeContext,
-} from "../../../types/index.js";
+import type { QueryStrategy } from '../query-strategy.js';
+import type { RetrievalRequest, RuntimeContext } from '../../../types/index.js';
 
-import { buildSubQueries, withSubQueries } from "./build-sub-queries.js";
-import { completeQueryStrategyModel } from "./complete-query-strategy.js";
-import type { LlmQueryStrategyOptions } from "./llm-query-strategy-options.js";
-import { parseQueryList } from "./parse-strategy-model-text.js";
+import { buildSubQueries, withSubQueries } from './build-sub-queries.js';
+import { completeQueryStrategyModel } from './complete-query-strategy.js';
+import type { LlmQueryStrategyOptions } from './llm-query-strategy-options.js';
+import { parseQueryList } from './parse-strategy-model-text.js';
 
 const DEFAULT_COUNT = 3;
-const DEFAULT_SYSTEM =
-  "你扩展用户问题的检索覆盖面，生成语义相关、措辞不同的查询。不要回答问题。";
+const DEFAULT_SYSTEM = '你扩展用户问题的检索覆盖面，生成语义相关、措辞不同的查询。不要回答问题。';
 
 export type QueryExpansionStrategyOptions = LlmQueryStrategyOptions & {
   /** 额外生成的查询条数，不含原 query；默认 3。 */
@@ -23,11 +19,11 @@ export type QueryExpansionStrategyOptions = LlmQueryStrategyOptions & {
 function buildPrompt(query: string, count: number): string {
   return [
     `为下面的问题生成 ${count} 条相关检索查询，用于扩大召回。`,
-    "只输出 JSON：{\"queries\":[\"查询1\",\"查询2\"]}",
-    "每条查询应覆盖原问题的不同措辞或相邻概念，不要重复原问题原文。",
-    "",
+    '只输出 JSON：{"queries":["查询1","查询2"]}',
+    '每条查询应覆盖原问题的不同措辞或相邻概念，不要重复原问题原文。',
+    '',
     `问题：${query}`,
-  ].join("\n");
+  ].join('\n');
 }
 
 /**
@@ -42,10 +38,7 @@ export function createQueryExpansionStrategy(
   const maxQueries = includeOriginal ? count + 1 : count;
 
   return {
-    async apply(
-      request: RetrievalRequest,
-      context: RuntimeContext,
-    ): Promise<RetrievalRequest> {
+    async apply(request: RetrievalRequest, context: RuntimeContext): Promise<RetrievalRequest> {
       const text = await completeQueryStrategyModel(
         options.model,
         {
@@ -57,8 +50,8 @@ export function createQueryExpansionStrategy(
       );
 
       if (!text) {
-        if (options.onError === "throw") {
-          throw new Error("query expansion strategy model returned empty text");
+        if (options.onError === 'throw') {
+          throw new Error('query expansion strategy model returned empty text');
         }
 
         return request;
@@ -67,8 +60,8 @@ export function createQueryExpansionStrategy(
       const generated = parseQueryList(text, count);
 
       if (generated.length === 0) {
-        if (options.onError === "throw") {
-          throw new Error("query expansion strategy could not parse queries");
+        if (options.onError === 'throw') {
+          throw new Error('query expansion strategy could not parse queries');
         }
 
         return request;
@@ -82,7 +75,7 @@ export function createQueryExpansionStrategy(
           includeOriginal,
           maxQueries,
         }),
-        "query-expansion",
+        'query-expansion',
       );
     },
   };

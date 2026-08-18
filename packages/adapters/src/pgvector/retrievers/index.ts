@@ -1,1 +1,1 @@
-export * from "./pg-vector-runtime-retriever-adapter.js";
+export * from './pg-vector-runtime-retriever-adapter.js';

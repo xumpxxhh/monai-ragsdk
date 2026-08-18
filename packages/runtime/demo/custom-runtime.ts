@@ -4,7 +4,7 @@ import {
   createIndexingRetrievalRequest,
   createRuntime,
   filterRetrievalCandidatesByIndexingFilters,
-} from "../dist/index.js";
+} from '../dist/index.js';
 
 const runtime = createRuntime({
   preprocessor: {
@@ -12,21 +12,21 @@ const runtime = createRuntime({
       return createIndexingRetrievalRequest({
         originalQuery: { query: input.query },
         effectiveQuery: { query: `${input.query} site:docs` },
-        route: "docs-only",
-        rewriteReason: "demo rewrite",
+        route: 'docs-only',
+        rewriteReason: 'demo rewrite',
         topK: 2,
-        strategy: "metadata-first",
-        indexingMode: "incremental",
+        strategy: 'metadata-first',
+        indexingMode: 'incremental',
         filters: createIndexingRetrievalFilters({
-          sourceIds: ["docs/runtime"],
-          hierarchyPath: ["runtime", "api"],
+          sourceIds: ['docs/runtime'],
+          hierarchyPath: ['runtime', 'api'],
         }),
         budget: {
           maxCandidates: 2,
           maxChunks: 1,
         },
         rerank: {
-          strategy: "score-threshold",
+          strategy: 'score-threshold',
           minScore: 0.75,
         },
       });
@@ -37,13 +37,13 @@ const runtime = createRuntime({
       const candidates = [
         createIndexingRetrievalCandidate(
           {
-            id: "doc-1",
+            id: 'doc-1',
             content: `candidate 1 for ${request.effectiveQuery.query}`,
             metadata: {
-              sourceId: "docs/runtime",
-              fingerprint: "doc-1-fingerprint",
-              hierarchyPath: ["runtime", "api"],
-              parentHierarchyPath: ["runtime"],
+              sourceId: 'docs/runtime',
+              fingerprint: 'doc-1-fingerprint',
+              hierarchyPath: ['runtime', 'api'],
+              parentHierarchyPath: ['runtime'],
               hierarchyDepth: 2,
             },
           },
@@ -56,13 +56,13 @@ const runtime = createRuntime({
         ),
         createIndexingRetrievalCandidate(
           {
-            id: "doc-2",
+            id: 'doc-2',
             content: `candidate 2 for ${request.effectiveQuery.query}`,
             metadata: {
-              sourceId: "docs/runtime",
-              fingerprint: "doc-2-fingerprint",
-              hierarchyPath: ["runtime", "faq"],
-              parentHierarchyPath: ["runtime"],
+              sourceId: 'docs/runtime',
+              fingerprint: 'doc-2-fingerprint',
+              hierarchyPath: ['runtime', 'faq'],
+              parentHierarchyPath: ['runtime'],
               hierarchyDepth: 2,
             },
           },
@@ -76,12 +76,9 @@ const runtime = createRuntime({
       ];
 
       return {
-        candidates: filterRetrievalCandidatesByIndexingFilters(
-          candidates,
-          request.filters,
-        ),
+        candidates: filterRetrievalCandidatesByIndexingFilters(candidates, request.filters),
         retrievalMetadata: {
-          route: request.route ?? "unknown",
+          route: request.route ?? 'unknown',
         },
       };
     },
@@ -89,10 +86,7 @@ const runtime = createRuntime({
   postprocessor: {
     async postprocess({ request, candidates }) {
       const selectedCandidates = [...candidates]
-        .filter(
-          (candidate) =>
-            candidate.score !== undefined && candidate.score >= 0.75,
-        )
+        .filter((candidate) => candidate.score !== undefined && candidate.score >= 0.75)
         .sort((left, right) => (right.score ?? 0) - (left.score ?? 0));
       const droppedCandidates = candidates.filter(
         (candidate) => !selectedCandidates.includes(candidate),
@@ -105,19 +99,15 @@ const runtime = createRuntime({
         selectionTrace: candidates.map((candidate) => ({
           candidate,
           selected: selectedCandidates.includes(candidate),
-          reason: selectedCandidates.includes(candidate)
-            ? "selected"
-            : "score-threshold",
-          stage: "score-threshold",
+          reason: selectedCandidates.includes(candidate) ? 'selected' : 'score-threshold',
+          stage: 'score-threshold',
           score: candidate.score,
         })),
         appliedScoreThreshold: 0.75,
         promptContext: [
           `query: ${request.effectiveQuery.query}`,
-          ...selectedCandidates.map(
-            (candidate) => `- ${candidate.chunk.content}`,
-          ),
-        ].join("\n"),
+          ...selectedCandidates.map((candidate) => `- ${candidate.chunk.content}`),
+        ].join('\n'),
       };
     },
   },
@@ -126,7 +116,7 @@ const runtime = createRuntime({
       return {
         answer: `answer for ${request.effectiveQuery.query}: ${promptContext}`,
         generationMetadata: {
-          style: "custom",
+          style: 'custom',
         },
       };
     },
@@ -134,9 +124,9 @@ const runtime = createRuntime({
 });
 
 const result = await runtime.run(
-  { query: "How does runtime orchestration work?" },
+  { query: 'How does runtime orchestration work?' },
   { includeDebug: true },
 );
 
-console.log("runtime custom demo passed");
+console.log('runtime custom demo passed');
 console.log(result);

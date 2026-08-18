@@ -1,24 +1,23 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { MockEmbedder, runIndexing } from "@monai-ragsdk/indexing";
+import { MockEmbedder, runIndexing } from '@monai-ragsdk/indexing';
 
 import {
   ChromaVectorStoreAdapter,
   LangChainMarkdownDirectoryLoader,
   LangChainRecursiveCharacterTextSplitterAdapter,
-} from "../src/index.js";
+} from '../src/index.js';
 
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDirectory = path.dirname(currentFilePath);
-const fixtureDirectory = path.join(currentDirectory, "fixtures");
+const fixtureDirectory = path.join(currentDirectory, 'fixtures');
 const chromaPort = Number(process.env.CHROMA_PORT ?? 8000);
-const collectionName =
-  process.env.CHROMA_COLLECTION_NAME ?? "monai-ragsdk-chroma-demo";
+const collectionName = process.env.CHROMA_COLLECTION_NAME ?? 'monai-ragsdk-chroma-demo';
 
 const loader = new LangChainMarkdownDirectoryLoader({
   path: fixtureDirectory,
-  idPrefix: "demo-doc",
+  idPrefix: 'demo-doc',
 });
 
 const chunker = new LangChainRecursiveCharacterTextSplitterAdapter({
@@ -27,9 +26,9 @@ const chunker = new LangChainRecursiveCharacterTextSplitterAdapter({
 });
 
 const store = new ChromaVectorStoreAdapter({
-  host: process.env.CHROMA_HOST ?? "localhost",
+  host: process.env.CHROMA_HOST ?? 'localhost',
   port: Number.isNaN(chromaPort) ? 8000 : chromaPort,
-  ssl: process.env.CHROMA_SSL === "true",
+  ssl: process.env.CHROMA_SSL === 'true',
   tenant: process.env.CHROMA_TENANT,
   database: process.env.CHROMA_DATABASE,
   collectionName,
@@ -47,7 +46,7 @@ console.log(
     {
       result,
       chroma: {
-        host: process.env.CHROMA_HOST ?? "localhost",
+        host: process.env.CHROMA_HOST ?? 'localhost',
         port: Number.isNaN(chromaPort) ? 8000 : chromaPort,
         collectionName,
       },

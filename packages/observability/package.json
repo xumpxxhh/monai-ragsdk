@@ -9,8 +9,9 @@
     "dist"
   ],
   "scripts": {
-    "build": "pnpm --filter @monai-ragsdk/core build && tsc -p tsconfig.json",
-    "test": "pnpm run build && vitest run __tests__",
+    "build": "tsc -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run __tests__",
     "test:watch": "vitest __tests__"
   },
   "exports": {
@@ -21,5 +22,10 @@
   },
   "dependencies": {
     "@monai-ragsdk/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

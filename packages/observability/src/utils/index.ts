@@ -1,1 +1,1 @@
-export * from "./invoke-observer-safely.js";
+export * from './invoke-observer-safely.js';

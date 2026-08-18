@@ -1,4 +1,4 @@
-import type { RAGObserver } from "./rag-observer.js";
+import type { RAGObserver } from './rag-observer.js';
 
 class NoopRAGObserver implements RAGObserver {
   async onEvent(): Promise<void> {}

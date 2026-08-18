@@ -1,7 +1,7 @@
-import type { JsonValue } from "@monai-ragsdk/core";
+import type { JsonValue } from '@monai-ragsdk/core';
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
-  if (typeof value !== "object" || value === null) {
+  if (typeof value !== 'object' || value === null) {
     return false;
   }
 
@@ -11,14 +11,14 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> => {
 export const normalizeJsonValue = (value: unknown): JsonValue | undefined => {
   if (
     value === null ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
   ) {
     return value;
   }
 
-  if (typeof value === "bigint") {
+  if (typeof value === 'bigint') {
     return value.toString();
   }
 
@@ -41,9 +41,7 @@ export const normalizeJsonValue = (value: unknown): JsonValue | undefined => {
   if (isPlainObject(value)) {
     const normalizedEntries = Object.entries(value).flatMap(([key, item]) => {
       const normalizedItem = normalizeJsonValue(item);
-      return normalizedItem === undefined
-        ? []
-        : [[key, normalizedItem] as const];
+      return normalizedItem === undefined ? [] : [[key, normalizedItem] as const];
     });
 
     return Object.fromEntries(normalizedEntries);
@@ -62,7 +60,7 @@ export const normalizeJsonObject = (
   const normalizedValue = normalizeJsonValue(value);
 
   if (
-    typeof normalizedValue !== "object" ||
+    typeof normalizedValue !== 'object' ||
     normalizedValue === null ||
     Array.isArray(normalizedValue)
   ) {

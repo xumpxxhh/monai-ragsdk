@@ -1,4 +1,4 @@
-import type { Chunk, JsonValue } from "@monai-ragsdk/core";
+import type { Chunk, JsonValue } from '@monai-ragsdk/core';
 import {
   createIndexingRetrievalCandidate,
   filterRetrievalCandidatesByIndexingFilters,
@@ -8,21 +8,21 @@ import {
   type RuntimeContext,
   type RuntimeRetrievalResult,
   type RuntimeRetriever,
-} from "@monai-ragsdk/runtime";
-import { Pool, type PoolConfig } from "pg";
+} from '@monai-ragsdk/runtime';
+import { Pool, type PoolConfig } from 'pg';
 
 type PgConnectionOptions = Pick<
   PoolConfig,
-  | "connectionString"
-  | "host"
-  | "port"
-  | "user"
-  | "password"
-  | "database"
-  | "ssl"
-  | "max"
-  | "idleTimeoutMillis"
-  | "connectionTimeoutMillis"
+  | 'connectionString'
+  | 'host'
+  | 'port'
+  | 'user'
+  | 'password'
+  | 'database'
+  | 'ssl'
+  | 'max'
+  | 'idleTimeoutMillis'
+  | 'connectionTimeoutMillis'
 >;
 
 type PgQueryResultLike<Row> = {
@@ -52,12 +52,12 @@ type RetrievalRow = {
   score: number | string | null;
 };
 
-const DEFAULT_SCHEMA = "public";
-const DEFAULT_ID_COLUMN = "id";
-const DEFAULT_VECTOR_COLUMN = "embedding";
-const DEFAULT_METADATA_COLUMN = "metadata";
-const DEFAULT_CONTENT_COLUMN = "content";
-const DEFAULT_CONTENT_METADATA_KEY = "content";
+const DEFAULT_SCHEMA = 'public';
+const DEFAULT_ID_COLUMN = 'id';
+const DEFAULT_VECTOR_COLUMN = 'embedding';
+const DEFAULT_METADATA_COLUMN = 'metadata';
+const DEFAULT_CONTENT_COLUMN = 'content';
+const DEFAULT_CONTENT_METADATA_KEY = 'content';
 const DEFAULT_CANDIDATE_POOL_SIZE = 100;
 const DEFAULT_RRF_K = 60;
 
@@ -86,29 +86,22 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
       this.#client = pool;
       this.#ownedPool = pool;
     }
-    this.#schema = validateIdentifier(
-      options.schema ?? DEFAULT_SCHEMA,
-      "schema",
-    );
-    this.#tableName = validateIdentifier(options.tableName, "tableName");
-    this.#idColumn = validateIdentifier(
-      options.idColumn ?? DEFAULT_ID_COLUMN,
-      "idColumn",
-    );
+    this.#schema = validateIdentifier(options.schema ?? DEFAULT_SCHEMA, 'schema');
+    this.#tableName = validateIdentifier(options.tableName, 'tableName');
+    this.#idColumn = validateIdentifier(options.idColumn ?? DEFAULT_ID_COLUMN, 'idColumn');
     this.#vectorColumn = validateIdentifier(
       options.vectorColumn ?? DEFAULT_VECTOR_COLUMN,
-      "vectorColumn",
+      'vectorColumn',
     );
     this.#metadataColumn = validateIdentifier(
       options.metadataColumn ?? DEFAULT_METADATA_COLUMN,
-      "metadataColumn",
+      'metadataColumn',
     );
     this.#contentColumn = validateIdentifier(
       options.contentColumn ?? DEFAULT_CONTENT_COLUMN,
-      "contentColumn",
+      'contentColumn',
     );
-    this.#contentMetadataKey =
-      options.contentMetadataKey ?? DEFAULT_CONTENT_METADATA_KEY;
+    this.#contentMetadataKey = options.contentMetadataKey ?? DEFAULT_CONTENT_METADATA_KEY;
     this.#embedQuery = options.embedQuery;
   }
 
@@ -125,22 +118,19 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
       this.#retrieveByKeyword(query, request, DEFAULT_CANDIDATE_POOL_SIZE),
     ]);
 
-    const fusedCandidates = fuseByReciprocalRankFusion(
-      [vectorCandidates, keywordCandidates],
-      {
-        k: DEFAULT_RRF_K,
-        enrichCandidate: (candidate, score) =>
-          createIndexingRetrievalCandidate(candidate.chunk, {
-            score,
-            route: request.route,
-            strategy: request.strategy,
-            retrieverMetadata: {
-              provider: "pgvector",
-              searchType: "hybrid",
-            },
-          }),
-      },
-    );
+    const fusedCandidates = fuseByReciprocalRankFusion([vectorCandidates, keywordCandidates], {
+      k: DEFAULT_RRF_K,
+      enrichCandidate: (candidate, score) =>
+        createIndexingRetrievalCandidate(candidate.chunk, {
+          score,
+          route: request.route,
+          strategy: request.strategy,
+          retrieverMetadata: {
+            provider: 'pgvector',
+            searchType: 'hybrid',
+          },
+        }),
+    });
     const filteredCandidates = filterRetrievalCandidatesByIndexingFilters(
       fusedCandidates,
       request.filters,
@@ -149,7 +139,7 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
     return {
       candidates: filteredCandidates,
       retrievalMetadata: {
-        provider: "pgvector",
+        provider: 'pgvector',
         topK,
         vectorCandidateCount: vectorCandidates.length,
         keywordCandidateCount: keywordCandidates.length,
@@ -175,7 +165,7 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
       [formatPgVector(queryVector), topK],
     );
 
-    return this.#rowsToCandidates(rows.rows, request, "vector");
+    return this.#rowsToCandidates(rows.rows, request, 'vector');
   }
 
   async #retrieveByKeyword(
@@ -188,23 +178,20 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
       [query, topK],
     );
 
-    return this.#rowsToCandidates(rows.rows, request, "keyword");
+    return this.#rowsToCandidates(rows.rows, request, 'keyword');
   }
 
   #rowsToCandidates(
     rows: RetrievalRow[],
     request: RetrievalRequest,
-    searchType: "vector" | "keyword",
+    searchType: 'vector' | 'keyword',
   ): RetrievalCandidate[] {
     return rows.map((row) => {
       const metadata = row.metadata ?? {};
       // content 列可能为空：写入侧只在 metadata.content 存在时尽力落原文
       const chunk: Chunk = {
         id: row.id,
-        content:
-          row.content ??
-          readStringMetadata(metadata, this.#contentMetadataKey) ??
-          "",
+        content: row.content ?? readStringMetadata(metadata, this.#contentMetadataKey) ?? '',
         metadata,
       };
 
@@ -213,7 +200,7 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
         route: request.route,
         strategy: request.strategy,
         retrieverMetadata: {
-          provider: "pgvector",
+          provider: 'pgvector',
           searchType,
         },
       });
@@ -253,15 +240,15 @@ function quoteIdentifier(value: string): string {
 }
 
 function formatPgVector(values: number[]): string {
-  return `[${values.join(",")}]`;
+  return `[${values.join(',')}]`;
 }
 
 function readScore(value: number | string | null): number | undefined {
-  if (typeof value === "number") {
+  if (typeof value === 'number') {
     return Number(value.toFixed(6));
   }
 
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? Number(parsed.toFixed(6)) : undefined;
   }
@@ -269,10 +256,7 @@ function readScore(value: number | string | null): number | undefined {
   return undefined;
 }
 
-function readStringMetadata(
-  metadata: Record<string, JsonValue>,
-  key: string,
-): string | undefined {
+function readStringMetadata(metadata: Record<string, JsonValue>, key: string): string | undefined {
   const value = metadata[key];
-  return typeof value === "string" && value.length > 0 ? value : undefined;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
 }

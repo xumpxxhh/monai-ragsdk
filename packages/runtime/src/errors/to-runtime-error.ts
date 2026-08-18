@@ -1,7 +1,7 @@
-import type { Query } from "@monai-ragsdk/core";
+import type { Query } from '@monai-ragsdk/core';
 
-import type { RuntimeStage } from "../types/index.js";
-import { RuntimeError } from "./runtime-error.js";
+import type { RuntimeStage } from '../types/index.js';
+import { RuntimeError } from './runtime-error.js';
 
 export function toRuntimeError(
   error: unknown,
@@ -13,8 +13,7 @@ export function toRuntimeError(
     return error;
   }
 
-  const message =
-    error instanceof Error ? error.message : `runtime stage failed: ${stage}`;
+  const message = error instanceof Error ? error.message : `runtime stage failed: ${stage}`;
 
   return new RuntimeError(message, {
     stage,

@@ -1,4 +1,4 @@
-import type { VectorStoreSourceRecord } from "../stores/vector-store.js";
+import type { VectorStoreSourceRecord } from '../stores/vector-store.js';
 
 export type SourceFingerprintMap = Map<string, Set<string>>;
 
@@ -26,22 +26,20 @@ export function buildSourceFingerprintMap(
  * 同一 source 出现多个 fingerprint 说明状态不干净，必须走 replace，不能当未变化。
  */
 export function shouldSkipUnchanged(input: {
-  mode: "full" | "incremental";
+  mode: 'full' | 'incremental';
   sourceId?: string;
   fingerprint?: string;
   previous: SourceFingerprintMap;
 }): boolean {
   // 全量模式或缺少 sourceId/fingerprint 时无法安全对比，只能当新文档写入
-  if (input.mode !== "incremental" || !input.sourceId || !input.fingerprint) {
+  if (input.mode !== 'incremental' || !input.sourceId || !input.fingerprint) {
     return false;
   }
 
   const fingerprints = input.previous.get(input.sourceId);
 
   return (
-    fingerprints !== undefined &&
-    fingerprints.size === 1 &&
-    fingerprints.has(input.fingerprint)
+    fingerprints !== undefined && fingerprints.size === 1 && fingerprints.has(input.fingerprint)
   );
 }
 
@@ -50,7 +48,5 @@ export function collectStaleSourceIds(
   previous: SourceFingerprintMap,
   seenSourceIds: Set<string>,
 ): string[] {
-  return [...previous.keys()].filter(
-    (sourceId) => !seenSourceIds.has(sourceId),
-  );
+  return [...previous.keys()].filter((sourceId) => !seenSourceIds.has(sourceId));
 }

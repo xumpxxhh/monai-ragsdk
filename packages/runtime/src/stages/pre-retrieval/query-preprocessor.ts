@@ -1,12 +1,5 @@
-import type {
-  RetrievalRequest,
-  RuntimeContext,
-  RuntimeQueryInput,
-} from "../../types/index.js";
+import type { RetrievalRequest, RuntimeContext, RuntimeQueryInput } from '../../types/index.js';
 
 export interface QueryPreprocessor {
-  preprocess(
-    input: RuntimeQueryInput,
-    context: RuntimeContext,
-  ): Promise<RetrievalRequest>;
+  preprocess(input: RuntimeQueryInput, context: RuntimeContext): Promise<RetrievalRequest>;
 }

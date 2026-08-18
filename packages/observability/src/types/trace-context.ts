@@ -1,6 +1,6 @@
-import type { RAGTags } from "./rag-attributes.js";
+import type { RAGTags } from './rag-attributes.js';
 
-export type TraceIdSource = "generated" | "provided" | "requestId";
+export type TraceIdSource = 'generated' | 'provided' | 'requestId';
 
 export interface TraceContext {
   traceId: string;

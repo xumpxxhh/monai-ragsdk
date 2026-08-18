@@ -1,1 +1,1 @@
-export * from "./langchain-embeddings-adapter.js";
+export * from './langchain-embeddings-adapter.js';
