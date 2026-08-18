@@ -8,7 +8,7 @@
 
 当前仓库已完成 `core + indexing + adapters + runtime + observability` 的最小实现与验证，并已在根目录覆盖 `runtime + adapters` 与 `indexing + runtime` 两条最小跨包闭环。
 
-演进方向已立项：**先做稳 RAG 内核，知识库门面后置**。阶段 1 重心是完善 SDK（`core` / `indexing` / `adapters`），`app/cli` 不是本阶段完善对象。阶段 1 能力（增量索引、Ollama / OpenAI 兼容 embedding 与 chat、pgvector 闭环）**已经落地**。阶段 2 流式生成、citation / grounding、pipeline 策略框架与 pre-retrieval LLM 策略（rewrite / expansion / decomposition / multi-query）已落地。真实 rerank、Context Compression 与 Active RAG 仍需明确授权。完整顺序见 `docs/decisions/sdk-evolution-roadmap.md`。
+演进方向已立项：**先做稳 RAG 内核，知识库门面后置**。阶段 1 重心是完善 SDK（`core` / `indexing` / `adapters`），`app/cli` 不是本阶段完善对象。阶段 1 能力（增量索引、Ollama / OpenAI 兼容 embedding 与 chat、pgvector 闭环）**已经落地**。阶段 2 流式生成、citation / grounding、pipeline 策略框架与 pre-retrieval LLM 策略（rewrite / expansion / decomposition / multi-query）已落地。真实 rerank 与 Context Compression 以可组合策略件提供。阶段 3 知识库门面 **MVP 已落地**（`runtime.createCollection`：`ingest` / `search` / `ask`）。`search()` 为 retrieve-only（不走 generation）。完整文档生命周期、独立 kb 包与 Active RAG 仍冻结。完整顺序见 `docs/decisions/sdk-evolution-roadmap.md`。
 
 已完成内容：
 
@@ -23,10 +23,10 @@
 - 基础中文文档与仓库级 Cursor rule（`.cursor/rules/project-constraints.mdc`）。
 - 根目录已安装 `typescript`、`tsx`、`vitest`。
 - `packages/core` 已开始实现共享领域契约，并已引入 `zod`。
-- `packages/core` 已补 `demo/` 与 `__tests__/`，并可通过包级与根级脚本运行验证。
+- `packages/core` 已把 `Query` / `RAGResponse` 扩成全流程审计快照（溯源、决策留痕、可回放；Zod 校验可 JSON 落盘），并已补 `demo/` 与 `__tests__/`，可通过包级与根级脚本运行验证。
 - `packages/indexing` 已完成离线索引构建 MVP，并已落地增量索引行为：fingerprint skip/replace、`deleteByFilter` stale cleanup、`listSourceRecords` 跨运行状态。
 - `packages/adapters` 已完成 LangChain / Chroma 适配 MVP，并已补 Ollama embedder / generator、OpenAI 兼容 embedder / generator、pgvector 写入 / 删除 / `listSourceRecords` / runtime retriever。
-- `packages/runtime` 已完成在线四阶段编排 MVP 第一版，当前已实现运行时类型与接口、`createRuntime()`、`createDefaultRuntime()`、`runtime.run()` / `runtime.runStream()`、`RuntimeResult.citations`、`RuntimeError`、demo 与 unit test。
+- `packages/runtime` 已完成在线四阶段编排 MVP 第一版，当前已实现运行时类型与接口、`createRuntime()`、`createDefaultRuntime()`、`runtime.run()` / `runtime.search()` / `runtime.runStream()`、`RuntimeResult` 对齐 core 审计快照、`createCollection()` 知识库门面 MVP、`RuntimeError`、demo 与 unit test。
 - `packages/observability` 已完成第一批最小可观测能力，当前已实现 trace / event / metric / error 协议、`RAGObserver`、`createConsoleObserver()`、`TraceExporter`、`createRAGObserver()`、console / memory / JSONL exporter 与 unit test。
 - 根目录已补 `tests/integration/` 与 `tests/smoke/`，当前覆盖 `runtime + adapters` 与 `indexing + runtime` 两条最小跨包验证链路。
 
@@ -37,7 +37,8 @@
 - `eval`、`utils` 的实际实现。
 - 统一的发布基础设施。
 - 更完整的 integration / smoke 跨包验证覆盖。
-- 知识库门面（Collection、`ingest` / `search` / `ask`）。
+- 完整文档生命周期（超出 Collection MVP 的 `listSources` / `deleteByFilters` / `close`）。
+- 独立知识库一级 package（当前门面挂在 `runtime.createCollection`）。
 - Pinecone 等后续适配实现。
 
 ## 重要约束
@@ -49,8 +50,8 @@
 - 当前允许在 `adapters` 包中继续外部适配；默认栈为 OpenAI 兼容 embedding / chat + pgvector，Ollama 仍可选。不要补 Chroma 查询或第二查询路径。
 - 不要主动改 `app/cli`，除非明确要求。
 - `observability` 当前已进入最小实现阶段；如需继续扩 observer / exporter 能力，应优先保持协议、失败隔离与 JSON-safe 约束稳定。
-- `runtime` 当前已具备最小实现、流式生成、citation / grounding 与验证闭环；不要在 citation 切片之外继续扩展该包实现，除非明确要求。
-- 不要新增一级 package，不要实现知识库门面，不要提前实现 `eval` 与 `utils`。
+- `runtime` 当前已具备最小实现、流式生成、citation / grounding、全流程审计快照、`createCollection()` 门面 MVP 与验证闭环；不要在已授权切片之外继续扩展该包实现，除非明确要求。
+- 不要新增一级 package，不要把 Collection 拆成独立 kb 包，不要实现完整文档生命周期，不要提前实现 `eval` 与 `utils`。
 - 除非明确要求，否则不要添加依赖；已批准依赖应按决策文档安装。
 - 已存在文件若需修改，应优先保持最小改动。
 - `src/` 目录只允许存放 `.ts` 源码，构建产物必须统一输出到 `dist/`。
@@ -71,13 +72,13 @@
 ## package 概览
 
 - `packages/core`：承载核心抽象边界。
-- `packages/core` 当前已进入实施阶段，开始沉淀共享 schema、type、interface、error 与轻量 pipeline 抽象，并已补充 `Document` / `Vector` 共享模型。
+- `packages/core` 当前已进入实施阶段，共享 schema / type / interface / error 与轻量 pipeline 抽象已落地；`Query` / `RAGResponse` 是全流程审计快照契约，并已补充 `Document` / `Vector` 共享模型。
 - `packages/core` 的补充说明见 `docs/context/core-package-handoff.md`。
 - `packages/indexing`：承载数据导入、切片、chunk 级增强、metadata 抽取、嵌入、写入相关 MVP。
 - `packages/indexing` 当前已复用 `@monai-ragsdk/core` 的 `Document` / `Chunk` / `Vector`，并实现 `Loader` / `Chunker` / `DocumentTransformer` / `ChunkTransformer` / `ChunkFilter` / `MetadataExtractor` / `Embedder` / `VectorStore` 抽象、`SimpleChunker`、`ContentCleanupTransformer`、`ContextualHeaderTransformer`、`HashDedupChunkFilter`、`BasicMetadataExtractor`、`MockEmbedder`、`MemoryVectorStore`、`IndexingError` 与 `runIndexing`。
 - `packages/indexing` 已补增量索引行为：fingerprint skip/replace、`deleteByFilter` stale cleanup、`listSourceRecords` 跨运行状态。层级召回仍未实现。
 - `packages/indexing` 的补充说明见 `docs/context/indexing-package-handoff.md`。
-- `packages/runtime`：承载在线 RAG 查询链路的四阶段编排层，当前已完成 MVP 第一版，并已补 `runStream()` 与 `RuntimeResult.citations`。
+- `packages/runtime`：承载在线 RAG 查询链路的四阶段编排层，当前已完成 MVP 第一版，并已补 `runStream()`、`runtime.search()` retrieve-only、`RuntimeResult` 审计快照，以及挂在本包的 `createCollection()` 知识库门面 MVP。
 - `packages/adapters`：承载外部能力适配层，当前已实现 LangChain 适配、Chroma 写入、pgvector 读写、`OllamaEmbedder`、`OllamaRuntimeGenerator`、`OpenAIEmbedder` 与 `OpenAIRuntimeGenerator`。
 - `packages/adapters` 的补充说明见 `docs/context/adapters-package-handoff.md`。
 - `packages/observability`：承载 tracing、metrics、observer 与 exporter 协议及最小实现；补充说明见 `docs/context/observability-package-handoff.md`。
@@ -89,11 +90,11 @@
 完整阶段划分、默认栈与授权边界以 `docs/decisions/sdk-evolution-roadmap.md` 为准：
 
 1. 阶段 1（已落地，重心在 SDK）：增量索引、Ollama / OpenAI 兼容 embedding / chat、pgvector 读写闭环。不要主动改 CLI。
-2. 阶段 2：查询质量。流式生成、citation / grounding、pipeline 策略框架与 pre-retrieval LLM 策略已落地；真实 rerank、Context Compression 与 Active RAG 仍需明确授权。不补 Chroma 查询，也不新增第二查询路径。
-3. 阶段 3：知识库门面（Collection、`ingest` / `search` / `ask`；包落点另开决策）。
+2. 阶段 2：查询质量。流式生成、citation / grounding、pipeline 策略框架、pre-retrieval LLM 策略、真实 rerank 与 Context Compression 已落地；Active RAG 仍冻结。不补 Chroma 查询，也不新增第二查询路径。
+3. 阶段 3：知识库门面。MVP 已挂在 `runtime.createCollection()`（`ingest` / `search` / `ask`）；`search()` 为 retrieve-only。完整文档生命周期与独立 kb 包仍需另开决策。
 4. 阶段 4：发布与评测（取消 `private`、CI、再开 `eval`）。
 
-未收到后续切片授权前，不要实现真实 rerank 或知识库门面；也不要补 Chroma 查询或第二查询路径。
+未收到后续切片授权前，不要实现完整文档生命周期或独立 kb 包；也不要补 Chroma 查询或第二查询路径。不要把真实 rerank 做成默认开启（策略件可显式接入）。
 
 ## 交接提醒
 

@@ -93,7 +93,20 @@ packages/core/
 
 `Query` 是可回放输入：必填 `query`，可选 `metadata`。
 
-`RAGResponse` 是一次查询的审计快照，不是 runtime 过程对象的拷贝。必填 `answer`、`chunks`、`citations`、`originalQuery`、`effectiveQuery`，用于溯源与原/有效查询对照。`citations` 与 `chunks` 等长同序、`index` 从 1 起编。可选字段覆盖关联（含 `traceId` 与 Unix 毫秒时间戳）、查询演变、回放意图（`filters` / `budget` / `rerank`）、实际结果（`appliedBudget` / `counts` / `timings`）、召回清单与选留决策；`debug` 只作溢出袋。`RAGSelectionTraceEntry` 与 `RAGRetrievedCandidate` 只用 `chunkId` 关联，不提升 runtime candidate。压缩改写正文时，生成看到的是 `chunks[].content`，库内原文放 `originalContent`。`strategies` 按阶段记录策略名；`rewriteReason` 与 `route` / `routeReason` 是独立具名字段。
+`RAGResponse` 是一次查询的审计快照，不是 runtime 过程对象的拷贝。用途是事后能做三件事：答案溯源、策略决策留痕、按同一输入回放。
+
+- 必填：`answer`、`chunks`、`citations`、`originalQuery`、`effectiveQuery`
+- `citations` 与 `chunks` 等长同序、`index` 从 1 起编；空检索为 `[]`
+- 关联：`requestId`、`traceId`、`startedAt` / `endedAt`（Unix 毫秒时间戳，与 observability 同口径）
+- 回放意图：`filters`、`budget`、`rerank`、`topK`、`subQueries`、`indexingMode`
+- 实际结果：`appliedBudget`、`appliedScoreThreshold`、`counts`、`timings`
+- 选留留痕：`retrievedCandidates`、`droppedChunkIds`、`selectionTrace`（只留 `chunkId` 等压缩键，不提升 runtime candidate）
+- 生成：`streamed`、`generationModel`、`promptContext`
+- 压缩：生成看到的是 `chunks[].content`；库内原文放 citation / selectionTrace 的 `originalContent`
+- `strategies` 按 `preRetrieval` / `retrieval` / `postRetrieval` / `generation` 记录策略名；`rewriteReason` 与 `route` / `routeReason` 是独立具名字段
+- `debug` 与各阶段 metadata 只作溢出袋
+
+`Retriever` / `Generator` / `RAGPipeline` 仍是最小协作接口；审计载体是 `RAGResponse`。runtime 的 `RuntimeResult` 主体对齐这份快照。
 
 ### interfaces
 

@@ -30,6 +30,7 @@
 - `createRuntime()`
 - `createDefaultRuntime()`
 - `runtime.run()` 的主流程编排
+- `runtime.search()` 的 retrieve-only 编排（停在 post-retrieval，不调用 generator）
 - `runtime.runStream()` 的流式 generation
 - `RuntimeResult.citations` 的 grounding 引用
 - `RuntimeResult` 作为 core 审计快照的运行时载体（具名字段始终写入；`debug` 仍可选）
@@ -38,6 +39,7 @@
 - `PassthroughRetrievalPostprocessor`
 - `createDefaultPostprocessor()`
 - runtime 级 demo 与 unit test
+- `createCollection()` 知识库门面 MVP（`ingest` / `search` / `ask`，以及 store 允许时的 `listSources` / `deleteByFilters` / `close`）；`search()` 走 retrieve-only
 
 当前已进入 Phase D 第一批实现：
 
@@ -74,6 +76,7 @@ packages/runtime/
     types/            跨阶段共享契约
     errors/
     indexing/           查询协议 helper
+    collection/         阶段 3 门面 MVP（createCollection）
     pipeline/           createRuntime / runRuntime / createDefaultRuntime
     stages/
       pre-retrieval/    QueryPreprocessor、QueryStrategy、NoopQueryPreprocessor
@@ -93,9 +96,10 @@ packages/runtime/
 - `src/stages/*/`：各阶段 interface、默认件与策略件（按 pipeline 阶段组织）
 - `src/errors/`：运行时错误边界与包装
 - `src/pipeline/`：`createRuntime()`、`runRuntime()` 与顶层装配
+- `src/collection/`：阶段 3 知识库门面 MVP（`createCollection`）
 - `src/indexing/`：indexing canonical metadata 到 runtime 查询协议的 helper
-- `demo/`：最小可运行示例（含 `strategy-pipeline.ts`）
-- `__tests__/`：公开导出、默认件、主流程与策略框架测试
+- `demo/`：最小可运行示例（含 `strategy-pipeline.ts`、`collection-demo.ts`）
+- `__tests__/`：公开导出、默认件、主流程、策略框架与 Collection 门面测试
 
 ## 策略件落点约定
 
@@ -116,7 +120,7 @@ packages/runtime/
 最常用的公开 API：
 
 - `createRuntime()` / `createDefaultRuntime()`
-- `runtime.run()` / `runtime.runStream()`
+- `runtime.run()` / `runtime.search()` / `runtime.runStream()`
 - `StrategyQueryPreprocessor` / `StrategyRetrievalPostprocessor`
 - `FanOutRetriever` / `fuseByReciprocalRankFusion`
 - `createScoreThresholdStrategy()` 等 post-retrieval 策略工厂
@@ -138,6 +142,7 @@ packages/runtime/
 - `RetrievalRequest`
 - `RetrievalCandidate`
 - `RuntimeResult`
+- `RuntimeSearchResult`
 - `RuntimeCitation`
 - `RuntimeRunOptions`
 - `RuntimeContext`
@@ -181,11 +186,12 @@ packages/runtime/
 
 - 更完整的 rerank / trim 默认策略集合
 
-本轮新增的 citation / grounding 切片：
+本轮新增的 citation / grounding 与审计快照切片：
 
-- `RuntimeResult.citations` 按进入 generation 的 chunks 生成 grounding 引用
-- `run()` 与 `runStream()` 共用 `buildRuntimeCitations()`，最终 result 同构
+- `RuntimeResult` 主体对齐 core `RAGResponse`；`run()` / `runStream()` 始终写入具名字段，不依赖 `includeDebug`
+- `citations` 按 post-retrieval 选出的 chunks 生成 grounding 引用；共用 `buildRuntimeCitations()`；`run()` / `runStream()` 最终 result 同构，`search()` 共用 citations 但不含 `answer`
 - 不解析答案标记，也不要求 generator 另产出引用
+- 压缩改写正文时保留 `originalContent`；时间字段为 Unix 毫秒时间戳
 
 本轮新增的流式切片：
 

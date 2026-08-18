@@ -29,7 +29,9 @@
 - `demo/` 最小运行示例
 - `__tests__/` 最小单元测试
 
-`RAGResponse` 是一次查询结束后的审计快照：可 Zod 校验、可 JSON 落盘。必填字段支撑答案溯源与原/有效查询对照；可选字段承载决策留痕与回放参数。`debug` 只作非契约溢出袋。
+`RAGResponse` 是一次查询结束后的审计快照：可 Zod 校验、可 JSON 落盘，用来做答案溯源、策略决策留痕和按同一输入回放。必填字段支撑溯源与原/有效查询对照；可选字段承载决策留痕与回放参数。`debug` 只作非契约溢出袋。
+
+时间字段 `startedAt` / `endedAt` 与 observability 一致，使用 **Unix 毫秒时间戳**（number）；展示层再转 ISO。
 
 当前仍不包含：
 
@@ -91,7 +93,7 @@
 
 当前 `core` 已补充最小 Vitest 单元测试，覆盖以下重点：
 
-- schema 成功/失败边界
+- schema 成功/失败边界，含审计不变量（citations 与 chunks 对齐、空 chunk id、毫秒时间戳先后、有限分数）
 - `JsonValueSchema` / `JsonObjectSchema` 的递归与对象边界
 - 错误继承关系与 `cause` 透传
 - 最小 pipeline 协作路径

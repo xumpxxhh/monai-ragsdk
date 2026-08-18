@@ -42,7 +42,7 @@
 
 截至当前仓库状态：
 
-- `core` 已完成共享查询契约的最小实现，包括 `Query`、`Chunk`、`RAGResponse`、`Retriever`、`Generator` 与 `RAGPipeline`
+- `core` 已完成共享查询契约，包括 `Query`、`Chunk`、审计快照 `RAGResponse`（溯源 / 决策留痕 / 可回放）、`Retriever`、`Generator` 与 `RAGPipeline`
 - `indexing` 已完成离线索引构建主流程，支持 `load -> transform -> filter -> chunk -> transform-chunk -> metadata -> extract-metadata -> filter-chunk -> embed -> store`
 - `adapters` 已完成 LangChain loader / chunker / embedder 适配，以及 Chroma 写入适配
 - `adapters` 已完成 LangChain 查询期 retriever / generator 适配，包括 `LangChainRuntimeRetrieverAdapter`、`LangChainRuntimeGeneratorAdapter`、`createLangChainBaseRetrieverRuntimeAdapter` 与 `createLangChainChatModelRuntimeGenerator`
@@ -268,7 +268,7 @@
   -> 检索候选 chunks
   -> rerank / trim / 去重 / context 组装
   -> 生成 answer
-  -> 返回 answer + chunks + debug metadata
+  -> 返回 core `RAGResponse` 审计快照（answer / chunks / citations / 回放与决策具名字段）；`debug` 仍由 includeDebug 控制
 ```
 
 这条主流程是 `runtime` 的核心基线；后续即便扩展高级能力，也不应破坏这四段式结构。
@@ -487,40 +487,34 @@
 
 作为 SDK，`runtime` 返回值不能只有 `answer`。
 
-第一版建议直接锁定以下结果模型语义：
+对外结果主体应对齐 `@monai-ragsdk/core` 的 `RAGResponse` 审计快照，可 Zod 校验、可 JSON 落盘。runtime 不应再单独定义一套平行的答案模型。
 
-### 1. 业务层结果
+当前锁定的结果语义：
 
-必须包含：
+### 1. 业务层结果（必填）
 
-- `answer`
-- `chunks`
+- `answer`：最终回答
+- `chunks`：最终实际进入 generation 的上下文，不是原始召回全集
+- `citations`：与 `chunks` 等长同序的 grounding 引用，`index` 从 1 起编；空检索为 `[]`
+- `originalQuery` / `effectiveQuery`：原问句与检索实际使用的问句
 
-其中：
+### 2. 审计与回放层结果（有则写入，不依赖 includeDebug）
 
-- `answer` 表示最终回答
-- `chunks` 表示最终实际参与回答的 chunk 集合，而不是原始召回候选全集
+- 关联：`requestId`、`traceId`、`startedAt` / `endedAt`（Unix 毫秒时间戳）
+- 回放意图：`filters`、`budget`、`rerank`、`topK`、`subQueries`、`indexingMode`、`strategies`
+- 实际结果：`appliedBudget`、`appliedScoreThreshold`、`counts`、`timings`
+- 选留留痕：`retrievedCandidates`、`droppedChunkIds`、`selectionTrace`
+- 生成：`streamed`、`generationModel`、`promptContext`，以及各阶段 metadata
 
-### 2. 运行时层结果
-
-建议默认包含：
-
-- `originalQuery`
-- `effectiveQuery`
-- `retrievalMetadata`
-- `postRetrievalMetadata`
-- `generationMetadata`
-
-说明：
-
-- 这些字段属于运行时结果主体，而不是可有可无的 debug 附件
-- 因为它们会直接影响后续 SDK 调试、问题定位与评测接入
+这些字段属于结果主体。落盘请用去掉 runtime `debug` 后的快照，并用 `RAGResponseSchema.parse`。
 
 ### 3. 调试层结果
 
 建议通过 `runtime.run()` 的 options 显式控制是否返回：
 
 - `debug?: RuntimeDebugInfo`
+
+`debug` 可携带完整 candidate 等过程对象，不能替代上面的具名审计字段。
 
 建议 `RuntimeDebugInfo` 至少包含：
 

@@ -5,7 +5,8 @@
 阶段 3 的目标是提供一套“最小可用”的入口，把既有能力串成闭环：
 
 - `ingest()` 复用 `@monai-ragsdk/indexing` 的 `runIndexing()` 写入向量库；
-- `search()` / `ask()` 复用 `@monai-ragsdk/runtime` 的 `runtime.run()` 做检索与生成；
+- `search()` 复用 `@monai-ragsdk/runtime` 的 `runtime.search()` 做 retrieve-only（不调用 generator）；
+- `ask()` 复用 `@monai-ragsdk/runtime` 的 `runtime.run()` 做检索与生成；
 - 只做编排，不实现完整文档生命周期（阶段 3 仍冻结该范围之外的更完整能力）。
 
 ## 一句话职责划分
@@ -84,8 +85,8 @@ console.log(askResult.answer);
 
 ## `search()` 与 `ask()` 的差异
 
-- `search()`：返回检索 grounding 相关内容（`chunks` 与 `citations`），用于“检索结果可视化 / 再拼 prompt”的场景。
-- `ask()`：直接返回 runtime 的完整结果（含 `answer`、`chunks`、`citations` 与可选 debug）。
+- `search()`：retrieve-only。只跑 pre-retrieval → retrieval → post-retrieval，**不调用 generator**，因此没有 `answer`。返回检索侧审计快照（`chunks`、`citations`、`originalQuery` / `effectiveQuery`、`counts` 等），用于检索结果可视化或自行再拼 prompt。
+- `ask()`：完整四阶段，直接返回 runtime 的 `RuntimeResult`（core 审计快照：`answer`、`chunks`、`citations`、回放/决策具名字段，以及可选 `debug`）。
 
 ## 增量状态与清理（更接近产品门面）
 

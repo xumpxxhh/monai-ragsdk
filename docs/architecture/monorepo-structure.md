@@ -60,7 +60,7 @@
 - CI 配置。
 - 尚未进入实现阶段 package 的测试框架配置。
 - 更完整的 integration / smoke 级验证基础设施。
-- 知识库门面。
+- 完整文档生命周期与独立知识库一级 package（当前门面 MVP 挂在 `runtime.createCollection()`）。
 
 以上内容都应按 `docs/decisions/sdk-evolution-roadmap.md` 的阶段顺序逐步补充，而不是在本文档中视为永久排除项。
 

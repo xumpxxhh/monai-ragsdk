@@ -5,15 +5,15 @@ alwaysApply: true
 
 # 工程约束
 
-命名空间为 `@monai-ragsdk/*`。演进顺序与实现授权以 `docs/decisions/sdk-evolution-roadmap.md` 为准：先做稳 RAG 内核，知识库门面后置。阶段 1 已落地。阶段 2 流式生成、citation / grounding、pipeline 策略框架与 pre-retrieval LLM 策略（rewrite / expansion / decomposition / multi-query）已落地。真实 rerank 与 Context Compression 以可组合策略件提供；Active RAG 仍冻结。不要补 Chroma 查询，也不要新增第二查询 / 第二存储路径。
+命名空间为 `@monai-ragsdk/*`。演进顺序与实现授权以 `docs/decisions/sdk-evolution-roadmap.md` 为准：先做稳 RAG 内核，知识库门面后置。阶段 1 已落地。阶段 2 流式生成、citation / grounding、pipeline 策略框架与 pre-retrieval LLM 策略（rewrite / expansion / decomposition / multi-query）已落地。真实 rerank 与 Context Compression 以可组合策略件提供；Active RAG 仍冻结。阶段 3 知识库门面 MVP 已挂在 `runtime.createCollection()`（`ingest` / `search` / `ask`），不要新开一级 package，也不要扩展完整文档生命周期。不要补 Chroma 查询，也不要新增第二查询 / 第二存储路径。
 
 - 保持 monorepo 改动最小化，不要新增无关目录或依赖。
 - 允许在 `core` 维护共享契约：schema、type、interface、error 与轻量 pipeline。
 - 允许在 `indexing` 继续离线索引与增量行为（fingerprint skip/replace、stale cleanup、`listSourceRecords`），并补 demo 与 unit test。
 - 允许在 `adapters` 继续外部适配；默认栈为 OpenAI 兼容 embedding / chat + pgvector，Ollama 仍可选，并补 demo 与 unit test。
-- 允许在 `runtime` 继续扩展可组合 pipeline 策略框架、pre-retrieval LLM 策略件、真实 rerank（LLM 重排序）与 Context Compression（上下文压缩）以及对应 demo / unit test；策略件本体在 runtime，厂商 LLM 实现在 adapters；Active RAG 循环仍冻结，答案内标记解析、Chroma 查询或其它编排扩散仍冻结。
+- 允许在 `runtime` 继续扩展可组合 pipeline 策略框架、pre-retrieval LLM 策略件、真实 rerank（LLM 重排序）与 Context Compression（上下文压缩），以及维护已落地的 `createCollection()` 门面 MVP 与对应 demo / unit test；策略件本体在 runtime，厂商 LLM 实现在 adapters；Active RAG 循环仍冻结，答案内标记解析、Chroma 查询或其它编排扩散仍冻结。
 - 不要为了 CLI 体验回头改 SDK 边界；未明确要求时不要改 `app/cli`。
-- 不要新增一级 package，不要实现知识库门面。
+- 不要新增一级 package；不要把 Collection 拆成独立 kb 包，也不要实现完整文档生命周期。
 - 不要在 `eval`、`utils` 中提前扩散实现。
 - 扩展 `observability` 时优先保持协议与失败隔离稳定，不要提前对接 OTLP。
 - 除非明确要求，否则不要引入新依赖；已批准依赖按 `docs/decisions/package-installation-strategy.md` 安装。

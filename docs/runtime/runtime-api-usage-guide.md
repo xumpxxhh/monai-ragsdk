@@ -14,9 +14,10 @@
 当前 `runtime` 已提供：
 
 - 四阶段在线编排：`pre-retrieval -> retrieval -> post-retrieval -> generation`
-- 公开入口：`createRuntime()`、`createDefaultRuntime()`、`runtime.run()`、`runtime.runStream()`
+- 公开入口：`createRuntime()`、`createDefaultRuntime()`、`runtime.run()`、`runtime.search()`、`runtime.runStream()`
 - 最小默认件：`NoopQueryPreprocessor`、`PassthroughRetrievalPostprocessor`、`createDefaultPostprocessor()`
-- 查询期结构化结果：`RetrievalRequest`、`RetrievalCandidate`、`PostRetrievalResult`、`RuntimeResult`、`RuntimeCitation`
+- 查询期结构化结果：`RetrievalRequest`、`RetrievalCandidate`、`PostRetrievalResult`、`RuntimeResult`（对齐 core `RAGResponse` 审计快照）、`RuntimeSearchResult`（retrieve-only）、`RuntimeCitation`
+- 全流程审计：`run()` / `runStream()` 始终写入溯源、决策留痕与回放具名字段；`search()` 写入同一套检索侧字段但不含 `answer`；`includeDebug` 只控制完整过程 `debug`
 - Phase D 第一批查询协议扩展：`RetrievalFilters`、`RetrievalBudget`、`RetrievalRerankPolicy`
 - 第一版可复用 post-retrieval 策略件：`applyScoreThresholdStrategy()` 等，以及 `create*Strategy()` 工厂
 - 可组合 pipeline 策略框架：`QueryStrategy`、`PostRetrievalStrategy`、`StrategyQueryPreprocessor`、`StrategyRetrievalPostprocessor`、`FanOutRetriever`、`fuseByReciprocalRankFusion`、`createLostInTheMiddleStrategy()`
@@ -28,8 +29,8 @@
 当前仍未提供：
 
 - `runtime` 包内的第三方默认 retriever / generator 适配；当前 LangChain 查询期适配已放在 `@monai-ragsdk/adapters`
-- 复杂 rerank / budget trim / hooks
-- 与 `eval`、`observability` 的正式对接
+- Active RAG 循环
+- 与 `eval` 的正式对接
 
 ## 公开入口概览
 
@@ -98,6 +99,13 @@ const runtime = createDefaultRuntime({
 });
 
 const result = await runtime.run({ query: "Explain runtime MVP" });
+```
+
+只检索、不生成时，使用 `runtime.search()`。它复用前三阶段，**不调用 generator**，返回没有 `answer` 的 `RuntimeSearchResult`。
+
+```ts
+const hits = await runtime.search({ query: "Explain runtime MVP" });
+console.log(hits.chunks, hits.citations);
 ```
 
 需要边生成边消费 token 时，使用 `runtime.runStream()`。没有 `generateStream` 的 generator 会把完整 `generate()` 结果当成一次 delta。
@@ -349,14 +357,17 @@ type RuntimeResult = Omit<RAGResponse, "debug"> & {
 type RuntimeCitation = RAGCitation;
 ```
 
-`RuntimeResult` 主体就是 core 的一次查询审计快照：溯源、决策留痕与回放参数始终写入，不依赖 `includeDebug`。`debug` 仍是 runtime 过程对象（含完整 candidate），不要把它当成落盘账本。
+`RuntimeResult` 主体就是 core 的一次查询审计快照：溯源、决策留痕与回放参数始终写入，不依赖 `includeDebug`。`debug` 仍是 runtime 过程对象（含完整 candidate），不要把它当成落盘账本。去掉 `debug` 后可用 `RAGResponseSchema.parse` 校验。
+
+时间字段 `startedAt` / `endedAt` 为 Unix 毫秒时间戳（number），与 observability 同口径。
 
 `citations` 是 grounding 引用，不是答案解析结果：
 
-- 顺序与送入 generation 的 `chunks` 一致，`index` 从 1 开始
+- 顺序与 post-retrieval 选出的 `chunks` 一致，`index` 从 1 开始
 - 优先用 `selectedCandidates` 补 `score` / `sourceId`；没有 candidate 时从 chunk metadata 回退
-- 检索为空时为 `[]`，`run()` 与 `runStream()` 的最终 `result` 同构
-- 本切片不解析答案里的 `[1]` / `[2]`，也不要求 generator 另产出引用
+- 压缩若改写正文：`chunks[].content` 是进入 generation（或 search 对外返回）的文本，原文放 `originalContent`
+- 检索为空时为 `[]`；`run()` 与 `runStream()` 的最终 `result` 同构；`search()` 共用同一套 citations，但不含 `answer`
+- 不解析答案里的 `[1]` / `[2]`，也不要求 generator 另产出引用
 
 `includeDebug` 为 `true` 时，返回的 `debug` 结构为：
 

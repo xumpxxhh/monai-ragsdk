@@ -8,12 +8,12 @@
 
 ## 已确认决策
 
-- **北极星**：近期把 RAG 内核做稳。`Collection`、文档生命周期以及 `ingest` / `search` / `ask` 门面只在后段预留，当前不新增一级 package。
+- **北极星**：近期把 RAG 内核做稳。知识库门面不新增一级 package；阶段 3 MVP 已挂在 `@monai-ragsdk/runtime` 的 `createCollection()` 上。完整文档生命周期与独立 kb 包仍后置。
 - **阶段 1 重心**：完善 SDK（`core` / `indexing` / `adapters`），让全量 / 增量索引与默认 embedding / 存储路径在包内可闭环。`app/cli` 只是消费入口，不是本阶段完善对象。
 - **阶段 1 默认栈**：全量 / 增量索引 + pgvector 读写闭环。OpenAI 兼容 embedding / chat 与 Ollama 都落在 `@monai-ragsdk/adapters`。
 - **文档落点**：本决策文档是路线图唯一正文；不新建 `docs/roadmap/`。
 - **阶段 2 范围收口**：查询质量只在默认 pgvector 路径上做。不补 Chroma 查询侧，不新增第二查询 / 第二存储路径。
-- **当前状态**：阶段 1 已落地。阶段 2 流式生成、citation / grounding 与 pipeline 策略框架已落地；当前切片继续覆盖 Query Routing、真实 rerank（LLM rerank 策略）与 Context Compression（上下文压缩）。Chroma 查询与第二查询路径已移出阶段 2。
+- **当前状态**：阶段 1 已落地。阶段 2 流式生成、citation / grounding、pipeline 策略框架、Query Routing、真实 rerank（LLM 策略件）与 Context Compression 已落地。阶段 3 知识库门面 **MVP 已落地**（`createCollection` + `ingest` / `search` / `ask`，挂在 `runtime`，未新开一级 package）。`search()` 为 retrieve-only（`runtime.search()`，不走 generation）。完整文档生命周期、独立 kb 包与 Active RAG 仍冻结。Chroma 查询与第二查询路径已移出阶段 2。
 
 ## 现状
 
@@ -21,16 +21,18 @@
 
 已经具备：
 
-- `core` 共享契约与错误模型
+- `core` 共享契约、错误模型，以及一次查询的审计快照（`RAGResponse`）
 - `indexing` 离线主流程与 Phase D 保留契约
-- `runtime` 在线四阶段编排、轻量后处理、流式生成（`runStream`）与 grounding 引用（`citations`）
+- `runtime` 在线四阶段编排、轻量后处理、流式生成（`runStream`）、grounding 引用（`citations`）与全流程审计快照
+- `runtime` 上的知识库门面 MVP：`createCollection()`，编排 `ingest` / `search` / `ask`，以及 store 能力允许时的 `listSources` / `deleteByFilters` / `close`
 - `adapters` 的 LangChain 适配、Chroma 写入、pgvector 写入与查询、Ollama embedding / chat、OpenAI 兼容 embedding / chat
 - `observability` 最小 trace / observer / exporter
 - `app/cli` 本地目录的 index / runtime / ask 验证入口
 
 仍未具备：
 
-- 知识库领域模型与统一门面
+- 完整文档生命周期（版本管理、按 source 自动 replace 的更细门面策略、产品化生命周期 API）
+- 独立知识库一级 package（当前门面挂在 `runtime`，包落点仍未另开决策）
 - 可发布包形态、CI、评测闭环
 - hybrid（仍冻结）/ 默认真实 rerank 策略（仍冻结为“默认开启”，但 LLM rerank 能力本身已提供可组合策略件）
 - Chroma 查询侧与第二查询路径（已移出阶段 2）
@@ -47,16 +49,16 @@
 2. 打通默认路径：OpenAI 兼容 embedding + OpenAI 兼容 chat + pgvector；Ollama 仍可选
 3. 把第三方能力放在 `adapters`，契约放在 `core` / `indexing`，不要在业务入口重复实现
 
-远期才做：
+远期仍后置：
 
-1. 知识库门面（Collection、文档生命周期、`ingest` / `search` / `ask`）
+1. 完整文档生命周期与（若需要）独立知识库一级 package
 2. 发布基础设施与 `eval`
 
 ## 非目标
 
 本路线图明确不做，或推迟到标注阶段之外：
 
-- 不预建知识库空包，不提前拍板阶段 3 的包名（例如 `@monai-ragsdk/kb` 还是挂在 `runtime`）
+- 不预建知识库空包；阶段 3 MVP 已挂在 `runtime.createCollection()`。独立 kb 包若要再拆，须另开决策
 - 不把 Chroma 查询侧、流式 chat、Pinecone 作为阶段 1 默认路径
 - 不在阶段 2 补 Chroma 查询，也不新增第二查询 / 第二存储路径；默认查询继续只走 pgvector
 - 不在阶段 1 实现层级召回 / parent-child retrieval
@@ -69,7 +71,7 @@
 阶段 1 内核可上线 -> 阶段 2 查询质量 -> 阶段 3 知识库门面 -> 阶段 4 发布与评测
 ```
 
-阶段 1 内核能力已经落地。阶段 2 流式生成、citation / grounding 与 pipeline 策略框架已落地；当前切片已包含 Query Routing、真实 rerank（LLM rerank 策略）与 Context Compression。Chroma 查询与第二查询路径已移出阶段 2。
+阶段 1 内核能力已经落地。阶段 2 查询质量切片已落地。阶段 3 知识库门面 MVP 已挂在 `runtime`，未新开一级 package。Chroma 查询与第二查询路径已移出阶段 2。
 
 ### 阶段 1：RAG 内核可上线
 
@@ -103,7 +105,7 @@
 
 ### 阶段 2：查询质量
 
-目标：在仍无知识库门面的前提下，补查询期质量能力。
+目标：在稳定内核之上补查询期质量能力。门面 MVP 当时尚未落地，本阶段不依赖 Collection。
 
 当前已授权并落地的切片：
 
@@ -112,6 +114,7 @@
 - 没有 `generateStream` 的 generator（例如当前 LangChain 适配）回退为一次 `generate()`，把完整答案当成单段 delta
 - `runtime.run()` 仍走非流式 `generate()`，不把流式超时/重试语义套到 JSON 调用上
 - citation / grounding：`RuntimeResult.citations` 按进入 generation 的 chunks 生成；`run()` 与 `runStream()` 同构。不解析答案标记，也不要求 generator 另产出引用
+- 全流程审计快照：`RAGResponse` 为 core 契约；`RuntimeResult` 主体对齐该快照，`run()` / `runStream()` 始终写入溯源、决策留痕与回放具名字段。`includeDebug` 只控制是否附带完整过程 `debug`。压缩若改写正文，原文放 `originalContent`，时间字段为 Unix 毫秒时间戳
 - pipeline 策略框架：`QueryStrategy` / `PostRetrievalStrategy` 可组合链；`StrategyQueryPreprocessor`、`StrategyRetrievalPostprocessor`、`FanOutRetriever`；`RetrievalRequest.subQueries` 供 multi-query fan-out；RRF 上移到 runtime（`fuseByReciprocalRankFusion`）；示范策略 `Lost in the Middle`；`RuntimeStrategyModel` 抽象 + adapters 侧 `OpenAIStrategyModel` / `OllamaStrategyModel`
 - pre-retrieval LLM 策略：`createQueryRewriteStrategy`、`createQueryExpansionStrategy`、`createQueryDecompositionStrategy`、`createMultiQueryStrategy`；依赖注入的 `RuntimeStrategyModel`；LLM 失败默认透传原 query
 - pre-retrieval LLM 策略：Query Routing（`createQueryRoutingStrategy`）写回 `request.route`、可选 budget/topK/filters
@@ -131,18 +134,27 @@
 
 ### 阶段 3：知识库门面
 
-目标：在稳定内核之上增加知识库领域层。
+目标：在稳定内核之上增加知识库领域层。**MVP 已落地，挂在 `@monai-ragsdk/runtime`，未新开一级 package。**
 
-预留能力：
+已落地：
 
-- Collection
-- 文档生命周期
-- `ingest` / `search` / `ask`
+- `createCollection({ indexing, runtime })`：只编排现有 `runIndexing` 与 `runtime.run` / `runtime.search`，不吞并包职责
+- `ingest(documents)`：写入向量库；可覆盖 `mode` / `observer` / `trace` / `batchSize`，增量语义仍由 indexing 的 fingerprint / `deleteByFilter` 兑现
+- `search()`：retrieve-only。复用 `runtime.search()`（pre-retrieval → retrieval → post-retrieval），不调用 generator；返回检索侧审计快照（`chunks` / `citations` / `effectiveQuery` 等），没有 `answer`
+- `ask()`：透出完整 `RuntimeResult`（core 审计快照）
+- store 能力允许时：`listSources()`、`deleteByFilters()`、`close()`（能力缺失返回空数组 / `false`，不当成硬错误）
+- 包级 demo（`demo/collection-demo.ts`）与 unit test（`__tests__/collection.spec.ts`）；用法见 `docs/runtime/collection-api-usage-guide.md`
 
-约束：
+仍冻结 / 未做：
+
+- 完整文档生命周期（版本管理、更细的自动 replace 策略、产品化生命周期 API）
+- 独立知识库一级 package（例如 `@monai-ragsdk/kb`）；包落点若要再拆，须另开决策
+
+约束不变：
 
 - 门面只编排现有 `indexing` 与 `runtime`，不吞并包职责
-- 包落点届时另开决策，禁止在阶段 1 预建空包
+- 禁止为此新开一级 package，除非另开决策
+- 完整生命周期方法仍需二次明确授权
 
 ### 阶段 4：发布与评测
 
@@ -156,7 +168,7 @@
 
 ## 下一实现授权
 
-阶段 2 citation / grounding、pipeline 策略框架与 pre-retrieval LLM 策略（rewrite / expansion / decomposition / multi-query、Query Routing）已经落地；真实 rerank 与 Context Compression 能力已作为可组合策略件提供。仍冻结 Active RAG / Self-Correction、hybrid（真正 rerank 默认开启）与其它二次查询路径。
+阶段 2 citation / grounding、pipeline 策略框架、pre-retrieval LLM 策略、真实 rerank 与 Context Compression 已经落地。阶段 3 知识库门面 **MVP 已落地**（`runtime.createCollection`）；`search()` 已改为 retrieve-only（`runtime.search()`）。仍冻结 Active RAG / Self-Correction、hybrid（真正 rerank 默认开启）、完整文档生命周期、独立 kb 包与其它二次查询路径。
 
 阶段 1 已授权并完成的范围：
 
@@ -177,14 +189,14 @@
 
 仍冻结：
 
-- 新的一级 package
-- 知识库门面实现
+- 新的一级 package（含独立知识库包）
+- 完整文档生命周期（超出当前 `listSources` / `deleteByFilters` / `close` 的产品化门面）
 - `eval`、`utils` 的业务实现
 - hybrid
 - 真实 rerank 默认策略（仍冻结为“默认开启”，但能力本身可通过策略链显式启用）
 - 答案内 citation 标记解析，或要求 generator 另产出引用
 - Chroma 查询侧、第二查询 / 第二存储路径
-- 无故继续扩展 `runtime` 编排
+- 无故继续扩展 `runtime` 编排（维护已落地的 Collection MVP 与审计快照除外）
 - 无故扩展 `observability` exporter
 - Pinecone 等其余云厂商预设
 
