@@ -1,20 +1,17 @@
-import type { Chunk } from "@monai-ragsdk/core";
 import { MockEmbedder } from "@monai-ragsdk/indexing";
 import type { RAGObserver } from "@monai-ragsdk/observability";
 import {
   NoopQueryPreprocessor,
   createDefaultRuntime,
-  type RetrievalRequest,
   type RuntimeRetriever,
   type RuntimeContext,
-  type RuntimeGenerationResult,
   type RuntimeRetrievalResult,
   type RuntimeResult,
 } from "@monai-ragsdk/runtime";
 
 import type { CliConfig } from "../../config/schema.js";
-import { buildAnswer } from "./output.js";
 import { createEmbedder } from "../providers/embedder.js";
+import { createGenerator } from "../providers/generator.js";
 import { createPgVectorRuntimeRetriever } from "../providers/retriever.js";
 import { retrieveRankedChunks } from "./retrieval.js";
 import { createChunkMapFromSnapshot } from "../indexing/snapshot.js";
@@ -27,6 +24,7 @@ export async function runRuntimeFromSnapshot(input: {
   debug: boolean;
   observer: RAGObserver;
   command: "ask" | "runtime";
+  config: CliConfig;
 }): Promise<RuntimeResult> {
   const chunkMap = createChunkMapFromSnapshot(input.snapshot);
   const embedder = new MockEmbedder({
@@ -52,25 +50,7 @@ export async function runRuntimeFromSnapshot(input: {
         });
       },
     },
-    generator: {
-      async generate({
-        chunks,
-        request,
-      }: {
-        chunks: Chunk[];
-        request: RetrievalRequest;
-      }): Promise<RuntimeGenerationResult> {
-        return {
-          answer: buildAnswer({
-            chunks,
-            query: request.effectiveQuery.query,
-          }),
-          generationMetadata: {
-            chunkIds: chunks.map((chunk: Chunk) => chunk.id),
-          },
-        };
-      },
-    },
+    generator: createGenerator(input.config),
   });
 
   return runtime.run(
@@ -97,10 +77,9 @@ export async function runRuntimeFromConfiguredStore(input: {
   observer: RAGObserver;
   command: "ask" | "runtime";
 }): Promise<RuntimeResult> {
-  const retriever = createConfiguredRetriever(input.config);
-
   return runRuntimeWithRetriever({
-    retriever,
+    retriever: createConfiguredRetriever(input.config),
+    generatorConfig: input.config,
     query: input.query,
     topK: input.topK,
     debug: input.debug,
@@ -166,6 +145,7 @@ export async function runRetrievalFromConfiguredStore(input: {
 
 async function runRuntimeWithRetriever(input: {
   retriever: RuntimeRetriever;
+  generatorConfig: CliConfig;
   query: string;
   topK: number;
   debug: boolean;
@@ -182,25 +162,7 @@ async function runRuntimeWithRetriever(input: {
       },
     }),
     retriever: input.retriever,
-    generator: {
-      async generate({
-        chunks,
-        request,
-      }: {
-        chunks: Chunk[];
-        request: RetrievalRequest;
-      }): Promise<RuntimeGenerationResult> {
-        return {
-          answer: buildAnswer({
-            chunks,
-            query: request.effectiveQuery.query,
-          }),
-          generationMetadata: {
-            chunkIds: chunks.map((chunk: Chunk) => chunk.id),
-          },
-        };
-      },
-    },
+    generator: createGenerator(input.generatorConfig),
   });
 
   return runtime.run(

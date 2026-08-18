@@ -1,10 +1,11 @@
 import path from "node:path";
+import { createHash } from "node:crypto";
 
 import {
   LangChainDirectoryLoaderAdapter,
   UnknownHandling,
 } from "@monai-ragsdk/adapters";
-import type { Document } from "@monai-ragsdk/core";
+import type { Chunk, Document, Vector } from "@monai-ragsdk/core";
 import {
   BasicMetadataExtractor,
   SimpleChunker,
@@ -29,6 +30,8 @@ export async function runLocalIndexing(input: {
   config: CliConfig;
   observer: RAGObserver;
   command: "ask" | "index";
+  previousVectors?: Vector[];
+  previousChunks?: Chunk[];
 }): Promise<IndexSnapshot> {
   const chunkMap: IndexedChunkMap = new Map();
   const embedder = createEmbedder(input.config.embedding);
@@ -36,6 +39,10 @@ export async function runLocalIndexing(input: {
     input.config.vectorStore,
     input.config.embedding.dimension,
   );
+
+  if (memoryStore && input.previousVectors && input.previousVectors.length > 0) {
+    await memoryStore.upsert(input.previousVectors);
+  }
   const resolvedDirectoryPath = path.resolve(
     process.cwd(),
     input.options.directoryPath,
@@ -91,6 +98,16 @@ export async function runLocalIndexing(input: {
     metadataExtractors: [new BasicMetadataExtractor()],
     embedder: createTrackingEmbedder(embedder, chunkMap),
     observer: input.observer,
+    mode: "incremental",
+    sourceIdResolver(document) {
+      const relativePath = document.metadata?.relativePath;
+      return typeof relativePath === "string" && relativePath.length > 0
+        ? relativePath.replaceAll("\\", "/")
+        : document.id;
+    },
+    fingerprintResolver(document) {
+      return createHash("sha256").update(document.content, "utf8").digest("hex");
+    },
     trace: {
       dataset: "app-cli",
       version: "v1",
@@ -106,8 +123,35 @@ export async function runLocalIndexing(input: {
     createdAt: new Date().toISOString(),
     directoryPath: resolvedDirectoryPath,
     indexingResult,
-    chunks: Array.from(chunkMap.values()),
+    chunks: memoryStore
+      ? mergeIndexedChunks(
+          input.previousChunks ?? [],
+          chunkMap,
+          memoryStore.getAll(),
+        )
+      : Array.from(chunkMap.values()),
     vectors: memoryStore?.getAll() ?? [],
     embeddingDimension: input.config.embedding.dimension,
   };
+}
+
+function mergeIndexedChunks(
+  previousChunks: Chunk[],
+  nextChunks: IndexedChunkMap,
+  storedVectors: Vector[],
+): Chunk[] {
+  const storedIds = new Set(storedVectors.map((vector) => vector.id));
+  const merged = new Map<string, Chunk>();
+
+  for (const chunk of previousChunks) {
+    if (storedIds.has(chunk.id)) {
+      merged.set(chunk.id, chunk);
+    }
+  }
+
+  for (const [id, chunk] of nextChunks) {
+    merged.set(id, chunk);
+  }
+
+  return Array.from(merged.values()).filter((chunk) => storedIds.has(chunk.id));
 }

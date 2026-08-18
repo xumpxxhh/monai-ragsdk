@@ -38,6 +38,7 @@ export async function runAskCommand(options: AskCommandOptions): Promise<void> {
             debug: options.debug,
             observer,
             command: "ask",
+            config,
           });
 
     printAskSummary({

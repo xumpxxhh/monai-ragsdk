@@ -63,6 +63,7 @@ export async function runRuntimeCommand(
             debug: options.debug,
             observer,
             command: "runtime",
+            config,
           });
 
     printRuntimeAnswerSummary({

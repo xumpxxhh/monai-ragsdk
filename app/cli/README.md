@@ -16,8 +16,12 @@
 
 - 仅支持本地目录
 - 默认只读取 `.md`、`.markdown`、`.txt` 文件
-- 默认使用 `MockEmbedder` 与 `MemoryVectorStore`
-- 不接入外部向量库与真实模型服务
+- 默认使用 `MockEmbedder`、抽取式生成与 `MemoryVectorStore`（无配置文件时的离线回退）
+- `init` / 示例配置默认 embedding 走阿里云 OpenAI 兼容接口 + pgvector；默认 ask 走 DeepSeek OpenAI 兼容 chat
+- 可通过配置改回 Ollama embedding / generator，或改用 extractive 生成
+- indexing 默认走增量模式：`sourceId` 为相对路径，`fingerprint` 为内容哈希
+
+使用 OpenAI 兼容路径时，embedding 设置 `EMBEDDING_API_KEY`，ask 设置 `OPENAI_API_KEY`，不要把密钥写进配置文件。
 
 ## 使用方式
 
