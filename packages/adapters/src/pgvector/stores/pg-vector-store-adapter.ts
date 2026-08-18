@@ -2,6 +2,7 @@ import type { Vector } from "@monai-ragsdk/core";
 import type {
   VectorStore,
   VectorStoreDeleteFilter,
+  VectorStoreSourceRecord,
   VectorStoreWriteContext,
 } from "@monai-ragsdk/indexing";
 import { Pool, type PoolConfig } from "pg";
@@ -22,12 +23,16 @@ type PgConnectionOptions = Pick<
   | "connectionTimeoutMillis"
 >;
 
-type PgQueryResultLike = {
+type PgQueryResultLike<Row = Record<string, unknown>> = {
   rowCount?: number | null;
+  rows?: Row[];
 };
 
 export type PgClientLike = {
-  query(text: string, values?: readonly unknown[]): Promise<PgQueryResultLike>;
+  query<Row = Record<string, unknown>>(
+    text: string,
+    values?: readonly unknown[],
+  ): Promise<PgQueryResultLike<Row>>;
 };
 
 export type PgVectorStoreAdapterOptions = PgConnectionOptions & {
@@ -54,8 +59,13 @@ const DEFAULT_SOURCE_ID_COLUMN = "source_id";
 const DEFAULT_FINGERPRINT_COLUMN = "fingerprint";
 const DEFAULT_CONTENT_METADATA_KEY = "content";
 
+/**
+ * PostgreSQL + pgvector 写入适配：upsert / deleteByFilter / listSourceRecords。
+ * 查询期不走本类，由 PgVectorRuntimeRetrieverAdapter 负责。
+ */
 export class PgVectorStoreAdapter implements VectorStore {
   readonly #client: PgClientLike;
+  readonly #ownedPool: Pool | undefined;
   readonly #schema: string;
   readonly #tableName: string;
   readonly #idColumn: string;
@@ -71,7 +81,14 @@ export class PgVectorStoreAdapter implements VectorStore {
   #dimension: number | undefined;
 
   constructor(options: PgVectorStoreAdapterOptions) {
-    this.#client = options.client ?? new Pool(toPoolConfig(options));
+    if (options.client) {
+      this.#client = options.client;
+      this.#ownedPool = undefined;
+    } else {
+      const pool = new Pool(toPoolConfig(options));
+      this.#client = pool;
+      this.#ownedPool = pool;
+    }
     this.#schema = validateIdentifier(
       options.schema ?? DEFAULT_SCHEMA,
       "schema",
@@ -197,6 +214,31 @@ export class PgVectorStoreAdapter implements VectorStore {
     );
   }
 
+  async listSourceRecords(): Promise<VectorStoreSourceRecord[]> {
+    await this.#initialize(this.#dimension);
+
+    const result = await this.#client.query<{
+      source_id: string | null;
+      fingerprint: string | null;
+    }>(
+      `SELECT DISTINCT ${quoteIdentifier(this.#sourceIdColumn)} AS source_id, ${quoteIdentifier(this.#fingerprintColumn)} AS fingerprint FROM ${this.#getQuotedTableName()} WHERE ${quoteIdentifier(this.#sourceIdColumn)} IS NOT NULL`,
+    );
+
+    return (result.rows ?? [])
+      .filter((row) => typeof row.source_id === "string" && row.source_id.length > 0)
+      .map((row) => ({
+        sourceId: row.source_id as string,
+        ...(typeof row.fingerprint === "string" && row.fingerprint.length > 0
+          ? { fingerprint: row.fingerprint }
+          : {}),
+      }));
+  }
+
+  /** 仅关闭 adapter 自己创建的 Pool；注入的 client 由调用方负责。 */
+  async close(): Promise<void> {
+    await this.#ownedPool?.end();
+  }
+
   async #initialize(batchDimension?: number): Promise<void> {
     if (!this.#ensureTable) {
       return;
@@ -247,6 +289,10 @@ export class PgVectorStoreAdapter implements VectorStore {
     );
     await this.#client.query(
       `CREATE INDEX IF NOT EXISTS ${quoteIdentifier(`${this.#tableName}_tsv_idx`)} ON ${quotedTable} USING GIN(tsv)`,
+    );
+    // 查询走 <=> 余弦距离；HNSW 无需 IVFFlat 的 lists 调参，适合默认建表路径
+    await this.#client.query(
+      `CREATE INDEX IF NOT EXISTS ${quoteIdentifier(`${this.#tableName}_${this.#vectorColumn}_hnsw_idx`)} ON ${quotedTable} USING hnsw (${quotedVectorColumn} vector_cosine_ops)`,
     );
   }
 

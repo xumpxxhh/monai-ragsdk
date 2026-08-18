@@ -41,53 +41,58 @@ const store = new PgVectorStoreAdapter({
   ensureTable: true,
 });
 
-const result = await runIndexing({
-  loader,
-  chunker,
-  mode: "incremental",
-  sourceIdResolver(document) {
-    return `demo-source:${document.id}`;
-  },
-  fingerprintResolver(document) {
-    return `demo-fingerprint:${document.id}`;
-  },
-  metadataBuilder(document, chunk) {
-    return {
-      ...defaultMetadataBuilder(document, chunk),
-      content: chunk.content,
-    };
-  },
-  embedder: new MockEmbedder({ dimension: vectorDimension }),
-  store,
-});
-
-console.log(
-  JSON.stringify(
-    {
-      result,
-      pgvector: {
-        connectionStringConfigured: "connectionString" in connectionOptions,
-        host:
-          "host" in connectionOptions ? (connectionOptions.host ?? null) : null,
-        port:
-          "port" in connectionOptions
-            ? (connectionOptions.port ??
-              (Number.isNaN(postgresPort) ? 5432 : postgresPort))
-            : null,
-        database:
-          "database" in connectionOptions
-            ? (connectionOptions.database ?? null)
-            : null,
-        schema,
-        tableName,
-        vectorDimension,
-        ensureTable: true,
-      },
+try {
+  const result = await runIndexing({
+    loader,
+    chunker,
+    mode: "incremental",
+    sourceIdResolver(document) {
+      return `demo-source:${document.id}`;
     },
-    null,
-    2,
-  ),
-);
+    fingerprintResolver(document) {
+      return `demo-fingerprint:${document.id}`;
+    },
+    metadataBuilder(document, chunk) {
+      return {
+        ...defaultMetadataBuilder(document, chunk),
+        content: chunk.content,
+      };
+    },
+    embedder: new MockEmbedder({ dimension: vectorDimension }),
+    store,
+  });
+
+  console.log(
+    JSON.stringify(
+      {
+        result,
+        pgvector: {
+          connectionStringConfigured: "connectionString" in connectionOptions,
+          host:
+            "host" in connectionOptions ? (connectionOptions.host ?? null) : null,
+          port:
+            "port" in connectionOptions
+              ? (connectionOptions.port ??
+                (Number.isNaN(postgresPort) ? 5432 : postgresPort))
+              : null,
+          database:
+            "database" in connectionOptions
+              ? (connectionOptions.database ?? null)
+              : null,
+          schema,
+          tableName,
+          vectorDimension,
+          ensureTable: true,
+        },
+      },
+      null,
+      2,
+    ),
+  );
+} finally {
+  // adapter 自建 Pool，用完必须关，否则 demo 进程会挂住
+  await store.close();
+}
 
 function resolveConnectionOptions(): Pick<
   PgVectorStoreAdapterOptions,

@@ -90,7 +90,7 @@ describe("PgVectorStoreAdapter", () => {
 
     await adapter.upsert([{ id: "chunk-1", values: [1, 2] }]);
 
-    expect(query).toHaveBeenCalledTimes(5);
+    expect(query).toHaveBeenCalledTimes(8);
     expect(query.mock.calls[0]?.[0]).toBe(
       "CREATE EXTENSION IF NOT EXISTS vector",
     );
@@ -103,6 +103,8 @@ describe("PgVectorStoreAdapter", () => {
     expect(query.mock.calls[2]?.[0]).toContain(
       '"embedding" VECTOR(2) NOT NULL',
     );
+    expect(query.mock.calls[6]?.[0]).toContain("USING hnsw");
+    expect(query.mock.calls[6]?.[0]).toContain("vector_cosine_ops");
   });
 
   it("deletes vectors by sourceIds and fingerprints", async () => {
@@ -123,6 +125,29 @@ describe("PgVectorStoreAdapter", () => {
       'DELETE FROM "public"."rag_vectors" WHERE "source_id" = ANY($1::text[]) AND "fingerprint" = ANY($2::text[])',
       [["docs/runtime"], ["fp:1"]],
     );
+  });
+
+  it("lists distinct source records for incremental comparison", async () => {
+    const query = vi.fn(async () => ({
+      rowCount: 2,
+      rows: [
+        { source_id: "docs/runtime", fingerprint: "fp:1" },
+        { source_id: "docs/faq", fingerprint: "fp:2" },
+      ],
+    }));
+    const adapter = new PgVectorStoreAdapter({
+      tableName: "rag_vectors",
+      client: {
+        query,
+      },
+    });
+
+    await expect(adapter.listSourceRecords()).resolves.toEqual([
+      { sourceId: "docs/runtime", fingerprint: "fp:1" },
+      { sourceId: "docs/faq", fingerprint: "fp:2" },
+    ]);
+    expect(query.mock.calls[0]?.[0]).toContain("SELECT DISTINCT");
+    expect(query.mock.calls[0]?.[0]).toContain('"source_id"');
   });
 
   it("throws before querying when vector dimensions differ", async () => {
@@ -176,5 +201,18 @@ describe("PgVectorStoreAdapter", () => {
     await expect(
       adapter.upsert([{ id: "chunk-1", values: [0.1, 0.2] }]),
     ).rejects.toThrow("database unavailable");
+  });
+
+  it("does not close an injected client", async () => {
+    const query = vi.fn(async () => ({ rowCount: 0 }));
+    const adapter = new PgVectorStoreAdapter({
+      tableName: "rag_vectors",
+      client: {
+        query,
+      },
+    });
+
+    await expect(adapter.close()).resolves.toBeUndefined();
+    expect(query).not.toHaveBeenCalled();
   });
 });

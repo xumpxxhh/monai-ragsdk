@@ -16,6 +16,9 @@
     "demo:langchain-extensions": "pnpm run build && tsx demo/langchain-extensions.ts",
     "demo:langchain-runtime": "pnpm run build && tsx demo/langchain-runtime.ts",
     "demo:pgvector-store": "pnpm run build && tsx demo/pgvector-store.ts",
+    "demo:pgvector-runtime": "pnpm run build && tsx demo/pgvector-runtime.ts",
+    "demo:openai-adapters": "pnpm run build && tsx demo/openai-adapters.ts",
+    "demo:ollama-adapters": "pnpm run build && tsx demo/ollama-adapters.ts",
     "test": "pnpm run build && vitest run __tests__",
     "test:watch": "vitest __tests__"
   },

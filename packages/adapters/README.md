@@ -10,6 +10,8 @@
 - `src/langchain/`：当前阶段优先实现的 LangChain 适配目录。
 - `src/chroma/`：Chroma 向量存储适配目录。
 - `src/pgvector/`：PostgreSQL + pgvector 向量存储适配目录。
+- `src/ollama/`：Ollama embedding / chat 适配目录。
+- `src/openai/`：OpenAI 兼容 embedding / chat 适配目录。
 - `src/index.ts`：源码入口文件。
 - `dist/`：构建产物输出目录，仅在执行构建后生成。
 
@@ -33,6 +35,8 @@
 - 实现 `createLangChainChatModelRuntimeGenerator`
 - 实现 `ChromaVectorStoreAdapter`
 - 实现 `PgVectorStoreAdapter`
+- 实现 `OpenAIEmbedder`
+- 实现 `OpenAIRuntimeGenerator`
 - 对齐 `@monai-ragsdk/core` 的共享模型
 - 对齐 `@monai-ragsdk/indexing` 的 `Loader` / `Chunker` 等组件接口
 - 对齐 `@monai-ragsdk/runtime` 的 `RetrievalRequest` / `RuntimeRetriever` / `RuntimeGenerator` 查询期契约
@@ -40,8 +44,9 @@
 
 当前仍未实现：
 
-- OpenAI embeddings 预设 adapter
+- 流式 chat 输出
 - Pinecone adapter
+- Chroma 查询侧 adapter
 - 更完整的 integration / smoke 覆盖
 
 当前根目录已覆盖的跨包验证：
@@ -96,18 +101,22 @@
 ## 当前 embedder 策略
 
 - `LangChainEmbeddingsAdapter`：接收任意实现 `embedDocuments()` 的 LangChain embeddings 对象。
+- `OpenAIEmbedder`：通过 OpenAI 兼容 `/embeddings` 适配为 `Embedder`，支持超时、重试与批处理。`baseUrl` 必须由调用方显式传入，SDK 不内置厂商地址。
+- `OllamaEmbedder`：通过 Ollama `/api/embed` 适配为 `Embedder`，支持超时、重试与批处理。
 
 推荐优先级：
 
-- 当前优先用 `LangChainEmbeddingsAdapter` 接入第三方 embeddings 实例。
-- provider 级预设暂未内置，避免在 MVP 阶段过早固化 OpenAI 等厂商配置面。
+- CLI 默认官方路径优先用 `OpenAIEmbedder`（OpenAI 兼容接口 + pgvector）。密钥只读 `EMBEDDING_API_KEY`。
+- 本地离线 embedding 仍可用 `OllamaEmbedder`。
+- 当需要接入任意 LangChain embeddings 实例时，再用 `LangChainEmbeddingsAdapter`。
 
 ## 当前查询期 adapter 策略
 
 - `LangChainRuntimeRetrieverAdapter`：把 LangChain 风格 `invoke()` 检索器适配为 `@monai-ragsdk/runtime` 的 `RuntimeRetriever`，默认复用 runtime 的 indexing metadata 查询协议映射与 filter 过滤逻辑。
 - `LangChainRuntimeGeneratorAdapter`：把 LangChain 风格 `invoke()` 生成器适配为 `@monai-ragsdk/runtime` 的 `RuntimeGenerator`，默认优先消费 runtime postprocessor 产出的 `promptContext`。
 - `createLangChainBaseRetrieverRuntimeAdapter`：面向真实 LangChain `BaseRetriever` 实例的更薄封装，默认把 `RetrievalRequest` 映射到 `BaseRetriever.invoke(query, config)`，并继续复用 runtime 的候选映射与 filter 语义。
-- `createLangChainChatModelRuntimeGenerator`：面向真实 LangChain `BaseChatModel` 实例的更薄封装，默认把 runtime 输入映射成 `SystemMessage + HumanMessage`，再调用 `model.invoke(messages, options)`。
+- `OllamaRuntimeGenerator`：通过 Ollama `/api/chat` 适配为 `RuntimeGenerator`。优先消费 runtime 的 `promptContext`，当前一次返回完整答案，不做流式。
+- `OpenAIRuntimeGenerator`：通过 OpenAI 兼容 `/chat/completions` 适配为 `RuntimeGenerator`。`baseUrl` 与 `model` 由调用方显式传入，密钥回退 `OPENAI_API_KEY`。当前一次返回完整答案，不做流式。
 
 推荐优先级：
 
@@ -124,16 +133,18 @@
 ## 当前 store 策略
 
 - `ChromaVectorStoreAdapter`：接收 Chroma 连接配置，并在 adapter 内部创建 `ChromaClient`，用于把 `@monai-ragsdk/core` 的 `Vector` 批量写入指定 collection。
-- `PgVectorStoreAdapter`：接收 PostgreSQL 连接配置，并把 `@monai-ragsdk/core` 的 `Vector` 批量写入 pgvector 表。
+- `PgVectorStoreAdapter`：接收 PostgreSQL 连接配置，并把 `@monai-ragsdk/core` 的 `Vector` 批量写入 pgvector 表，同时实现 `deleteByFilter()` 与 `listSourceRecords()`。`ensureTable` 会建立 source / fingerprint / GIN(tsv) 与 HNSW 余弦索引。调用方在用完后应调用 `close()` 释放 adapter 自建连接池。
+- `PgVectorRuntimeRetrieverAdapter`：pgvector 查询期 retriever。并行做向量距离召回与 tsvector 关键词召回，按 RRF 融合后再复用 runtime 的 `filterRetrievalCandidatesByIndexingFilters()`。
 
 推荐优先级：
 
-- 当前优先支持本地 / 自建 Chroma Server 的写入场景。
-- 当前优先支持 PostgreSQL + pgvector 的写入场景。
+- 默认生产路径优先 PostgreSQL + pgvector 读写闭环。
+- 本地 / 自建 Chroma Server 仍可作为可选写入路径，当前只覆盖 `upsert`。
 - 当前 Chroma adapter 仍只覆盖写入侧 `upsert`；查询期抽象统一通过 `@monai-ragsdk/runtime` 契约对接，不在 Chroma adapter 内部单独扩散查询协议。
-- 当前 PgVector adapter 也只覆盖写入侧 `upsert` 与 `deleteByFilter()`；查询期抽象不在 adapter 内部单独扩散。
-- 当前已对齐 `VectorStoreWriteContext` 的接口签名，但不会主动实现 `deleteByFilter()` 或 stale cleanup 行为。
-- `PgVectorStoreAdapter` 第一版默认保留 `metadata`、`source_id`、`fingerprint` 字段；`content` 仅在 `Vector.metadata.content` 存在时做尽力写入。
+- 当前 PgVector adapter 覆盖写入、`deleteByFilter()`、`listSourceRecords()`，查询期走 `PgVectorRuntimeRetrieverAdapter`。
+- `runIndexing` 会消费 `listSourceRecords()` 与 `deleteByFilter()` 完成增量 skip / replace / stale cleanup。
+- `PgVectorStoreAdapter` 第一版默认保留 `metadata`、`source_id`、`fingerprint` 字段；`content` 列读取 `Vector.metadata.content`。经 `runIndexing` 时会在 upsert 前补上 chunk 原文；直接 `store.upsert()` 必须自行带上 `metadata.content`，否则关键词召回和生成会拿到空上下文。
+- `VectorStore.close()` 为可选方法：`PgVectorStoreAdapter` 在自建 `Pool` 时需要调用；注入的 client 不会被关闭。
 - 如果业务方使用其他向量数据库，仍可自行实现 `@monai-ragsdk/indexing` 的 `VectorStore` 接口。
 
 ## 当前脚本
@@ -144,6 +155,10 @@
 - `pnpm --filter @monai-ragsdk/adapters demo:chroma-store`
 - `pnpm --filter @monai-ragsdk/adapters demo:langchain-extensions`
 - `pnpm --filter @monai-ragsdk/adapters demo:langchain-runtime`
+- `pnpm --filter @monai-ragsdk/adapters demo:pgvector-store`
+- `pnpm --filter @monai-ragsdk/adapters demo:pgvector-runtime`
+- `pnpm --filter @monai-ragsdk/adapters demo:openai-adapters`
+- `pnpm --filter @monai-ragsdk/adapters demo:ollama-adapters`
 
 ## Chroma 示例
 

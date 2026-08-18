@@ -1,10 +1,12 @@
 import type { Chunk, JsonValue } from "@monai-ragsdk/core";
-import type {
-  RetrievalCandidate,
-  RetrievalRequest,
-  RuntimeContext,
-  RuntimeRetrievalResult,
-  RuntimeRetriever,
+import {
+  createIndexingRetrievalCandidate,
+  filterRetrievalCandidatesByIndexingFilters,
+  type RetrievalCandidate,
+  type RetrievalRequest,
+  type RuntimeContext,
+  type RuntimeRetrievalResult,
+  type RuntimeRetriever,
 } from "@monai-ragsdk/runtime";
 import { Pool, type PoolConfig } from "pg";
 
@@ -58,8 +60,13 @@ const DEFAULT_CONTENT_METADATA_KEY = "content";
 const DEFAULT_CANDIDATE_POOL_SIZE = 100;
 const DEFAULT_RRF_K = 60;
 
+/**
+ * pgvector 查询期 retriever：向量召回与关键词召回并行，再按 RRF 融合。
+ * SQL 不表达 Phase D filter；融合后再复用 runtime 统一过滤，避免和 LangChain 路径语义分叉。
+ */
 export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
   readonly #client: PgRuntimeRetrieverClientLike;
+  readonly #ownedPool: Pool | undefined;
   readonly #schema: string;
   readonly #tableName: string;
   readonly #idColumn: string;
@@ -70,7 +77,14 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
   readonly #embedQuery: (query: string) => Promise<number[]>;
 
   constructor(options: PgVectorRuntimeRetrieverAdapterOptions) {
-    this.#client = options.client ?? new Pool(toPoolConfig(options));
+    if (options.client) {
+      this.#client = options.client;
+      this.#ownedPool = undefined;
+    } else {
+      const pool = new Pool(toPoolConfig(options));
+      this.#client = pool;
+      this.#ownedPool = pool;
+    }
     this.#schema = validateIdentifier(
       options.schema ?? DEFAULT_SCHEMA,
       "schema",
@@ -103,33 +117,44 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
   ): Promise<RuntimeRetrievalResult> {
     const query = request.effectiveQuery.query;
     const topK = request.budget?.maxChunks ?? 3;
-    const candidatePoolSize = DEFAULT_CANDIDATE_POOL_SIZE;
 
+    // 召回池大于 topK，否则 RRF 与 filter 之后容易凑不满最终结果
     const [vectorCandidates, keywordCandidates] = await Promise.all([
-      this.#retrieveByEmbedding(query, candidatePoolSize),
-      this.#retrieveByKeyword(query, candidatePoolSize),
+      this.#retrieveByEmbedding(query, request, DEFAULT_CANDIDATE_POOL_SIZE),
+      this.#retrieveByKeyword(query, request, DEFAULT_CANDIDATE_POOL_SIZE),
     ]);
 
     const fusedCandidates = this.#fuseByRRF(
       vectorCandidates,
       keywordCandidates,
-      topK,
+      request,
     );
+    const filteredCandidates = filterRetrievalCandidatesByIndexingFilters(
+      fusedCandidates,
+      request.filters,
+    ).slice(0, topK);
 
     return {
-      candidates: fusedCandidates,
+      candidates: filteredCandidates,
       retrievalMetadata: {
         provider: "pgvector",
         topK,
         vectorCandidateCount: vectorCandidates.length,
         keywordCandidateCount: keywordCandidates.length,
         fusedCandidateCount: fusedCandidates.length,
+        filteredCandidateCount: filteredCandidates.length,
       },
     };
   }
 
+  /** 仅关闭 adapter 自己创建的 Pool；注入的 client 由调用方负责。 */
+  async close(): Promise<void> {
+    await this.#ownedPool?.end();
+  }
+
   async #retrieveByEmbedding(
     query: string,
+    request: RetrievalRequest,
     topK: number,
   ): Promise<RetrievalCandidate[]> {
     const queryVector = await this.#embedQuery(query);
@@ -138,11 +163,12 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
       [formatPgVector(queryVector), topK],
     );
 
-    return this.#rowsToCandidates(rows.rows);
+    return this.#rowsToCandidates(rows.rows, request, "vector");
   }
 
   async #retrieveByKeyword(
     query: string,
+    request: RetrievalRequest,
     topK: number,
   ): Promise<RetrievalCandidate[]> {
     const rows = await this.#client.query<RetrievalRow>(
@@ -150,62 +176,62 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
       [query, topK],
     );
 
-    return this.#rowsToCandidates(rows.rows);
+    return this.#rowsToCandidates(rows.rows, request, "keyword");
   }
 
+  /** 先按召回池做 RRF，再交给调用方截断 topK；否则 filter 后容易凑不满。 */
   #fuseByRRF(
     vectorCandidates: RetrievalCandidate[],
     keywordCandidates: RetrievalCandidate[],
-    topK: number,
+    request: RetrievalRequest,
     k: number = DEFAULT_RRF_K,
   ): RetrievalCandidate[] {
     const rrfScores = new Map<string, number>();
-    const chunkMap = new Map<string, Chunk>();
-    const metadataMap = new Map<
-      string,
-      { sourceId?: string; fingerprint?: string }
-    >();
+    const candidateMap = new Map<string, RetrievalCandidate>();
 
-    for (let rank = 0; rank < vectorCandidates.length; rank++) {
-      const candidate = vectorCandidates[rank];
+    for (const [rank, candidate] of vectorCandidates.entries()) {
       const id = candidate.chunk.id;
-      rrfScores.set(id, (rrfScores.get(id) || 0) + 1 / (k + rank + 1));
-      chunkMap.set(id, candidate.chunk);
-      metadataMap.set(id, {
-        sourceId: candidate.sourceId,
-        fingerprint: candidate.fingerprint,
-      });
+      rrfScores.set(id, (rrfScores.get(id) ?? 0) + 1 / (k + rank + 1));
+      candidateMap.set(id, candidate);
     }
 
-    for (let rank = 0; rank < keywordCandidates.length; rank++) {
-      const candidate = keywordCandidates[rank];
+    for (const [rank, candidate] of keywordCandidates.entries()) {
       const id = candidate.chunk.id;
-      rrfScores.set(id, (rrfScores.get(id) || 0) + 1 / (k + rank + 1));
-      chunkMap.set(id, candidate.chunk);
-      metadataMap.set(id, {
-        sourceId: candidate.sourceId,
-        fingerprint: candidate.fingerprint,
-      });
+      rrfScores.set(id, (rrfScores.get(id) ?? 0) + 1 / (k + rank + 1));
+      candidateMap.set(id, candidateMap.get(id) ?? candidate);
     }
 
     return [...rrfScores.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, topK)
-      .map(([id, score]) => ({
-        chunk: chunkMap.get(id)!,
-        score,
-        sourceId: metadataMap.get(id)?.sourceId,
-        fingerprint: metadataMap.get(id)?.fingerprint,
-        retrieverMetadata: {
-          provider: "pgvector",
-          searchType: "hybrid",
-        },
-      }));
+      .sort((left, right) => right[1] - left[1])
+      .flatMap(([id, score]) => {
+        const candidate = candidateMap.get(id);
+
+        if (!candidate) {
+          return [];
+        }
+
+        return [
+          createIndexingRetrievalCandidate(candidate.chunk, {
+            score,
+            route: request.route,
+            strategy: request.strategy,
+            retrieverMetadata: {
+              provider: "pgvector",
+              searchType: "hybrid",
+            },
+          }),
+        ];
+      });
   }
 
-  #rowsToCandidates(rows: RetrievalRow[]): RetrievalCandidate[] {
+  #rowsToCandidates(
+    rows: RetrievalRow[],
+    request: RetrievalRequest,
+    searchType: "vector" | "keyword",
+  ): RetrievalCandidate[] {
     return rows.map((row) => {
       const metadata = row.metadata ?? {};
+      // content 列可能为空：写入侧只在 metadata.content 存在时尽力落原文
       const chunk: Chunk = {
         id: row.id,
         content:
@@ -215,15 +241,15 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
         metadata,
       };
 
-      return {
-        chunk,
+      return createIndexingRetrievalCandidate(chunk, {
         score: readScore(row.score),
-        sourceId: readStringMetadata(metadata, "sourceId"),
-        fingerprint: readStringMetadata(metadata, "fingerprint"),
+        route: request.route,
+        strategy: request.strategy,
         retrieverMetadata: {
           provider: "pgvector",
+          searchType,
         },
-      };
+      });
     });
   }
 
