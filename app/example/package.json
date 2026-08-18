@@ -5,11 +5,19 @@
   "type": "module",
   "scripts": {
     "build": "pnpm --filter @monai-ragsdk/adapters build && tsc -p tsconfig.json",
-    "start": "pnpm --filter @monai-ragsdk/adapters build && tsx src/index.ts"
+    "start": "pnpm --filter @monai-ragsdk/adapters build && tsx src/index.ts",
+    "start:list": "pnpm start list",
+    "start:basic": "pnpm start basic-stream",
+    "start:pre": "pnpm start pre-retrieval",
+    "start:post": "pnpm start post-retrieval",
+    "start:full": "pnpm start full-pipeline",
+    "start:observability": "pnpm start observability",
+    "start:all": "pnpm start all"
   },
   "dependencies": {
     "@monai-ragsdk/adapters": "workspace:*",
     "@monai-ragsdk/indexing": "workspace:*",
-    "@monai-ragsdk/runtime": "workspace:*"
+    "@monai-ragsdk/runtime": "workspace:*",
+    "@monai-ragsdk/observability": "workspace:*"
   }
 }
