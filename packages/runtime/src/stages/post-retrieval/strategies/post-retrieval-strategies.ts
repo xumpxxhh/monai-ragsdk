@@ -6,7 +6,7 @@ import type {
   RetrievalCandidate,
   RetrievalRequest,
   RuntimeContext,
-} from "../types/index.js";
+} from "../../../types/index.js";
 
 type CandidateDecision = {
   candidate: RetrievalCandidate;
@@ -640,4 +640,49 @@ export function mergeSelectionTrace(
   }
 
   return merged.size > 0 ? Array.from(merged.values()) : undefined;
+}
+
+export type LostInTheMiddleStrategyResult = CandidateOrderingStrategyResult;
+
+/**
+ * Lost in the Middle 重排：按 score 降序后交替放到首尾，高分居两端。
+ * 只重排不丢弃，便于缓解 LLM 对中间上下文的忽视。
+ */
+export function applyLostInTheMiddleStrategy(
+  candidates: RetrievalCandidate[],
+): LostInTheMiddleStrategyResult {
+  const sorted = [...candidates].sort(
+    (left, right) => (right.score ?? 0) - (left.score ?? 0),
+  );
+  const ordered: RetrievalCandidate[] = [];
+  let left = 0;
+  let right = sorted.length - 1;
+  let placeAtFront = true;
+
+  while (left <= right) {
+    const candidate = placeAtFront ? sorted[left]! : sorted[right]!;
+
+    ordered.push(candidate);
+
+    if (placeAtFront) {
+      left += 1;
+    } else {
+      right -= 1;
+    }
+
+    placeAtFront = !placeAtFront;
+  }
+
+  return {
+    candidates: ordered,
+    selectionTrace: ordered.map((candidate, order) => ({
+      candidate,
+      selected: true,
+      reason: "selected",
+      stage: "context-ordering",
+      score: candidate.score,
+      order,
+      metadata: { ordering: "lost-in-the-middle" },
+    })),
+  };
 }

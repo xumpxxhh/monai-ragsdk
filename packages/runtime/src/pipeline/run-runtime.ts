@@ -8,16 +8,24 @@ import type {
 
 import type {
   CreateRuntimeOptions,
+  PostRetrievalResult,
+  RetrievalRequest,
   Runtime,
   RuntimeContext,
   RuntimeDebugInfo,
+  RuntimeGenerationResult,
   RuntimeQueryInput,
   RuntimeResult,
+  RuntimeRetrievalResult,
   RuntimeRunOptions,
   RuntimeStage,
+  RuntimeStreamEvent,
 } from "../types/index.js";
 import { toRuntimeError } from "../errors/index.js";
+import { buildRuntimeCitations } from "./build-runtime-citations.js";
+import { iterateRuntimeGeneratorStream } from "../stages/generation/iterate-generation-stream.js";
 
+/** 单次 run / runStream 的可观测状态；事件与错误先入本地缓冲，再安全通知 observer。 */
 type RuntimeTraceState = {
   traceId: string;
   traceIdSource: TraceIdSource;
@@ -32,28 +40,48 @@ type RuntimeTraceState = {
   errors: RAGErrorRecord[];
 };
 
+/** run / runStream 共享的会话上下文，避免两套入口重复拼装 requestId / trace / timings。 */
+type RuntimeRunSession = {
+  observer: RAGObserver;
+  context: RuntimeContext;
+  trace: RuntimeTraceState;
+  timings: Partial<Record<RuntimeStage | "total", number>>;
+  originalQuery: { query: string };
+};
+
+/** 前三阶段（pre-retrieval → retrieval → post-retrieval）的共享产物。 */
+type PreGenerationStagesResult = {
+  request: RetrievalRequest;
+  retrievalResult: RuntimeRetrievalResult;
+  postResult: PostRetrievalResult;
+};
+
 const defaultObserver: RAGObserver = {};
 
-function measureStage<T>(
+/**
+ * 记录某一阶段耗时；用 finally 保证阶段失败时仍写入 timings，便于失败路径的 debug / 事件。
+ */
+async function withStageTiming<T>(
   timings: Partial<Record<RuntimeStage | "total", number>>,
   stage: RuntimeStage,
-  factory: () => Promise<T>,
+  run: () => Promise<T>,
 ): Promise<T> {
   const startedAt = Date.now();
 
-  return factory().finally(() => {
+  return run().finally(() => {
     timings[stage] = Date.now() - startedAt;
   });
 }
 
-function buildRequestId(
+/** 优先用调用方传入的 requestId；缺省时用 query + 时间戳，保证同进程内可区分。 */
+function resolveRequestId(
   input: RuntimeQueryInput,
   options: RuntimeRunOptions,
 ): string {
   return options.requestId ?? `runtime:${input.query}:${Date.now()}`;
 }
 
-function buildTraceState(
+function createTraceState(
   requestId: string,
   options: RuntimeRunOptions,
   startedAt: number,
@@ -61,6 +89,7 @@ function buildTraceState(
   const providedTraceId = options.trace?.traceId;
 
   return {
+    // 未显式给 traceId 时复用 requestId，方便把一次查询串到下游日志
     traceId: providedTraceId ?? requestId,
     traceIdSource: providedTraceId ? "provided" : "requestId",
     requestId,
@@ -71,7 +100,32 @@ function buildTraceState(
   };
 }
 
-async function notifyObserver(
+function createRunSession(
+  runtime: CreateRuntimeOptions,
+  input: RuntimeQueryInput,
+  options: RuntimeRunOptions,
+): RuntimeRunSession {
+  const startedAt = Date.now();
+  const requestId = resolveRequestId(input, options);
+
+  return {
+    observer: runtime.observer ?? defaultObserver,
+    context: {
+      requestId,
+      input,
+      options,
+      startedAt,
+    },
+    trace: createTraceState(requestId, options, startedAt),
+    timings: {},
+    originalQuery: { query: input.query },
+  };
+}
+
+/**
+ * 观测回调失败必须吞掉：observer 是旁路，不能拖垮主查询链路。
+ */
+async function invokeObserverSafely(
   callback: (() => void | Promise<void>) | undefined,
 ): Promise<void> {
   try {
@@ -93,7 +147,7 @@ async function emitEvent(
   };
 
   trace.events.push(resolvedEvent);
-  await notifyObserver(() => observer.onEvent?.(resolvedEvent));
+  await invokeObserverSafely(() => observer.onEvent?.(resolvedEvent));
 
   return resolvedEvent;
 }
@@ -110,12 +164,12 @@ async function emitError(
   };
 
   trace.errors.push(resolvedError);
-  await notifyObserver(() => observer.onError?.(resolvedError));
+  await invokeObserverSafely(() => observer.onError?.(resolvedError));
 
   return resolvedError;
 }
 
-async function endTrace(
+async function finalizeTrace(
   observer: RAGObserver,
   trace: RuntimeTraceState,
   status: "ok" | "error",
@@ -135,7 +189,7 @@ async function endTrace(
     ...(trace.errors.length > 0 ? { errors: [...trace.errors] } : {}),
   };
 
-  await notifyObserver(() => observer.onTraceEnd?.(payload));
+  await invokeObserverSafely(() => observer.onTraceEnd?.(payload));
 }
 
 function summarizeSelectionTrace(
@@ -154,22 +208,203 @@ function summarizeSelectionTrace(
   };
 }
 
-function buildDebugInfo(
-  request: ReturnType<
-    CreateRuntimeOptions["preprocessor"]["preprocess"]
-  > extends Promise<infer T>
-    ? T
-    : never,
-  retrievalResult: ReturnType<
-    CreateRuntimeOptions["retriever"]["retrieve"]
-  > extends Promise<infer T>
-    ? T
-    : never,
-  postResult: ReturnType<
-    CreateRuntimeOptions["postprocessor"]["postprocess"]
-  > extends Promise<infer T>
-    ? T
-    : never,
+/**
+ * 组装对外 RuntimeResult；citations 始终由 postResult.chunks 派生，保证 run / runStream 同构。
+ */
+function assembleRuntimeResult(input: {
+  generationResult: RuntimeGenerationResult;
+  postResult: PostRetrievalResult;
+  retrievalResult: RuntimeRetrievalResult;
+  request: RetrievalRequest;
+  debug?: RuntimeDebugInfo;
+}): RuntimeResult {
+  return {
+    answer: input.generationResult.answer,
+    chunks: input.postResult.chunks,
+    citations: buildRuntimeCitations(input.postResult),
+    originalQuery: input.request.originalQuery,
+    effectiveQuery: input.request.effectiveQuery,
+    retrievalMetadata: input.retrievalResult.retrievalMetadata,
+    postRetrievalMetadata: input.postResult.postRetrievalMetadata,
+    generationMetadata: input.generationResult.generationMetadata,
+    ...(input.debug ? { debug: input.debug } : {}),
+  };
+}
+
+/**
+ * 执行 generation 之前的三阶段；run() 与 runStream() 共用，避免两套检索语义分叉。
+ * 各阶段异常统一包装为带 stage 的 RuntimeError。
+ */
+async function runPreGenerationStages(
+  runtime: CreateRuntimeOptions,
+  session: RuntimeRunSession,
+): Promise<PreGenerationStagesResult> {
+  const { observer, context, trace, timings, originalQuery } = session;
+
+  const request = await withStageTiming(timings, "pre-retrieval", async () => {
+    try {
+      return await runtime.preprocessor.preprocess(context.input, context);
+    } catch (error) {
+      throw toRuntimeError(error, "pre-retrieval", originalQuery);
+    }
+  });
+
+  await emitEvent(observer, trace, {
+    stage: "query",
+    name: "runtime.query.preprocess",
+    timestamp: new Date().toISOString(),
+    durationMs: timings["pre-retrieval"],
+    attributes: {
+      requestId: context.requestId,
+      originalQuery: request.originalQuery.query,
+      effectiveQuery: request.effectiveQuery.query,
+      ...(request.route ? { route: request.route } : {}),
+      ...(request.rewriteReason
+        ? { rewriteReason: request.rewriteReason }
+        : {}),
+      ...(request.strategy ? { strategy: request.strategy } : {}),
+      ...(request.filters ? { filters: request.filters } : {}),
+    },
+  });
+
+  await emitEvent(observer, trace, {
+    stage: "retrieval",
+    name: "runtime.retrieval.start",
+    timestamp: new Date().toISOString(),
+    attributes: {
+      requestId: context.requestId,
+      effectiveQuery: request.effectiveQuery.query,
+    },
+  });
+
+  const retrievalResult = await withStageTiming(timings, "retrieval", async () => {
+    try {
+      return await runtime.retriever.retrieve(request, context);
+    } catch (error) {
+      throw toRuntimeError(
+        error,
+        "retrieval",
+        request.originalQuery,
+        request.effectiveQuery,
+      );
+    }
+  });
+
+  await emitEvent(observer, trace, {
+    stage: "retrieval",
+    name: "runtime.retrieval.complete",
+    timestamp: new Date().toISOString(),
+    durationMs: timings.retrieval,
+    attributes: {
+      requestId: context.requestId,
+      candidateCount: retrievalResult.candidates.length,
+      emptyRetrieval: retrievalResult.candidates.length === 0,
+      ...(request.filters ? { filters: request.filters } : {}),
+    },
+  });
+
+  await emitEvent(observer, trace, {
+    stage: "post_retrieval",
+    name: "runtime.post_retrieval.start",
+    timestamp: new Date().toISOString(),
+    attributes: {
+      requestId: context.requestId,
+      candidateCount: retrievalResult.candidates.length,
+    },
+  });
+
+  const postResult = await withStageTiming(timings, "post-retrieval", async () => {
+    try {
+      return await runtime.postprocessor.postprocess(
+        {
+          request,
+          candidates: retrievalResult.candidates,
+        },
+        context,
+      );
+    } catch (error) {
+      throw toRuntimeError(
+        error,
+        "post-retrieval",
+        request.originalQuery,
+        request.effectiveQuery,
+      );
+    }
+  });
+
+  await emitEvent(observer, trace, {
+    stage: "post_retrieval",
+    name: "runtime.post_retrieval.select",
+    timestamp: new Date().toISOString(),
+    durationMs: timings["post-retrieval"],
+    attributes: {
+      requestId: context.requestId,
+      inputCandidateCount: retrievalResult.candidates.length,
+      selected:
+        postResult.selectedCandidates?.length ?? postResult.chunks.length,
+      dropped:
+        postResult.droppedCandidates?.length ??
+        Math.max(
+          retrievalResult.candidates.length - postResult.chunks.length,
+          0,
+        ),
+      selectedChunkIds: postResult.chunks.map((chunk) => chunk.id),
+      ...(postResult.droppedCandidates
+        ? {
+            droppedChunkIds: postResult.droppedCandidates.map(
+              (candidate) => candidate.chunk.id,
+            ),
+          }
+        : {}),
+      ...(postResult.appliedScoreThreshold !== undefined
+        ? { appliedScoreThreshold: postResult.appliedScoreThreshold }
+        : {}),
+      ...(postResult.appliedBudget
+        ? { appliedBudget: postResult.appliedBudget }
+        : {}),
+      ...(summarizeSelectionTrace(postResult.selectionTrace)
+        ? {
+            selectionTraceSummary: summarizeSelectionTrace(
+              postResult.selectionTrace,
+            ),
+          }
+        : {}),
+    },
+  });
+
+  return {
+    request,
+    retrievalResult,
+    postResult,
+  };
+}
+
+/**
+ * 流式 generation 可能只给 complete、或只攒了 delta；统一成带非空 answer 的 GenerationResult。
+ * 空答案由调用方再判错，避免这里 silently 伪造内容。
+ */
+function normalizeStreamGenerationResult(
+  generationResult: RuntimeGenerationResult | undefined,
+  streamedAnswer: string,
+): RuntimeGenerationResult {
+  if (generationResult?.answer) {
+    return generationResult;
+  }
+
+  if (generationResult) {
+    return {
+      ...generationResult,
+      answer: streamedAnswer,
+    };
+  }
+
+  return { answer: streamedAnswer };
+}
+
+function createRuntimeDebugInfo(
+  request: RetrievalRequest,
+  retrievalResult: RuntimeRetrievalResult,
+  postResult: PostRetrievalResult,
   timings: Partial<Record<RuntimeStage | "total", number>>,
 ): RuntimeDebugInfo {
   const selectedCount =
@@ -190,6 +425,7 @@ function buildDebugInfo(
     selectedCount,
     droppedCount,
     finalChunkCount: postResult.chunks.length,
+    // postprocessor 未写回时回退 request 上的预算 / 阈值，便于对照「意图 vs 实际」
     appliedBudget: postResult.appliedBudget ?? request.budget,
     appliedScoreThreshold:
       postResult.appliedScoreThreshold ?? request.rerank?.minScore,
@@ -198,186 +434,97 @@ function buildDebugInfo(
   };
 }
 
+/**
+ * 失败路径收尾：先发 fail 事件与 error，再以 error status 结束 trace。
+ * 不吞掉原始异常，由调用方继续 throw。
+ */
+async function finalizeFailedRuntimeRun(
+  session: RuntimeRunSession,
+  error: unknown,
+): Promise<void> {
+  const { observer, trace, timings, context } = session;
+  const runtimeError =
+    error instanceof Error ? error : new Error(String(error));
+  const stage =
+    "stage" in runtimeError && typeof runtimeError.stage === "string"
+      ? runtimeError.stage
+      : "run";
+  const code =
+    "code" in runtimeError && typeof runtimeError.code === "string"
+      ? runtimeError.code
+      : undefined;
+
+  timings.total = Date.now() - context.startedAt;
+
+  await emitEvent(observer, trace, {
+    stage: "run",
+    name: "runtime.run.fail",
+    timestamp: new Date().toISOString(),
+    durationMs: timings.total,
+    attributes: {
+      requestId: context.requestId,
+      stage,
+      errorName: runtimeError.name,
+      errorMessage: runtimeError.message,
+      ...(code ? { errorCode: code } : {}),
+    },
+  });
+
+  await emitError(observer, trace, {
+    stage,
+    name: "runtime.run.fail",
+    timestamp: new Date().toISOString(),
+    error: {
+      name: runtimeError.name,
+      message: runtimeError.message,
+      ...(code ? { code } : {}),
+    },
+    attributes: {
+      requestId: context.requestId,
+    },
+  });
+
+  await finalizeTrace(observer, trace, "error");
+}
+
+/**
+ * 非流式一次跑完四阶段，返回与 runStream 最终 result 同构的 RuntimeResult。
+ * generation 始终走 generate()，不套用流式超时 / 重试语义。
+ */
 export async function runRuntime(
   runtime: CreateRuntimeOptions,
   input: RuntimeQueryInput,
   options: RuntimeRunOptions = {},
 ): Promise<RuntimeResult> {
-  const observer = runtime.observer ?? defaultObserver;
-  const startedAt = Date.now();
-  const requestId = buildRequestId(input, options);
-  const context: RuntimeContext = {
-    requestId,
-    input,
-    options,
-    startedAt,
-  };
-  const trace = buildTraceState(requestId, options, startedAt);
-  const timings: Partial<Record<RuntimeStage | "total", number>> = {};
-  const originalQuery = { query: input.query };
+  const session = createRunSession(runtime, input, options);
+  const { observer, context, trace, timings } = session;
 
   await emitEvent(observer, trace, {
     stage: "query",
     name: "runtime.query.receive",
     timestamp: new Date().toISOString(),
     attributes: {
-      requestId,
+      requestId: context.requestId,
       query: input.query,
       ...(options.trace?.tags ? { tags: options.trace.tags } : {}),
     },
   });
 
   try {
-    const request = await measureStage(timings, "pre-retrieval", async () => {
-      try {
-        return await runtime.preprocessor.preprocess(input, context);
-      } catch (error) {
-        throw toRuntimeError(error, "pre-retrieval", originalQuery);
-      }
-    });
-
-    await emitEvent(observer, trace, {
-      stage: "query",
-      name: "runtime.query.preprocess",
-      timestamp: new Date().toISOString(),
-      durationMs: timings["pre-retrieval"],
-      attributes: {
-        requestId,
-        originalQuery: request.originalQuery.query,
-        effectiveQuery: request.effectiveQuery.query,
-        ...(request.route ? { route: request.route } : {}),
-        ...(request.rewriteReason
-          ? { rewriteReason: request.rewriteReason }
-          : {}),
-        ...(request.strategy ? { strategy: request.strategy } : {}),
-        ...(request.filters ? { filters: request.filters } : {}),
-      },
-    });
-
-    await emitEvent(observer, trace, {
-      stage: "retrieval",
-      name: "runtime.retrieval.start",
-      timestamp: new Date().toISOString(),
-      attributes: {
-        requestId,
-        effectiveQuery: request.effectiveQuery.query,
-      },
-    });
-
-    const retrievalResult = await measureStage(
-      timings,
-      "retrieval",
-      async () => {
-        try {
-          return await runtime.retriever.retrieve(request, context);
-        } catch (error) {
-          throw toRuntimeError(
-            error,
-            "retrieval",
-            request.originalQuery,
-            request.effectiveQuery,
-          );
-        }
-      },
-    );
-
-    await emitEvent(observer, trace, {
-      stage: "retrieval",
-      name: "runtime.retrieval.complete",
-      timestamp: new Date().toISOString(),
-      durationMs: timings.retrieval,
-      attributes: {
-        requestId,
-        candidateCount: retrievalResult.candidates.length,
-        emptyRetrieval: retrievalResult.candidates.length === 0,
-        ...(request.filters ? { filters: request.filters } : {}),
-      },
-    });
-
-    await emitEvent(observer, trace, {
-      stage: "post_retrieval",
-      name: "runtime.post_retrieval.start",
-      timestamp: new Date().toISOString(),
-      attributes: {
-        requestId,
-        candidateCount: retrievalResult.candidates.length,
-      },
-    });
-
-    const postResult = await measureStage(
-      timings,
-      "post-retrieval",
-      async () => {
-        try {
-          return await runtime.postprocessor.postprocess(
-            {
-              request,
-              candidates: retrievalResult.candidates,
-            },
-            context,
-          );
-        } catch (error) {
-          throw toRuntimeError(
-            error,
-            "post-retrieval",
-            request.originalQuery,
-            request.effectiveQuery,
-          );
-        }
-      },
-    );
-
-    await emitEvent(observer, trace, {
-      stage: "post_retrieval",
-      name: "runtime.post_retrieval.select",
-      timestamp: new Date().toISOString(),
-      durationMs: timings["post-retrieval"],
-      attributes: {
-        requestId,
-        inputCandidateCount: retrievalResult.candidates.length,
-        selected:
-          postResult.selectedCandidates?.length ?? postResult.chunks.length,
-        dropped:
-          postResult.droppedCandidates?.length ??
-          Math.max(
-            retrievalResult.candidates.length - postResult.chunks.length,
-            0,
-          ),
-        selectedChunkIds: postResult.chunks.map((chunk) => chunk.id),
-        ...(postResult.droppedCandidates
-          ? {
-              droppedChunkIds: postResult.droppedCandidates.map(
-                (candidate) => candidate.chunk.id,
-              ),
-            }
-          : {}),
-        ...(postResult.appliedScoreThreshold !== undefined
-          ? { appliedScoreThreshold: postResult.appliedScoreThreshold }
-          : {}),
-        ...(postResult.appliedBudget
-          ? { appliedBudget: postResult.appliedBudget }
-          : {}),
-        ...(summarizeSelectionTrace(postResult.selectionTrace)
-          ? {
-              selectionTraceSummary: summarizeSelectionTrace(
-                postResult.selectionTrace,
-              ),
-            }
-          : {}),
-      },
-    });
+    const { request, retrievalResult, postResult } =
+      await runPreGenerationStages(runtime, session);
 
     await emitEvent(observer, trace, {
       stage: "generation",
       name: "runtime.generation.start",
       timestamp: new Date().toISOString(),
       attributes: {
-        requestId,
+        requestId: context.requestId,
         chunkCount: postResult.chunks.length,
       },
     });
 
-    const generationResult = await measureStage(
+    const generationResult = await withStageTiming(
       timings,
       "generation",
       async () => {
@@ -407,7 +554,7 @@ export async function runRuntime(
       timestamp: new Date().toISOString(),
       durationMs: timings.generation,
       attributes: {
-        requestId,
+        requestId: context.requestId,
         contextChunkIds: postResult.chunks.map((chunk) => chunk.id),
         contextLength: postResult.promptContext?.length ?? 0,
         answerPreview: generationResult.answer.slice(0, 200),
@@ -422,79 +569,188 @@ export async function runRuntime(
       timestamp: new Date().toISOString(),
       durationMs: timings.total,
       attributes: {
-        requestId,
+        requestId: context.requestId,
         finalChunkCount: postResult.chunks.length,
       },
     });
 
     const debug: RuntimeDebugInfo | undefined = options.includeDebug
-      ? buildDebugInfo(request, retrievalResult, postResult, timings)
+      ? createRuntimeDebugInfo(request, retrievalResult, postResult, timings)
       : undefined;
 
-    await endTrace(observer, trace, "ok");
+    await finalizeTrace(observer, trace, "ok");
 
-    return {
-      answer: generationResult.answer,
-      chunks: postResult.chunks,
-      originalQuery: request.originalQuery,
-      effectiveQuery: request.effectiveQuery,
-      retrievalMetadata: retrievalResult.retrievalMetadata,
-      postRetrievalMetadata: postResult.postRetrievalMetadata,
-      generationMetadata: generationResult.generationMetadata,
-      ...(debug ? { debug } : {}),
-    };
+    return assembleRuntimeResult({
+      generationResult,
+      postResult,
+      retrievalResult,
+      request,
+      debug,
+    });
   } catch (error) {
-    const runtimeError =
-      error instanceof Error ? error : new Error(String(error));
-    const stage =
-      "stage" in runtimeError && typeof runtimeError.stage === "string"
-        ? runtimeError.stage
-        : "run";
-    const code =
-      "code" in runtimeError && typeof runtimeError.code === "string"
-        ? runtimeError.code
-        : undefined;
+    await finalizeFailedRuntimeRun(session, error);
+    throw error;
+  }
+}
+
+/**
+ * 前三阶段与 run() 相同；generation 通过 generateStream（或回退 generate）向外推 delta。
+ * 调用方必须把 iterable 消费完才能拿到最终 result，并让 observer 正常收尾。
+ */
+export async function* runRuntimeStream(
+  runtime: CreateRuntimeOptions,
+  input: RuntimeQueryInput,
+  options: RuntimeRunOptions = {},
+): AsyncIterable<RuntimeStreamEvent> {
+  const session = createRunSession(runtime, input, options);
+  const { observer, context, trace, timings } = session;
+
+  await emitEvent(observer, trace, {
+    stage: "query",
+    name: "runtime.query.receive",
+    timestamp: new Date().toISOString(),
+    attributes: {
+      requestId: context.requestId,
+      query: input.query,
+      ...(options.trace?.tags ? { tags: options.trace.tags } : {}),
+    },
+  });
+
+  try {
+    const { request, retrievalResult, postResult } =
+      await runPreGenerationStages(runtime, session);
+
+    await emitEvent(observer, trace, {
+      stage: "generation",
+      name: "runtime.generation.start",
+      timestamp: new Date().toISOString(),
+      attributes: {
+        requestId: context.requestId,
+        chunkCount: postResult.chunks.length,
+      },
+    });
+
+    const generationStartedAt = Date.now();
+    let streamedAnswer = "";
+    let yieldedDelta = false;
+    let generationResult: RuntimeGenerationResult | undefined;
+
+    try {
+      for await (const event of iterateRuntimeGeneratorStream(
+        runtime.generator,
+        {
+          request,
+          chunks: postResult.chunks,
+          promptContext: postResult.promptContext,
+        },
+        context,
+      )) {
+        if (event.type === "delta" && event.text) {
+          streamedAnswer += event.text;
+          yieldedDelta = true;
+          yield {
+            type: "delta",
+            text: event.text,
+          };
+          continue;
+        }
+
+        if (event.type === "complete") {
+          generationResult = event.result;
+        }
+      }
+    } catch (error) {
+      throw toRuntimeError(
+        error,
+        "generation",
+        request.originalQuery,
+        request.effectiveQuery,
+      );
+    }
+
+    timings.generation = Date.now() - generationStartedAt;
+    generationResult = normalizeStreamGenerationResult(
+      generationResult,
+      streamedAnswer,
+    );
+
+    // 流式路径要求最终答案非空；与 run() 允许空字符串的历史行为刻意区分
+    if (!generationResult.answer.trim()) {
+      throw toRuntimeError(
+        new Error("runtime stream generation returned an empty answer"),
+        "generation",
+        request.originalQuery,
+        request.effectiveQuery,
+      );
+    }
+
+    // 只给了 complete、没有 delta 时补一次，调用方可以只订阅 delta
+    if (!yieldedDelta) {
+      yield {
+        type: "delta",
+        text: generationResult.answer,
+      };
+    }
+
+    await emitEvent(observer, trace, {
+      stage: "generation",
+      name: "runtime.generation.complete",
+      timestamp: new Date().toISOString(),
+      durationMs: timings.generation,
+      attributes: {
+        requestId: context.requestId,
+        contextChunkIds: postResult.chunks.map((chunk) => chunk.id),
+        contextLength: postResult.promptContext?.length ?? 0,
+        answerPreview: generationResult.answer.slice(0, 200),
+        streamed: true,
+      },
+    });
 
     timings.total = Date.now() - context.startedAt;
 
     await emitEvent(observer, trace, {
       stage: "run",
-      name: "runtime.run.fail",
+      name: "runtime.run.complete",
       timestamp: new Date().toISOString(),
       durationMs: timings.total,
       attributes: {
-        requestId,
-        stage,
-        errorName: runtimeError.name,
-        errorMessage: runtimeError.message,
-        ...(code ? { errorCode: code } : {}),
+        requestId: context.requestId,
+        finalChunkCount: postResult.chunks.length,
       },
     });
 
-    await emitError(observer, trace, {
-      stage,
-      name: "runtime.run.fail",
-      timestamp: new Date().toISOString(),
-      error: {
-        name: runtimeError.name,
-        message: runtimeError.message,
-        ...(code ? { code } : {}),
-      },
-      attributes: {
-        requestId,
-      },
-    });
+    const debug: RuntimeDebugInfo | undefined = options.includeDebug
+      ? createRuntimeDebugInfo(request, retrievalResult, postResult, timings)
+      : undefined;
 
-    await endTrace(observer, trace, "error");
+    await finalizeTrace(observer, trace, "ok");
 
+    yield {
+      type: "result",
+      result: assembleRuntimeResult({
+        generationResult,
+        postResult,
+        retrievalResult,
+        request,
+        debug,
+      }),
+    };
+  } catch (error) {
+    await finalizeFailedRuntimeRun(session, error);
     throw error;
   }
 }
 
+/**
+ * 把 CreateRuntimeOptions 收成 Runtime 门面；createRuntime() 的内部实现入口。
+ */
 export function createRunnableRuntime(runtime: CreateRuntimeOptions): Runtime {
   return {
     run(input, options) {
       return runRuntime(runtime, input, options);
+    },
+    runStream(input, options) {
+      return runRuntimeStream(runtime, input, options);
     },
   };
 }

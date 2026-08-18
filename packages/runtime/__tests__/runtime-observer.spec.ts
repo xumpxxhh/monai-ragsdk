@@ -53,6 +53,12 @@ describe("runtime observer integration", () => {
     await expect(runtime.run({ query: "hello" })).resolves.toMatchObject({
       answer: "answer",
       chunks: [{ id: "chunk-1", content: "retrieved content" }],
+      citations: [
+        {
+          index: 1,
+          chunkId: "chunk-1",
+        },
+      ],
       originalQuery: { query: "hello" },
       effectiveQuery: { query: "hello" },
     });

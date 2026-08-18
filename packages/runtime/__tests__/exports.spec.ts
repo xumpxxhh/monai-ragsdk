@@ -6,6 +6,7 @@ import type {
   RetrievalCandidate,
   RetrievalRequest,
   Runtime,
+  RuntimeCitation,
   RuntimeQueryInput,
   RuntimeResult,
   RuntimeRunOptions,
@@ -30,10 +31,28 @@ describe("runtime export surface", () => {
     expect(distExports.applySourceCoverageStrategy).toBeDefined();
     expect(distExports.applyScoreThresholdStrategy).toBeDefined();
     expect(distExports.applyBudgetTrimStrategy).toBeDefined();
+    expect(distExports.fuseByReciprocalRankFusion).toBeDefined();
+    expect(distExports.FanOutRetriever).toBeDefined();
+    expect(distExports.StrategyQueryPreprocessor).toBeDefined();
+    expect(distExports.StrategyRetrievalPostprocessor).toBeDefined();
+    expect(distExports.createLostInTheMiddleStrategy).toBeDefined();
+    expect(distExports.applyLostInTheMiddleStrategy).toBeDefined();
+    expect(distExports.createQueryRewriteStrategy).toBeDefined();
+    expect(distExports.createQueryExpansionStrategy).toBeDefined();
+    expect(distExports.createQueryDecompositionStrategy).toBeDefined();
+    expect(distExports.createMultiQueryStrategy).toBeDefined();
+    expect(distExports.createQueryRoutingStrategy).toBeDefined();
+    expect(distExports.createLlmRerankStrategy).toBeDefined();
+    expect(distExports.createContextCompressionStrategy).toBeDefined();
+    expect(distExports.parseRewrittenQuery).toBeDefined();
+    expect(distExports.parseQueryList).toBeDefined();
+    expect(distExports.RuntimeStrategyModel).toBeUndefined();
+    expect(typeof distExports.OpenAIStrategyModel).toBe("undefined");
     expect(distExports.createIndexingRetrievalFilters).toBeDefined();
     expect(distExports.createIndexingRetrievalCandidate).toBeDefined();
     expect(distExports.createRuntime).toBeDefined();
     expect(distExports.createDefaultRuntime).toBeDefined();
+    expect(distExports.buildRuntimeCitations).toBeDefined();
   });
 
   it("preserves the intended public types", () => {
@@ -50,6 +69,16 @@ describe("runtime export surface", () => {
       requestId?: string;
     }>();
     expectTypeOf<RuntimeResult>().toHaveProperty("answer");
+    expectTypeOf<RuntimeResult>().toHaveProperty("citations");
+    expectTypeOf<RuntimeCitation>().toMatchObjectType<{
+      index: number;
+      chunkId: string;
+      sourceId?: string;
+      score?: number;
+      title?: string;
+      hierarchyPath?: string;
+    }>();
     expectTypeOf<Runtime>().toHaveProperty("run");
+    expectTypeOf<Runtime>().toHaveProperty("runStream");
   });
 });

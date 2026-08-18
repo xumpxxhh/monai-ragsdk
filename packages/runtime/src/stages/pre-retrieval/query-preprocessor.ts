@@ -2,7 +2,7 @@ import type {
   RetrievalRequest,
   RuntimeContext,
   RuntimeQueryInput,
-} from "../types/index.js";
+} from "../../types/index.js";
 
 export interface QueryPreprocessor {
   preprocess(

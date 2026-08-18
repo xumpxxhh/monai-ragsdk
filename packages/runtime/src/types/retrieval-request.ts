@@ -7,6 +7,8 @@ import type { RetrievalRerankPolicy } from "./retrieval-rerank-policy.js";
 export type RetrievalRequest = {
   originalQuery: Query;
   effectiveQuery: Query;
+  /** 由 expansion / decomposition / multi-query 等 pre-retrieval 策略产出；retrieval 阶段 fan-out 消费。 */
+  subQueries?: Query[];
   topK?: number;
   filters?: RetrievalFilters;
   strategy?: string;

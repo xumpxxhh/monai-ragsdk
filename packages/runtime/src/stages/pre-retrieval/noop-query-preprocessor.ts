@@ -1,4 +1,4 @@
-import type { QueryPreprocessor } from "../interfaces/query-preprocessor.js";
+import type { QueryPreprocessor } from "./query-preprocessor.js";
 import type {
   RetrievalBudget,
   RetrievalFilters,
@@ -6,7 +6,7 @@ import type {
   RetrievalRequest,
   RuntimeContext,
   RuntimeQueryInput,
-} from "../types/index.js";
+} from "../../types/index.js";
 
 export type NoopQueryPreprocessorOptions = {
   topK?: number;

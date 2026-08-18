@@ -2,7 +2,7 @@ import type {
   RetrievalRequest,
   RuntimeContext,
   RuntimeRetrievalResult,
-} from "../types/index.js";
+} from "../../types/index.js";
 
 export interface RuntimeRetriever {
   retrieve(

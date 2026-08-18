@@ -1,9 +1,9 @@
 import type { RAGObserver } from "@monai-ragsdk/observability";
 
-import type { QueryPreprocessor } from "../interfaces/query-preprocessor.js";
-import type { RetrievalPostprocessor } from "../interfaces/retrieval-postprocessor.js";
-import type { RuntimeGenerator } from "../interfaces/runtime-generator.js";
-import type { RuntimeRetriever } from "../interfaces/runtime-retriever.js";
+import type { QueryPreprocessor } from "../stages/pre-retrieval/query-preprocessor.js";
+import type { RetrievalPostprocessor } from "../stages/post-retrieval/retrieval-postprocessor.js";
+import type { RuntimeGenerator } from "../stages/generation/runtime-generator.js";
+import type { RuntimeRetriever } from "../stages/retrieval/runtime-retriever.js";
 
 export type CreateRuntimeOptions = {
   preprocessor: QueryPreprocessor;

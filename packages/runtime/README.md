@@ -14,33 +14,38 @@
 
 - `src/`：源码目录，仅允许放置 `.ts` 源码。
 - `src/index.ts`：源码入口文件。
-- `src/types/`：运行时输入输出、阶段结果与上下文类型。
-- `src/interfaces/`：四阶段核心接口。
+- `src/types/`：跨阶段共享契约（输入输出、上下文、`RuntimeStrategyModel`）。
+- `src/stages/`：按 pipeline 阶段组织的 interface、默认件与策略件。
+  - `pre-retrieval/`、`retrieval/`、`post-retrieval/`、`generation/`
 - `src/errors/`：运行时错误边界。
-- `src/pipeline/`：`createRuntime()` 与 `runtime.run()` 的主流程实现。
-- `src/defaults/`：最小默认件实现。
-- `demo/`：最小可运行示例。
+- `src/pipeline/`：`createRuntime()`、`createDefaultRuntime()` 与 `run()` / `runStream()` 主流程。
+- `src/indexing/`：indexing 查询协议 helper。
+- `demo/`：最小可运行示例（含 `strategy-pipeline.ts`）。
 - `__tests__/`：最小单元测试。
 - `dist/`：构建产物输出目录，仅在执行构建后生成。
 
 ## 当前状态
 
-当前已完成 runtime MVP 第一版最小实现，覆盖：
+当前已完成 runtime MVP 与 pipeline 策略框架，覆盖：
 
 - 四阶段类型与接口
-- `createRuntime()` 与 `runtime.run()`
+- `createRuntime()` 与 `runtime.run()` / `runtime.runStream()`
 - `NoopQueryPreprocessor`
-- `PassthroughRetrievalPostprocessor`
+- `PassthroughRetrievalPostprocessor`（内部委托可组合策略链）
 - `createDefaultPostprocessor()`
-- 轻量 post-retrieval 策略件：score threshold、predicate filtering、near-duplicate removal、budget trim、source coverage、context ordering
+- 可组合策略框架：`StrategyQueryPreprocessor`、`StrategyRetrievalPostprocessor`、`FanOutRetriever`、`fuseByReciprocalRankFusion`
+- pre-retrieval LLM 策略：`createQueryRewriteStrategy`、`createQueryExpansionStrategy`、`createQueryDecompositionStrategy`、`createMultiQueryStrategy`
+- 轻量 post-retrieval 策略件：score threshold、predicate filtering、near-duplicate removal、budget trim、source coverage、context ordering、Lost in the Middle
+- `RuntimeStrategyModel` 契约
 - `RuntimeError`
 - 最小 demo 与 unit test
+- 流式输出：`runtime.runStream()`；无 `generateStream` 时回退为一次完整 `generate()`
+- citation / grounding：`RuntimeResult.citations` 按进入 generation 的 chunks 生成；`run()` 与 `runStream()` 同构
 
 当前仍未覆盖：
 
 - `runtime` 包内不提供第三方默认 retriever / generator 适配；当前 LangChain 查询期适配已放在 `@monai-ragsdk/adapters`
-- 流式输出
-- 更复杂的 rerank / trim / hooks
+- Query Routing、真实 rerank、context compression、Active RAG 循环
 - 更完整的 integration / smoke 覆盖
 
 当前根目录已覆盖的跨包验证：
@@ -59,15 +64,17 @@
 当前 `src/index.ts` 统一导出以下分层：
 
 - `types/*`
-- `interfaces/*`
 - `errors/*`
-- `defaults/*`
+- `stages/*`
+- `indexing/*`
 - `pipeline/*`
 
 最常用的公开 API：
 
 - `createRuntime()`
 - `createDefaultRuntime()`
+- `runtime.run()` / `runtime.runStream()`
+- `buildRuntimeCitations()`
 - `createDefaultPostprocessor()`
 - `applyScoreThresholdStrategy()`
 - `applyCandidatePredicateStrategy()`
@@ -114,6 +121,12 @@ const runtime = createDefaultRuntime({
 });
 
 const result = await runtime.run({ query: "Explain runtime" });
+
+for await (const event of runtime.runStream({ query: "Explain runtime" })) {
+  if (event.type === "delta") {
+    process.stdout.write(event.text);
+  }
+}
 ```
 
 默认行为：

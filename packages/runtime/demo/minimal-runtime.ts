@@ -74,6 +74,28 @@ const runtime = createDefaultRuntime({
         },
       };
     },
+    async *generateStream({ request, chunks, promptContext }) {
+      const result = {
+        answer: `${request.effectiveQuery.query} -> ${chunks.map((chunk) => chunk.id).join(",")}`,
+        generationMetadata: {
+          provider: "demo",
+          promptContextLength: promptContext?.length ?? 0,
+          streamed: true,
+        },
+      };
+
+      for (const [index, part] of result.answer.split(" ").entries()) {
+        yield {
+          type: "delta" as const,
+          text: index === 0 ? part : ` ${part}`,
+        };
+      }
+
+      yield {
+        type: "complete" as const,
+        result,
+      };
+    },
   },
 });
 
@@ -81,6 +103,14 @@ const result = await runtime.run(
   { query: "Explain runtime MVP" },
   { includeDebug: true },
 );
+
+process.stdout.write("stream: ");
+for await (const event of runtime.runStream({ query: "Explain runtime MVP" })) {
+  if (event.type === "delta") {
+    process.stdout.write(event.text);
+  }
+}
+process.stdout.write("\n");
 
 console.log("runtime minimal demo passed");
 console.log(result);

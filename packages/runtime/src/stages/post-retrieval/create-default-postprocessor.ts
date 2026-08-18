@@ -1,4 +1,4 @@
-import type { RetrievalPostprocessor } from "../interfaces/retrieval-postprocessor.js";
+import type { RetrievalPostprocessor } from "./retrieval-postprocessor.js";
 
 import {
   PassthroughRetrievalPostprocessor,

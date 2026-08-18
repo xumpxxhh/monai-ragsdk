@@ -1,13 +1,13 @@
-import type { QueryPreprocessor } from "../interfaces/query-preprocessor.js";
-import type { RetrievalPostprocessor } from "../interfaces/retrieval-postprocessor.js";
-import type { RuntimeGenerator } from "../interfaces/runtime-generator.js";
-import type { RuntimeRetriever } from "../interfaces/runtime-retriever.js";
+import type { QueryPreprocessor } from "../stages/pre-retrieval/query-preprocessor.js";
+import type { RetrievalPostprocessor } from "../stages/post-retrieval/retrieval-postprocessor.js";
+import type { RuntimeGenerator } from "../stages/generation/runtime-generator.js";
+import type { RuntimeRetriever } from "../stages/retrieval/runtime-retriever.js";
 import type { RAGObserver } from "@monai-ragsdk/observability";
 import type { Runtime } from "../types/index.js";
 
-import { createRuntime } from "../pipeline/create-runtime.js";
-import { NoopQueryPreprocessor } from "./noop-query-preprocessor.js";
-import { PassthroughRetrievalPostprocessor } from "./passthrough-retrieval-postprocessor.js";
+import { createRuntime } from "./create-runtime.js";
+import { NoopQueryPreprocessor } from "../stages/pre-retrieval/noop-query-preprocessor.js";
+import { PassthroughRetrievalPostprocessor } from "../stages/post-retrieval/passthrough-retrieval-postprocessor.js";
 
 export type CreateDefaultRuntimeOptions = {
   retriever: RuntimeRetriever;

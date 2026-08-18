@@ -167,6 +167,11 @@ export function assertRuntimeAdaptersQueryScenario(
   assert.equal(result.effectiveQuery.query, "Explain runtime adapters");
   assert.equal(result.chunks.length, 1);
   assert.equal(result.chunks[0]?.id, "chunk-runtime-api");
+  assert.equal(result.citations.length, 1);
+  assert.equal(result.citations[0]?.index, 1);
+  assert.equal(result.citations[0]?.chunkId, "chunk-runtime-api");
+  assert.equal(result.citations[0]?.sourceId, "docs/runtime");
+  assert.equal(result.citations[0]?.score, 0.95);
   assert.equal(result.generationMetadata?.provider, "integration-smoke-demo");
 
   assert.equal(model.lastMessages?.length, 2);

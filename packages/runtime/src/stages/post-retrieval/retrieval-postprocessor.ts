@@ -3,7 +3,7 @@ import type {
   RetrievalCandidate,
   RetrievalRequest,
   RuntimeContext,
-} from "../types/index.js";
+} from "../../types/index.js";
 
 export interface RetrievalPostprocessor {
   postprocess(
