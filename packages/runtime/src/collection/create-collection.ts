@@ -1,4 +1,4 @@
-import type { JsonValue, Document, Chunk, Query } from "@monai-ragsdk/core";
+import type { Document } from "@monai-ragsdk/core";
 import type {
   IndexingMode,
   IndexingOptions,
@@ -10,8 +10,7 @@ import type {
   RuntimeRunOptions,
   RuntimeQueryInput,
   RuntimeResult,
-  RuntimeCitation,
-  RuntimeDebugInfo,
+  RuntimeSearchResult,
   Runtime,
 } from "../types/index.js";
 import type { VectorStoreDeleteFilter, VectorStoreSourceRecord } from "@monai-ragsdk/indexing";
@@ -20,7 +19,7 @@ import type { VectorStoreDeleteFilter, VectorStoreSourceRecord } from "@monai-ra
  * Collection（知识库门面）MVP。
  *
  * 设计目标：
- * - 仅做编排：把离线索引（`indexing.runIndexing`）与在线查询（`runtime.run`）串起来；
+ * - 仅做编排：把离线索引（`indexing.runIndexing`）与在线查询（`runtime.run` / `runtime.search`）串起来；
  * - 不在 runtime 包内部实现完整文档生命周期（阶段 3 的范围约束）。
  *
  * 不做的事：
@@ -73,24 +72,17 @@ export function createCollection(options: {
     },
 
     /**
-     * 检索（search）：复用 runtime 的 retrieval + generation 全链路，但对外只返回 grounding 结果。
+     * 检索（search）：retrieve-only，复用 runtime 前三阶段，不调用 generator。
      *
-     * 注意：当前 runtime 的契约是 `run()` 返回 answer + chunks/citations。
-     * 阶段 3 MVP 不额外提供 “只检索不生成”的新 runtime 能力；此处仅裁剪输出形状。
+     * 与 ask() 的边界：
+     * - search 停在 post-retrieval，返回 grounding / 审计检索字段，没有 answer；
+     * - 避免先跑完整 run() 再裁掉答案，否则会白白消耗 LLM，也让失败语义绑在 generation 上。
      */
     async search(
       input: RuntimeQueryInput,
       runtimeOptions?: RuntimeRunOptions,
     ): Promise<CollectionSearchResult> {
-      const result = await runtime.run(input, runtimeOptions);
-
-      return {
-        chunks: result.chunks,
-        citations: result.citations,
-        retrievalMetadata: result.retrievalMetadata,
-        effectiveQuery: result.effectiveQuery,
-        debug: result.debug,
-      };
+      return runtime.search(input, runtimeOptions);
     },
 
     /**
@@ -163,11 +155,5 @@ export function createCollection(options: {
   };
 }
 
-export type CollectionSearchResult = {
-  chunks: Chunk[];
-  citations: RuntimeCitation[];
-  retrievalMetadata?: Record<string, JsonValue>;
-  effectiveQuery: Query;
-  debug?: RuntimeDebugInfo;
-};
+export type CollectionSearchResult = RuntimeSearchResult;
 

@@ -70,6 +70,81 @@ describe("runtime pipeline", () => {
     });
   });
 
+  it("search runs retrieve-only and never calls the generator", async () => {
+    let generateCalls = 0;
+    const observerEvents: string[] = [];
+
+    const runtime = createDefaultRuntime({
+      observer: {
+        onEvent(event) {
+          observerEvents.push(event.name);
+        },
+      },
+      retriever: {
+        async retrieve(request) {
+          return {
+            candidates: [
+              {
+                chunk: {
+                  id: "chunk-1",
+                  content: `retrieved for: ${request.effectiveQuery.query}`,
+                },
+                score: 0.95,
+              },
+            ],
+            retrievalMetadata: {
+              provider: "unit-test",
+            },
+          };
+        },
+      },
+      generator: {
+        async generate() {
+          generateCalls += 1;
+          throw new Error("search must not call generate()");
+        },
+      },
+    });
+
+    const result = await runtime.search(
+      { query: "Explain runtime contract" },
+      { includeDebug: true },
+    );
+
+    expect(generateCalls).toBe(0);
+    expect(result).not.toHaveProperty("answer");
+    expect(result).not.toHaveProperty("streamed");
+    expect(result).not.toHaveProperty("generationMetadata");
+    expect(result.chunks).toEqual([
+      {
+        id: "chunk-1",
+        content: "retrieved for: Explain runtime contract",
+      },
+    ]);
+    expect(result.citations).toEqual([
+      {
+        index: 1,
+        chunkId: "chunk-1",
+        score: 0.95,
+      },
+    ]);
+    expect(result.originalQuery).toEqual({ query: "Explain runtime contract" });
+    expect(result.effectiveQuery).toEqual({
+      query: "Explain runtime contract",
+    });
+    expect(result.retrievalMetadata).toEqual({ provider: "unit-test" });
+    expect(result.counts).toEqual({
+      retrieved: 1,
+      selected: 1,
+      dropped: 0,
+      finalChunks: 1,
+    });
+    expect(result.timings).not.toHaveProperty("generation");
+    expect(result.debug?.finalChunkCount).toBe(1);
+    expect(observerEvents).not.toContain("runtime.generation.start");
+    expect(observerEvents).toContain("runtime.search.complete");
+  });
+
   it("returns debug info when includeDebug is enabled", async () => {
     const runtime = createRuntime({
       preprocessor: {

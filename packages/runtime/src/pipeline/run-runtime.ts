@@ -18,11 +18,12 @@ import type {
   RuntimeResult,
   RuntimeRetrievalResult,
   RuntimeRunOptions,
+  RuntimeSearchResult,
   RuntimeStage,
   RuntimeStreamEvent,
 } from "../types/index.js";
 import { toRuntimeError } from "../errors/index.js";
-import { assembleRuntimeResult } from "./assemble-runtime-result.js";
+import { assembleRuntimeResult, assembleRuntimeSearchResult } from "./assemble-runtime-result.js";
 import { iterateRuntimeGeneratorStream } from "../stages/generation/iterate-generation-stream.js";
 
 /** 单次 run / runStream 的可观测状态；事件与错误先入本地缓冲，再安全通知 observer。 */
@@ -209,7 +210,7 @@ function summarizeSelectionTrace(
 }
 
 /**
- * 执行 generation 之前的三阶段；run() 与 runStream() 共用，避免两套检索语义分叉。
+ * 执行 generation 之前的三阶段；run() / runStream() / search() 共用，避免检索语义分叉。
  * 各阶段异常统一包装为带 stage 的 RuntimeError。
  */
 async function runPreGenerationStages(
@@ -414,10 +415,12 @@ function createRuntimeDebugInfo(
 /**
  * 失败路径收尾：先发 fail 事件与 error，再以 error status 结束 trace。
  * 不吞掉原始异常，由调用方继续 throw。
+ * search 与 run 共用收尾，仅事件名不同，避免 retrieve-only 被记成一次完整 run。
  */
 async function finalizeFailedRuntimeRun(
   session: RuntimeRunSession,
   error: unknown,
+  eventName: "runtime.run.fail" | "runtime.search.fail" = "runtime.run.fail",
 ): Promise<void> {
   const { observer, trace, timings, context } = session;
   const runtimeError =
@@ -435,7 +438,7 @@ async function finalizeFailedRuntimeRun(
 
   await emitEvent(observer, trace, {
     stage: "run",
-    name: "runtime.run.fail",
+    name: eventName,
     timestamp: Date.now(),
     durationMs: timings.total,
     attributes: {
@@ -449,7 +452,7 @@ async function finalizeFailedRuntimeRun(
 
   await emitError(observer, trace, {
     stage,
-    name: "runtime.run.fail",
+    name: eventName,
     timestamp: Date.now(),
     error: {
       name: runtimeError.name,
@@ -729,12 +732,78 @@ export async function* runRuntimeStream(
 }
 
 /**
+ * retrieve-only：复用前三阶段，不进入 generation。
+ * Collection.search() 与 runtime.search() 共用，避免门面再走一遍 run() 再丢掉 answer。
+ */
+export async function runRuntimeSearch(
+  runtime: CreateRuntimeOptions,
+  input: RuntimeQueryInput,
+  options: RuntimeRunOptions = {},
+): Promise<RuntimeSearchResult> {
+  const session = createRunSession(runtime, input, options);
+  const { observer, context, trace, timings } = session;
+
+  await emitEvent(observer, trace, {
+    stage: "query",
+    name: "runtime.query.receive",
+    timestamp: Date.now(),
+    attributes: {
+      requestId: context.requestId,
+      query: input.query,
+      ...(options.trace?.tags ? { tags: options.trace.tags } : {}),
+    },
+  });
+
+  try {
+    const { request, retrievalResult, postResult } =
+      await runPreGenerationStages(runtime, session);
+
+    timings.total = Date.now() - context.startedAt;
+
+    await emitEvent(observer, trace, {
+      stage: "run",
+      name: "runtime.search.complete",
+      timestamp: Date.now(),
+      durationMs: timings.total,
+      attributes: {
+        requestId: context.requestId,
+        finalChunkCount: postResult.chunks.length,
+        retrieveOnly: true,
+      },
+    });
+
+    const debug: RuntimeDebugInfo | undefined = options.includeDebug
+      ? createRuntimeDebugInfo(request, retrievalResult, postResult, timings)
+      : undefined;
+
+    await finalizeTrace(observer, trace, "ok");
+
+    return assembleRuntimeSearchResult({
+      postResult,
+      retrievalResult,
+      request,
+      requestId: context.requestId,
+      traceId: trace.traceId,
+      startedAt: context.startedAt,
+      timings,
+      debug,
+    });
+  } catch (error) {
+    await finalizeFailedRuntimeRun(session, error, "runtime.search.fail");
+    throw error;
+  }
+}
+
+/**
  * 把 CreateRuntimeOptions 收成 Runtime 门面；createRuntime() 的内部实现入口。
  */
 export function createRunnableRuntime(runtime: CreateRuntimeOptions): Runtime {
   return {
     run(input, options) {
       return runRuntime(runtime, input, options);
+    },
+    search(input, options) {
+      return runRuntimeSearch(runtime, input, options);
     },
     runStream(input, options) {
       return runRuntimeStream(runtime, input, options);

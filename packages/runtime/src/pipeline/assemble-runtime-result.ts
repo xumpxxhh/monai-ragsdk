@@ -9,7 +9,6 @@ import type {
   RAGSelectionTraceEntry,
   RAGStageStrategies,
   RAGTimings,
-  RAGResponse,
 } from "@monai-ragsdk/core";
 
 import type { PostRetrievalResult } from "../types/post-retrieval-result.js";
@@ -22,6 +21,7 @@ import type { RetrievalRerankPolicy } from "../types/retrieval-rerank-policy.js"
 import type { RuntimeDebugInfo } from "../types/runtime-debug-info.js";
 import type { RuntimeGenerationResult } from "../types/runtime-generation-result.js";
 import type { RuntimeResult } from "../types/runtime-result.js";
+import type { RuntimeSearchResult } from "../types/runtime-search-result.js";
 import type { RuntimeRetrievalResult } from "../types/runtime-retrieval-result.js";
 import type { RuntimeStage } from "../types/runtime-stage.js";
 import { buildRuntimeCitations } from "./build-runtime-citations.js";
@@ -280,8 +280,7 @@ function readGenerationModel(
   return readJsonString(generationMetadata?.model);
 }
 
-export type AssembleRuntimeResultInput = {
-  generationResult: RuntimeGenerationResult;
+export type AssembleRetrievalSnapshotInput = {
   postResult: PostRetrievalResult;
   retrievalResult: RuntimeRetrievalResult;
   request: RetrievalRequest;
@@ -289,17 +288,21 @@ export type AssembleRuntimeResultInput = {
   traceId: string;
   startedAt: number;
   timings: Partial<Record<RuntimeStage | "total", number>>;
-  streamed: boolean;
   debug?: RuntimeDebugInfo;
 };
 
+export type AssembleRuntimeResultInput = AssembleRetrievalSnapshotInput & {
+  generationResult: RuntimeGenerationResult;
+  streamed: boolean;
+};
+
 /**
- * 把四阶段产物收成对外 RuntimeResult。
- * 审计具名字段始终写入（不依赖 includeDebug）；debug 仍只在调用方显式打开时附带完整过程对象。
+ * 组装检索侧审计快照（不含 answer / streamed / generation 元数据）。
+ * search() 直接对外返回；run() / runStream() 再补 generation 字段。
  */
-export function assembleRuntimeResult(
-  input: AssembleRuntimeResultInput,
-): RuntimeResult {
+export function assembleRuntimeSearchResult(
+  input: AssembleRetrievalSnapshotInput,
+): RuntimeSearchResult {
   const citations: RAGCitation[] = buildRuntimeCitations(input.postResult);
   const counts = toAuditCounts(input.retrievalResult, input.postResult);
   const droppedChunkIds = input.postResult.droppedCandidates?.map(
@@ -322,11 +325,7 @@ export function assembleRuntimeResult(
   );
   const rerank = toAuditRerank(input.request.rerank);
   const timings = toAuditTimings(input.timings);
-  const generationModel = readGenerationModel(
-    input.generationResult.generationMetadata,
-  );
-  const snapshot: Omit<RAGResponse, "debug"> = {
-    answer: input.generationResult.answer,
+  const snapshot: Omit<RuntimeSearchResult, "debug"> = {
     chunks: input.postResult.chunks,
     citations,
     originalQuery: input.request.originalQuery,
@@ -338,7 +337,6 @@ export function assembleRuntimeResult(
     endedAt: Date.now(),
     counts,
     retrievedCandidates: toRetrievedCandidates(input.retrievalResult.candidates),
-    streamed: input.streamed,
     ...(input.request.subQueries && input.request.subQueries.length > 0
       ? { subQueries: input.request.subQueries }
       : {}),
@@ -374,7 +372,6 @@ export function assembleRuntimeResult(
         }
       : {}),
     ...(timings ? { timings } : {}),
-    ...(generationModel ? { generationModel } : {}),
     ...(input.postResult.promptContext
       ? { promptContext: input.postResult.promptContext }
       : {}),
@@ -384,13 +381,33 @@ export function assembleRuntimeResult(
     ...(input.postResult.postRetrievalMetadata
       ? { postRetrievalMetadata: input.postResult.postRetrievalMetadata }
       : {}),
-    ...(input.generationResult.generationMetadata
-      ? { generationMetadata: input.generationResult.generationMetadata }
-      : {}),
   };
 
   return {
     ...snapshot,
     ...(input.debug ? { debug: input.debug } : {}),
+  };
+}
+
+/**
+ * 把四阶段产物收成对外 RuntimeResult。
+ * 审计具名字段始终写入（不依赖 includeDebug）；debug 仍只在调用方显式打开时附带完整过程对象。
+ */
+export function assembleRuntimeResult(
+  input: AssembleRuntimeResultInput,
+): RuntimeResult {
+  const snapshot = assembleRuntimeSearchResult(input);
+  const generationModel = readGenerationModel(
+    input.generationResult.generationMetadata,
+  );
+
+  return {
+    ...snapshot,
+    answer: input.generationResult.answer,
+    streamed: input.streamed,
+    ...(generationModel ? { generationModel } : {}),
+    ...(input.generationResult.generationMetadata
+      ? { generationMetadata: input.generationResult.generationMetadata }
+      : {}),
   };
 }

@@ -19,8 +19,9 @@
   - `pre-retrieval/`、`retrieval/`、`post-retrieval/`、`generation/`
 - `src/errors/`：运行时错误边界。
 - `src/pipeline/`：`createRuntime()`、`createDefaultRuntime()` 与 `run()` / `runStream()` 主流程。
+- `src/collection/`：阶段 3 知识库门面 MVP（`createCollection`）。
 - `src/indexing/`：indexing 查询协议 helper。
-- `demo/`：最小可运行示例（含 `strategy-pipeline.ts`）。
+- `demo/`：最小可运行示例（含 `strategy-pipeline.ts`、`collection-demo.ts`）。
 - `__tests__/`：最小单元测试。
 - `dist/`：构建产物输出目录，仅在执行构建后生成。
 
@@ -29,7 +30,7 @@
 当前已完成 runtime MVP 与 pipeline 策略框架，覆盖：
 
 - 四阶段类型与接口
-- `createRuntime()` 与 `runtime.run()` / `runtime.runStream()`
+- `createRuntime()` 与 `runtime.run()` / `runtime.runStream()` / `runtime.search()`
 - `NoopQueryPreprocessor`
 - `PassthroughRetrievalPostprocessor`（内部委托可组合策略链）
 - `createDefaultPostprocessor()`
@@ -40,13 +41,14 @@
 - `RuntimeError`
 - 最小 demo 与 unit test
 - 流式输出：`runtime.runStream()`；无 `generateStream` 时回退为一次完整 `generate()`
-- citation / grounding：`RuntimeResult.citations` 按进入 generation 的 chunks 生成；`run()` 与 `runStream()` 同构
+- citation / grounding：`RuntimeResult.citations` 按 post-retrieval 选出的 chunks 生成；`run()` 与 `runStream()` 同构；`search()` 共用同一套 citations，但不进入 generation
 - 全流程审计快照：`run()` / `runStream()` 始终写入 core `RAGResponse` 具名字段（counts / filters / budget / retrievedCandidates / timings / traceId 等）；`includeDebug` 仍只控制是否附带完整 `debug` 过程对象
+- 知识库门面 MVP：`createCollection()`，编排 `ingest` / `search` / `ask`；`search()` 走 retrieve-only（`runtime.search()`，不调用 generator）；store 支持时提供 `listSources` / `deleteByFilters` / `close`。用法见 `docs/runtime/collection-api-usage-guide.md`
 
 当前仍未覆盖：
 
 - `runtime` 包内不提供第三方默认 retriever / generator 适配；当前 LangChain 查询期适配已放在 `@monai-ragsdk/adapters`
-- Query Routing、真实 rerank、context compression、Active RAG 循环
+- Active RAG 循环
 - 更完整的 integration / smoke 覆盖
 
 当前根目录已覆盖的跨包验证：
@@ -74,7 +76,7 @@
 
 - `createRuntime()`
 - `createDefaultRuntime()`
-- `runtime.run()` / `runtime.runStream()`
+- `runtime.run()` / `runtime.search()` / `runtime.runStream()`
 - `buildRuntimeCitations()`
 - `createDefaultPostprocessor()`
 - `applyScoreThresholdStrategy()`
@@ -128,6 +130,8 @@ for await (const event of runtime.runStream({ query: "Explain runtime" })) {
     process.stdout.write(event.text);
   }
 }
+
+const hits = await runtime.search({ query: "Explain runtime" });
 ```
 
 默认行为：
@@ -189,14 +193,17 @@ const runtime = createDefaultRuntime({
 - `RetrievalRequest`
 - `RetrievalCandidate`
 - `RuntimeResult`
+- `RuntimeSearchResult`（retrieve-only，无 `answer`）
+- `RuntimeCitation`（与 core `RAGCitation` 同构）
 - `RuntimeRunOptions`
 
 ### 3. 调试与错误
 
-- `runtime.run(input, { includeDebug: true })` 会返回 `debug`
+- `runtime.run(input, { includeDebug: true })` 会额外返回完整过程 `debug`；审计具名字段始终在 `RuntimeResult` 上，不依赖该开关
+- 落盘请去掉 `debug` 后用 `RAGResponseSchema.parse` 校验
 - 任一阶段抛错都会被包装为 `RuntimeError`
 - `RuntimeError.stage` 当前包含 `pre-retrieval`、`retrieval`、`post-retrieval`、`generation`
-- `debug.selectionTrace` 当前可解释 score threshold、predicate filtering、near-duplicate removal、budget trim、source coverage 与 context ordering 的决策
+- `debug.selectionTrace` 当前可解释 score threshold、predicate filtering、near-duplicate removal、budget trim、source coverage 与 context ordering 的决策；对外压缩形态在 `RuntimeResult.selectionTrace`
 
 更完整的类型签名与示例，见 `docs/runtime/runtime-api-usage-guide.md`
 

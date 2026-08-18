@@ -10,6 +10,7 @@ import type {
   RuntimeQueryInput,
   RuntimeResult,
   RuntimeRunOptions,
+  RuntimeSearchResult,
   RuntimeStage,
 } from "../src/index.ts";
 
@@ -74,6 +75,10 @@ describe("runtime export surface", () => {
     expectTypeOf<RuntimeResult>().toHaveProperty("retrievedCandidates");
     expectTypeOf<RuntimeResult>().toHaveProperty("requestId");
     expectTypeOf<RuntimeResult>().toHaveProperty("traceId");
+    expectTypeOf<RuntimeSearchResult>().not.toHaveProperty("answer");
+    expectTypeOf<RuntimeSearchResult>().toHaveProperty("chunks");
+    expectTypeOf<RuntimeSearchResult>().toHaveProperty("citations");
+    expectTypeOf<RuntimeSearchResult>().toHaveProperty("originalQuery");
     expectTypeOf<RuntimeCitation>().toMatchObjectType<{
       index: number;
       chunkId: string;
@@ -85,6 +90,7 @@ describe("runtime export surface", () => {
       originalContent?: string;
     }>();
     expectTypeOf<Runtime>().toHaveProperty("run");
+    expectTypeOf<Runtime>().toHaveProperty("search");
     expectTypeOf<Runtime>().toHaveProperty("runStream");
   });
 });

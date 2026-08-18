@@ -16,6 +16,7 @@ export * from "./runtime-debug-info.js";
 export * from "./runtime-run-options.js";
 export * from "./runtime-context.js";
 export * from "./runtime-result.js";
+export * from "./runtime-search-result.js";
 export * from "./runtime-stream-event.js";
 export * from "./runtime.js";
 export * from "./create-runtime-options.js";

@@ -14,6 +14,7 @@ import {
 } from "@monai-ragsdk/indexing";
 
 const indexedChunks = new Map<string, any>();
+let generateCalls = 0;
 
 const baseEmbedder = new MockEmbedder({ dimension: 6 });
 const embedder: Embedder = {
@@ -72,6 +73,7 @@ const collection = createCollection({
     },
     generator: {
       async generate({ request, chunks }) {
+        generateCalls += 1;
         return {
           answer: `answer:${request.effectiveQuery.query}:${chunks
             .map((chunk) => chunk.id)
@@ -102,6 +104,7 @@ const searchResult = await collection.search({ query: "demo search" });
 console.log("collection demo search passed", {
   chunks: searchResult.chunks.length,
   citations: searchResult.citations.length,
+  generateCalls,
 });
 
 const askResult = await collection.ask({ query: "demo ask" });

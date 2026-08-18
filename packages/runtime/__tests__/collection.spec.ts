@@ -23,6 +23,7 @@ import type { CollectionSearchResult } from "../src/collection/create-collection
 describe("stage 3 collection facade", () => {
   it("ingest documents then search/ask returns grounding chunks", async () => {
     const indexedChunks = new Map<string, Chunk>();
+    let generateCalls = 0;
 
     const baseEmbedder = new MockEmbedder({ dimension: 6 });
     const embedder: Embedder = {
@@ -108,6 +109,7 @@ describe("stage 3 collection facade", () => {
       },
       generator: {
         async generate({ request, chunks }) {
+          generateCalls += 1;
           return {
             answer: `answer:${request.effectiveQuery.query}:${chunks
               .map((chunk) => chunk.id)
@@ -143,11 +145,19 @@ describe("stage 3 collection facade", () => {
     expect(searchResult.chunks.length).toBeGreaterThan(0);
     expect(searchResult.citations.length).toBe(searchResult.chunks.length);
     expect(searchResult.effectiveQuery.query).toBe("test collection");
+    expect(searchResult.originalQuery.query).toBe("test collection");
+    expect(searchResult).not.toHaveProperty("answer");
+    expect(searchResult).not.toHaveProperty("streamed");
+    expect(searchResult).not.toHaveProperty("generationMetadata");
+    expect(searchResult.timings).not.toHaveProperty("generation");
+    expect(generateCalls).toBe(0);
 
     const askResult = await collection.ask(
       { query: "test ask" },
       runtimeOptions,
     );
+
+    expect(generateCalls).toBe(1);
 
     expect(askResult.answer).toContain("answer:test ask:");
     expect(askResult.chunks.length).toBeGreaterThan(0);

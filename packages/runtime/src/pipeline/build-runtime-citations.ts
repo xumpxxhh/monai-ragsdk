@@ -43,8 +43,8 @@ function readHierarchyPath(
 }
 
 /**
- * 从已送入 generation 的 chunks 生成 citations。
- * 检索为空时返回 []，保证 run() 与 runStream() 结果形状一致；
+ * 从 post-retrieval 选出的 chunks 生成 citations。
+ * 检索为空时返回 []，保证 run() / runStream() / search() 引用形状一致；
  * selectedCandidates 只用来补 score / sourceId，不以它替代 chunks 顺序。
  */
 export function buildRuntimeCitations(
