@@ -5,4 +5,7 @@ export type IndexingResult = {
   vectorsTotal: number;
   skippedDocuments: number;
   failedDocuments: number;
+  unchangedDocuments: number;
+  replacedDocuments: number;
+  staleSourcesDeleted: number;
 };

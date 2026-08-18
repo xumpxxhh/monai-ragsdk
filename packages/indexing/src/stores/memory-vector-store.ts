@@ -2,9 +2,11 @@ import type { Vector } from "@monai-ragsdk/core";
 import type {
   VectorStore,
   VectorStoreDeleteFilter,
+  VectorStoreSourceRecord,
   VectorStoreWriteContext,
 } from "./vector-store.js";
 
+/** 进程内 VectorStore，供测试与 demo 验证增量契约，不作为生产存储。 */
 export class MemoryVectorStore implements VectorStore {
   readonly #vectors = new Map<string, Vector>();
   #lastWriteContext: VectorStoreWriteContext | undefined;
@@ -56,6 +58,25 @@ export class MemoryVectorStore implements VectorStore {
 
   getLastWriteContext(): VectorStoreWriteContext | undefined {
     return this.#lastWriteContext;
+  }
+
+  async listSourceRecords(): Promise<VectorStoreSourceRecord[]> {
+    const records = new Map<string, VectorStoreSourceRecord>();
+
+    for (const vector of this.#vectors.values()) {
+      const sourceId = readStringMetadata(vector.metadata, "sourceId");
+
+      if (!sourceId) {
+        continue;
+      }
+
+      records.set(`${sourceId}\0${readStringMetadata(vector.metadata, "fingerprint") ?? ""}`, {
+        sourceId,
+        fingerprint: readStringMetadata(vector.metadata, "fingerprint"),
+      });
+    }
+
+    return Array.from(records.values());
   }
 }
 

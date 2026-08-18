@@ -43,16 +43,16 @@
 
 当前仍不包含：
 
-- 真实云服务或向量数据库适配
-- 完整的并发、重试、增量索引实现
+- 真实云服务或向量数据库适配（归 `adapters`）
+- 层级召回 / parent-child retrieval
 - integration 与 smoke
 
-当前已补的高级能力保留位：
+当前已落地的增量能力：
 
-- `IndexingMode` 的 `incremental` 模式位
-- `sourceIdResolver` 与 `fingerprintResolver`
-- `VectorStoreWriteContext` 与可选 `deleteByFilter()` 契约
-- `BasicMetadataExtractor` 输出的 `sourceId`、`fingerprint`、`hierarchyPath`、`hierarchyDepth`
+- `mode: "incremental"` 下的 fingerprint skip / replace
+- `runIndexing` 调用 `deleteByFilter()` 做 stale cleanup
+- `VectorStore.listSourceRecords()` 作为跨运行最小状态
+- `IndexingResult` 增加 `unchangedDocuments` / `replacedDocuments` / `staleSourcesDeleted`
 
 ## 构建约定
 
@@ -67,12 +67,15 @@
 1. `pnpm --filter @monai-ragsdk/indexing demo`
 2. `pnpm --filter @monai-ragsdk/indexing demo:run-indexing`
 3. `pnpm --filter @monai-ragsdk/indexing demo:extensions`
+4. `pnpm --filter @monai-ragsdk/indexing demo:incremental`
 
 demo 会直接传入自定义 `Loader` 实现，演示 `indexing` 如何只消费抽象接口，而不绑定任何具体文件加载方案。
 
 `demo` / `demo:run-indexing` 当前还会通过 `createJsonlTraceExporter()` 把 indexing trace 落到 `demo/.artifacts/run-indexing-trace.jsonl`，并在终端打印文件路径与 JSONL 内容，便于直接检查观测链路是否生效。
 
 `demo:extensions` 会额外演示 `ContentCleanupTransformer`、`ContextualHeaderTransformer`、`HashDedupChunkFilter` 与 `BasicMetadataExtractor` 的组合用法。
+
+`demo:incremental` 演示 fingerprint skip、fingerprint replace，以及 stale source cleanup。
 
 ## Unit Test
 
@@ -89,7 +92,8 @@ demo 会直接传入自定义 `Loader` 实现，演示 `indexing` 如何只消�
 - `MockEmbedder` 与 `MemoryVectorStore` 的最小行为
 - `runIndexing` 的结果统计、metadata 合并、chunk 级扩展点与错误路径
 - 默认的内容清洗、header 上下文增强、去重与 metadata 抽取组件
-- `sourceId` / `fingerprint` / `hierarchyPath` 等 Phase D 保留位的透传
+- `sourceId` / `fingerprint` 的 skip / replace / stale cleanup
+- 同一 source 存在多个 fingerprint 时不 skip
 - `IndexingError` 的阶段语义在主流程中的传播
 
 ## 当前流程
@@ -112,23 +116,19 @@ demo 会直接传入自定义 `Loader` 实现，演示 `indexing` 如何只消�
 - 如果用户不提供 `chunkTransformers`、`metadataExtractors`、`chunkFilters`，当前行为会退化为原有 MVP 流程。
 - `metadataBuilder` 仍保留兼容路径；即使引入 `MetadataExtractor`，默认 metadata merge 行为仍然存在。
 - 如果用户提供 `sourceIdResolver` 或 `fingerprintResolver`，这些 canonical 值会透传到 metadata extractor 上下文、store 写入上下文，并覆盖 chunk metadata 中的同名旧值。
+- `runIndexing` 在 upsert 前会把 chunk 原文写入 `Vector.metadata.content`（已有 content 则保留），这样 pgvector 等 store 不必依赖调用方自行拷贝正文。
+- 经 `runIndexing` 的默认路径会补正文；若直接调用 `store.upsert()`，必须自行带上 `metadata.content`，否则 pgvector 的 `content` 列为空，关键词召回和生成都会拿到空上下文。
 
-## Phase D 保留位
+## 增量索引
 
-当前已为 `Hierarchical Indexing` 与 `Incremental Indexing` 补齐最小契约，但尚未实现完整行为：
+`mode: "incremental"` 时，`runIndexing` 会：
 
-- `IndexingOptions` 支持 `sourceIdResolver` 与 `fingerprintResolver`
-- `ChunkTransformer`、`ChunkFilter`、`MetadataExtractor` 上下文支持读取 `sourceId` 与 `fingerprint`
-- `VectorStore.upsert()` 支持接收可选的 `VectorStoreWriteContext`
-- `VectorStore` 支持声明可选的 `deleteByFilter()`，用于未来的 stale cleanup
-- `MemoryVectorStore` 已实现 `deleteByFilter()`，用于验证契约而不是替代真实增量索引实现
-- `BasicMetadataExtractor` 会输出 `hierarchyPath`、`hierarchyDepth` 与 `parentHierarchyPath`
+1. 通过 `listSourceRecords()` 读取跨运行状态
+2. fingerprint 未变化则 skip
+3. 写入前按 `sourceId` `deleteByFilter()` 再 upsert
+4. 运行结束删除本轮未见过的 stale source
 
-说明：
-
-- 当前不会自动执行 stale delete。
-- 当前不会实现层级召回或 parent-child retrieval。
-- 这些保留位的目的，是把未来 Phase D 之后的演进点稳定在公开契约上。
+层级召回仍未实现。详见 `docs/indexing/phase-d-contract-reservations.md`。
 
 ## Loader 边界
 

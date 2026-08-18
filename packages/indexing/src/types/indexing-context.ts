@@ -10,7 +10,8 @@ export type IndexingStage =
   | "extract-metadata"
   | "filter-chunk"
   | "embed"
-  | "store";
+  | "store"
+  | "delete";
 
 export type IndexingContext = {
   documentId?: string;

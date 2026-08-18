@@ -47,6 +47,10 @@ describe("runIndexing", () => {
       source: "test",
       documentId: "doc-1",
     });
+    expect(typeof store.getAll()[0]?.metadata?.content).toBe("string");
+    expect(String(store.getAll()[0]?.metadata?.content).length).toBeGreaterThan(
+      0,
+    );
   });
 
   it("continues on document failure when onError is provided", async () => {
@@ -269,5 +273,52 @@ describe("runIndexing", () => {
       seenSourceId: "doc-incremental-resolved-source",
       seenFingerprint: "fp-resolved",
     });
+  });
+
+  it("attaches chunk content onto vector metadata before upsert", async () => {
+    const store = new MemoryVectorStore();
+    const documentContent = "Exact chunk body for attach";
+
+    await runIndexing({
+      loader: {
+        async load() {
+          return [{ id: "doc-content", content: documentContent }];
+        },
+      },
+      chunker: new SimpleChunker({ chunkSize: 100, overlap: 0 }),
+      embedder: new MockEmbedder({ dimension: 4 }),
+      store,
+    });
+
+    expect(store.getAll()).toHaveLength(1);
+    expect(store.getAll()[0]?.metadata?.content).toBe(documentContent);
+  });
+
+  it("preserves caller-provided vector metadata content during upsert", async () => {
+    const store = new MemoryVectorStore();
+
+    await runIndexing({
+      loader: {
+        async load() {
+          return [{ id: "doc-custom", content: "pipeline chunk body" }];
+        },
+      },
+      chunker: new SimpleChunker({ chunkSize: 100, overlap: 0 }),
+      embedder: {
+        async embed(chunks) {
+          return chunks.map((chunk) => ({
+            id: chunk.id,
+            values: [1, 0, 0, 0],
+            metadata: {
+              ...(chunk.metadata ?? {}),
+              content: "custom-body",
+            },
+          }));
+        },
+      },
+      store,
+    });
+
+    expect(store.getAll()[0]?.metadata?.content).toBe("custom-body");
   });
 });

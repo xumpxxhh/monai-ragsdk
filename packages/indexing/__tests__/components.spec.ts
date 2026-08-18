@@ -58,4 +58,31 @@ describe("MockEmbedder and MemoryVectorStore", () => {
     expect(store.getById("vector-1")).toBeUndefined();
     expect(store.getById("vector-2")).toBeDefined();
   });
+
+  it("lists distinct source records for incremental comparison", async () => {
+    const store = new MemoryVectorStore();
+
+    await store.upsert([
+      {
+        id: "vector-1",
+        values: [1, 2],
+        metadata: { sourceId: "source-a", fingerprint: "fp-a" },
+      },
+      {
+        id: "vector-2",
+        values: [3, 4],
+        metadata: { sourceId: "source-a", fingerprint: "fp-a" },
+      },
+      {
+        id: "vector-3",
+        values: [5, 6],
+        metadata: { sourceId: "source-b", fingerprint: "fp-b" },
+      },
+    ]);
+
+    await expect(store.listSourceRecords()).resolves.toEqual([
+      { sourceId: "source-a", fingerprint: "fp-a" },
+      { sourceId: "source-b", fingerprint: "fp-b" },
+    ]);
+  });
 });

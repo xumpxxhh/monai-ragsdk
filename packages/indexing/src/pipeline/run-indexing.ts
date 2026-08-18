@@ -1,4 +1,4 @@
-import type { Chunk, Document, JsonValue } from "@monai-ragsdk/core";
+import type { Chunk, Document, JsonValue, Vector } from "@monai-ragsdk/core";
 import type {
   RAGAttributes,
   RAGErrorRecord,
@@ -26,7 +26,13 @@ import type {
   IndexingStage,
   SourceIdResolver,
 } from "../types/index.js";
+import type { VectorStore } from "../stores/vector-store.js";
 import type { ChunkTransformer } from "../chunk-transformers/chunk-transformer.js";
+import {
+  buildSourceFingerprintMap,
+  collectStaleSourceIds,
+  shouldSkipUnchanged,
+} from "./incremental.js";
 
 type IndexingTraceState = {
   traceId: string;
@@ -233,7 +239,17 @@ export async function runIndexing(
       vectorsTotal: 0,
       skippedDocuments: 0,
       failedDocuments: 0,
+      unchangedDocuments: 0,
+      replacedDocuments: 0,
+      staleSourcesDeleted: 0,
     };
+    const previousSourceRecords = options.store.listSourceRecords
+      ? await options.store.listSourceRecords()
+      : [];
+    const previousFingerprints = buildSourceFingerprintMap(
+      previousSourceRecords,
+    );
+    const seenSourceIds = new Set<string>();
 
     for (const rawDocument of documents) {
       try {
@@ -263,6 +279,10 @@ export async function runIndexing(
           fingerprint: await resolveFingerprint(document, fingerprintResolver),
         };
 
+        if (documentContext.sourceId) {
+          seenSourceIds.add(documentContext.sourceId);
+        }
+
         const canIndex = await runStage(
           "filter",
           () => shouldIndex(document),
@@ -281,6 +301,30 @@ export async function runIndexing(
 
         if (!canIndex) {
           result.skippedDocuments += 1;
+          if (
+            documentContext.sourceId &&
+            previousFingerprints.has(documentContext.sourceId)
+          ) {
+            await deleteSourceIds(
+              options.store,
+              [documentContext.sourceId],
+              documentContext,
+              observation,
+            );
+            result.staleSourcesDeleted += 1;
+          }
+          continue;
+        }
+
+        if (
+          shouldSkipUnchanged({
+            mode,
+            sourceId: documentContext.sourceId,
+            fingerprint: documentContext.fingerprint,
+            previous: previousFingerprints,
+          })
+        ) {
+          result.unchangedDocuments += 1;
           continue;
         }
 
@@ -313,6 +357,11 @@ export async function runIndexing(
 
         result.chunksTotal += processedChunks.length;
 
+        const vectorBatches: Array<{
+          chunkBatch: Chunk[];
+          vectors: Vector[];
+        }> = [];
+
         for (const chunkBatch of splitIntoBatches(processedChunks, batchSize)) {
           const vectors = await runStage(
             "embed",
@@ -335,10 +384,43 @@ export async function runIndexing(
             },
           );
 
+          vectorBatches.push({ chunkBatch, vectors });
+        }
+
+        if (documentContext.sourceId) {
+          const hadPrevious = previousFingerprints.has(documentContext.sourceId);
+
+          if (hadPrevious && !options.store.deleteByFilter) {
+            throw new IndexingError(
+              "incremental replace requires VectorStore.deleteByFilter()",
+              "delete",
+              {
+                context: documentContext,
+              },
+            );
+          }
+
+          if (options.store.deleteByFilter) {
+            await deleteSourceIds(
+              options.store,
+              [documentContext.sourceId],
+              documentContext,
+              observation,
+            );
+
+            if (hadPrevious) {
+              result.replacedDocuments += 1;
+            }
+          }
+        }
+
+        for (const { chunkBatch, vectors } of vectorBatches) {
+          const vectorsToStore = attachChunkContent(vectors, chunkBatch);
+
           await runStage(
             "store",
             () =>
-              options.store.upsert(vectors, {
+              options.store.upsert(vectorsToStore, {
                 documentId: documentContext.documentId,
                 chunkIds: chunkBatch.map((chunk) => chunk.id),
                 mode: documentContext.mode,
@@ -353,16 +435,16 @@ export async function runIndexing(
             {
               startAttributes: {
                 documentId: documentContext.documentId ?? "unknown",
-                vectorCount: vectors.length,
+                vectorCount: vectorsToStore.length,
               },
               completeAttributes: () => ({
                 documentId: documentContext.documentId ?? "unknown",
-                vectorCount: vectors.length,
-                upserted: vectors.length,
+                vectorCount: vectorsToStore.length,
+                upserted: vectorsToStore.length,
               }),
             },
           );
-          result.vectorsTotal += vectors.length;
+          result.vectorsTotal += vectorsToStore.length;
         }
 
         result.documentsIndexed += 1;
@@ -389,6 +471,29 @@ export async function runIndexing(
       }
     }
 
+    const staleSourceIds = collectStaleSourceIds(
+      previousFingerprints,
+      seenSourceIds,
+    );
+
+    if (staleSourceIds.length > 0) {
+      if (!options.store.deleteByFilter) {
+        throw new IndexingError(
+          "stale cleanup requires VectorStore.deleteByFilter()",
+          "delete",
+          { context: { mode } },
+        );
+      }
+
+      await deleteSourceIds(
+        options.store,
+        staleSourceIds,
+        { mode },
+        observation,
+      );
+      result.staleSourcesDeleted += staleSourceIds.length;
+    }
+
     await emitEvent(
       observation,
       "run",
@@ -400,6 +505,9 @@ export async function runIndexing(
         documentsIndexed: result.documentsIndexed,
         skippedDocuments: result.skippedDocuments,
         failedDocuments: result.failedDocuments,
+        unchangedDocuments: result.unchangedDocuments,
+        replacedDocuments: result.replacedDocuments,
+        staleSourcesDeleted: result.staleSourcesDeleted,
         chunksTotal: result.chunksTotal,
         vectorsTotal: result.vectorsTotal,
       },
@@ -533,6 +641,32 @@ async function processChunks(
   }
 
   return processedChunks;
+}
+
+async function deleteSourceIds(
+  store: VectorStore,
+  sourceIds: string[],
+  context: Omit<IndexingContext, "stage">,
+  observation: IndexingObservation,
+): Promise<void> {
+  if (sourceIds.length === 0 || !store.deleteByFilter) {
+    return;
+  }
+
+  await runStage(
+    "delete",
+    () => store.deleteByFilter?.({ sourceIds }),
+    context,
+    observation,
+    {
+      startAttributes: {
+        sourceCount: sourceIds.length,
+      },
+      completeAttributes: () => ({
+        deletedSourceCount: sourceIds.length,
+      }),
+    },
+  );
 }
 
 async function applyMetadata(
@@ -804,4 +938,35 @@ async function resolveFingerprint(
   return typeof fingerprint === "string" && fingerprint.length > 0
     ? fingerprint
     : undefined;
+}
+
+/**
+ * store 只看见 Vector，看不到 Chunk。写入前把 chunk 原文补进 metadata.content，
+ * 这样 pgvector 等 adapter 不必依赖调用方自己拷贝正文。
+ * 调用方若已写入 content，则保留，避免覆盖自定义正文。
+ */
+function attachChunkContent(vectors: Vector[], chunks: Chunk[]): Vector[] {
+  const chunksById = new Map(chunks.map((chunk) => [chunk.id, chunk]));
+
+  return vectors.map((vector) => {
+    const existing = vector.metadata?.content;
+
+    if (typeof existing === "string" && existing.length > 0) {
+      return vector;
+    }
+
+    const chunk = chunksById.get(vector.id);
+
+    if (!chunk) {
+      return vector;
+    }
+
+    return {
+      ...vector,
+      metadata: {
+        ...(vector.metadata ?? {}),
+        content: chunk.content,
+      },
+    };
+  });
 }
