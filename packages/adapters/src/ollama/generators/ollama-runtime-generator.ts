@@ -1,7 +1,13 @@
-import type { RuntimeGenerator } from "@monai-ragsdk/runtime";
+import type {
+  RuntimeGenerationResult,
+  RuntimeGenerationStreamEvent,
+  RuntimeGenerator,
+  RuntimeGeneratorInput,
+} from "@monai-ragsdk/runtime";
 
 import {
   postOllamaJson,
+  postOllamaNdjson,
   type OllamaHttpOptions,
 } from "../shared/http.js";
 
@@ -18,7 +24,7 @@ type OllamaChatResponse = {
   response?: string;
 };
 
-/** 按 Ollama /api/chat 生成答案；优先消费 runtime 的 promptContext，当前不做流式。 */
+/** 按 Ollama /api/chat 生成答案；优先消费 runtime 的 promptContext。 */
 export class OllamaRuntimeGenerator implements RuntimeGenerator {
   readonly #model: string;
   readonly #baseUrl: string;
@@ -42,36 +48,12 @@ export class OllamaRuntimeGenerator implements RuntimeGenerator {
     };
   }
 
-  async generate(input: Parameters<RuntimeGenerator["generate"]>[0]) {
-    const contextText = input.chunks
-      .map((chunk, index) => `[${index + 1}] ${chunk.content}`)
-      .join("\n\n");
-    // 有 postprocessor prompt 时不再本地拼装，避免和 runtime 后处理分叉
-    const prompt = input.promptContext
-      ? input.promptContext
-      : [
-          `问题：${input.request.effectiveQuery.query}`,
-          "",
-          "上下文：",
-          contextText || "（无检索上下文）",
-        ].join("\n");
-
+  async generate(
+    input: RuntimeGeneratorInput,
+  ): Promise<RuntimeGenerationResult> {
     const payload = await postOllamaJson<OllamaChatResponse>(
       `${this.#baseUrl}/api/chat`,
-      {
-        model: this.#model,
-        stream: false,
-        messages: [
-          {
-            role: "system",
-            content: this.#systemPrompt,
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      },
+      this.#buildChatBody(input, false),
       this.#http,
     );
 
@@ -84,11 +66,82 @@ export class OllamaRuntimeGenerator implements RuntimeGenerator {
 
     return {
       answer,
-      generationMetadata: {
-        provider: "ollama",
-        model: this.#model,
-        chunkIds: input.chunks.map((chunk) => chunk.id),
+      generationMetadata: this.#buildMetadata(input, false),
+    };
+  }
+
+  /** NDJSON 增量输出；run() 仍走 generate()。 */
+  async *generateStream(
+    input: RuntimeGeneratorInput,
+  ): AsyncIterable<RuntimeGenerationStreamEvent> {
+    let answer = "";
+
+    for await (const text of postOllamaNdjson(
+      `${this.#baseUrl}/api/chat`,
+      this.#buildChatBody(input, true),
+      this.#http,
+    )) {
+      answer += text;
+      yield {
+        type: "delta",
+        text,
+      };
+    }
+
+    if (!answer.trim()) {
+      throw new Error("Ollama returned an empty chat response");
+    }
+
+    yield {
+      type: "complete",
+      result: {
+        answer,
+        generationMetadata: this.#buildMetadata(input, true),
       },
+    };
+  }
+
+  #buildPrompt(input: RuntimeGeneratorInput): string {
+    // 有 postprocessor prompt 时不再本地拼装，避免和 runtime 后处理分叉
+    if (input.promptContext) {
+      return input.promptContext;
+    }
+
+    const contextText = input.chunks
+      .map((chunk, index) => `[${index + 1}] ${chunk.content}`)
+      .join("\n\n");
+
+    return [
+      `问题：${input.request.effectiveQuery.query}`,
+      "",
+      "上下文：",
+      contextText || "（无检索上下文）",
+    ].join("\n");
+  }
+
+  #buildChatBody(input: RuntimeGeneratorInput, stream: boolean) {
+    return {
+      model: this.#model,
+      stream,
+      messages: [
+        {
+          role: "system",
+          content: this.#systemPrompt,
+        },
+        {
+          role: "user",
+          content: this.#buildPrompt(input),
+        },
+      ],
+    };
+  }
+
+  #buildMetadata(input: RuntimeGeneratorInput, streamed: boolean) {
+    return {
+      provider: "ollama",
+      model: this.#model,
+      streamed,
+      chunkIds: input.chunks.map((chunk) => chunk.id),
     };
   }
 }

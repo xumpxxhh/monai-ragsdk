@@ -44,9 +44,8 @@
 
 当前仍未实现：
 
-- 流式 chat 输出
 - Pinecone adapter
-- Chroma 查询侧 adapter
+- Chroma 查询侧 adapter（已移出阶段 2）
 - 更完整的 integration / smoke 覆盖
 
 当前根目录已覆盖的跨包验证：
@@ -115,8 +114,9 @@
 - `LangChainRuntimeRetrieverAdapter`：把 LangChain 风格 `invoke()` 检索器适配为 `@monai-ragsdk/runtime` 的 `RuntimeRetriever`，默认复用 runtime 的 indexing metadata 查询协议映射与 filter 过滤逻辑。
 - `LangChainRuntimeGeneratorAdapter`：把 LangChain 风格 `invoke()` 生成器适配为 `@monai-ragsdk/runtime` 的 `RuntimeGenerator`，默认优先消费 runtime postprocessor 产出的 `promptContext`。
 - `createLangChainBaseRetrieverRuntimeAdapter`：面向真实 LangChain `BaseRetriever` 实例的更薄封装，默认把 `RetrievalRequest` 映射到 `BaseRetriever.invoke(query, config)`，并继续复用 runtime 的候选映射与 filter 语义。
-- `OllamaRuntimeGenerator`：通过 Ollama `/api/chat` 适配为 `RuntimeGenerator`。优先消费 runtime 的 `promptContext`，当前一次返回完整答案，不做流式。
-- `OpenAIRuntimeGenerator`：通过 OpenAI 兼容 `/chat/completions` 适配为 `RuntimeGenerator`。`baseUrl` 与 `model` 由调用方显式传入，密钥回退 `OPENAI_API_KEY`。当前一次返回完整答案，不做流式。
+- `OllamaRuntimeGenerator`：通过 Ollama `/api/chat` 适配为 `RuntimeGenerator`。优先消费 runtime 的 `promptContext`；支持 `generate()` 与 `generateStream()`（NDJSON）。
+- `OpenAIRuntimeGenerator`：通过 OpenAI 兼容 `/chat/completions` 适配为 `RuntimeGenerator`。`baseUrl` 与 `model` 由调用方显式传入，密钥回退 `OPENAI_API_KEY`；支持 `generate()` 与 `generateStream()`（SSE）。
+- `OllamaStrategyModel` / `OpenAIStrategyModel`：实现 runtime 的 `RuntimeStrategyModel`，供后续 query rewrite / rerank 等策略件注入 LLM 能力。
 
 推荐优先级：
 

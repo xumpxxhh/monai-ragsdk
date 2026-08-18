@@ -142,4 +142,71 @@ describe("OllamaRuntimeGenerator", () => {
     };
     expect(body.messages[1]?.content).toBe("后处理给出的 grounded prompt");
   });
+
+  it("streams NDJSON deltas and returns the complete answer", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          [
+            JSON.stringify({
+              message: { content: "根据" },
+              done: false,
+            }),
+            JSON.stringify({
+              message: { content: "上下文" },
+              done: true,
+            }),
+          ].join("\n") + "\n",
+          {
+            status: 200,
+            headers: { "content-type": "application/x-ndjson" },
+          },
+        ),
+    );
+    const generator = new OllamaRuntimeGenerator({
+      model: "qwen2.5",
+      fetch: fetchImpl,
+    });
+    const events = [];
+
+    for await (const event of generator.generateStream(
+      {
+        request: {
+          originalQuery: { query: "runtime 是什么" },
+          effectiveQuery: { query: "runtime 是什么" },
+        },
+        chunks: [{ id: "chunk-1", content: "runtime 负责在线四阶段编排。" }],
+      },
+      {
+        requestId: "req-stream",
+        input: { query: "runtime 是什么" },
+        options: {},
+        startedAt: Date.now(),
+      },
+    )) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { type: "delta", text: "根据" },
+      { type: "delta", text: "上下文" },
+      {
+        type: "complete",
+        result: {
+          answer: "根据上下文",
+          generationMetadata: {
+            provider: "ollama",
+            model: "qwen2.5",
+            streamed: true,
+            chunkIds: ["chunk-1"],
+          },
+        },
+      },
+    ]);
+
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)) as {
+      stream: boolean;
+    };
+    expect(body.stream).toBe(true);
+  });
 });

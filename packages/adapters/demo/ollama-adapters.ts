@@ -14,7 +14,7 @@ function jsonResponse(payload: unknown): Response {
   });
 }
 
-const fetchImpl = async (url: string) => {
+const fetchImpl = async (url: string, init?: { body?: string }) => {
   if (url.includes("/api/embed")) {
     return jsonResponse({
       embeddings: [
@@ -22,6 +22,25 @@ const fetchImpl = async (url: string) => {
         [0.3, 0.4],
       ],
     });
+  }
+
+  const body = JSON.parse(String(init?.body ?? "{}")) as { stream?: boolean };
+
+  if (body.stream) {
+    return new Response(
+      [
+        JSON.stringify({ message: { content: "根据上下文，" }, done: false }),
+        JSON.stringify({
+          message: { content: "runtime 负责在线四阶段编排。" },
+          done: true,
+        }),
+        "",
+      ].join("\n"),
+      {
+        status: 200,
+        headers: { "content-type": "application/x-ndjson" },
+      },
+    );
   }
 
   return jsonResponse({
@@ -76,11 +95,36 @@ const generation = await generator.generate(
   },
 );
 
+const streamed = [];
+for await (const event of generator.generateStream(
+  {
+    request: {
+      originalQuery: { query: "runtime 是什么" },
+      effectiveQuery: { query: "runtime 是什么" },
+    },
+    chunks: [
+      {
+        id: "chunk-1",
+        content: "runtime 负责在线四阶段编排。",
+      },
+    ],
+  },
+  {
+    requestId: "demo-stream",
+    input: { query: "runtime 是什么" },
+    options: {},
+    startedAt: Date.now(),
+  },
+)) {
+  streamed.push(event);
+}
+
 console.log(
   JSON.stringify(
     {
       vectors,
       generation,
+      streamed,
     },
     null,
     2,

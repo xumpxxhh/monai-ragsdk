@@ -2,6 +2,7 @@ import type { Chunk, JsonValue } from "@monai-ragsdk/core";
 import {
   createIndexingRetrievalCandidate,
   filterRetrievalCandidatesByIndexingFilters,
+  fuseByReciprocalRankFusion,
   type RetrievalCandidate,
   type RetrievalRequest,
   type RuntimeContext,
@@ -124,10 +125,21 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
       this.#retrieveByKeyword(query, request, DEFAULT_CANDIDATE_POOL_SIZE),
     ]);
 
-    const fusedCandidates = this.#fuseByRRF(
-      vectorCandidates,
-      keywordCandidates,
-      request,
+    const fusedCandidates = fuseByReciprocalRankFusion(
+      [vectorCandidates, keywordCandidates],
+      {
+        k: DEFAULT_RRF_K,
+        enrichCandidate: (candidate, score) =>
+          createIndexingRetrievalCandidate(candidate.chunk, {
+            score,
+            route: request.route,
+            strategy: request.strategy,
+            retrieverMetadata: {
+              provider: "pgvector",
+              searchType: "hybrid",
+            },
+          }),
+      },
     );
     const filteredCandidates = filterRetrievalCandidatesByIndexingFilters(
       fusedCandidates,
@@ -177,51 +189,6 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
     );
 
     return this.#rowsToCandidates(rows.rows, request, "keyword");
-  }
-
-  /** 先按召回池做 RRF，再交给调用方截断 topK；否则 filter 后容易凑不满。 */
-  #fuseByRRF(
-    vectorCandidates: RetrievalCandidate[],
-    keywordCandidates: RetrievalCandidate[],
-    request: RetrievalRequest,
-    k: number = DEFAULT_RRF_K,
-  ): RetrievalCandidate[] {
-    const rrfScores = new Map<string, number>();
-    const candidateMap = new Map<string, RetrievalCandidate>();
-
-    for (const [rank, candidate] of vectorCandidates.entries()) {
-      const id = candidate.chunk.id;
-      rrfScores.set(id, (rrfScores.get(id) ?? 0) + 1 / (k + rank + 1));
-      candidateMap.set(id, candidate);
-    }
-
-    for (const [rank, candidate] of keywordCandidates.entries()) {
-      const id = candidate.chunk.id;
-      rrfScores.set(id, (rrfScores.get(id) ?? 0) + 1 / (k + rank + 1));
-      candidateMap.set(id, candidateMap.get(id) ?? candidate);
-    }
-
-    return [...rrfScores.entries()]
-      .sort((left, right) => right[1] - left[1])
-      .flatMap(([id, score]) => {
-        const candidate = candidateMap.get(id);
-
-        if (!candidate) {
-          return [];
-        }
-
-        return [
-          createIndexingRetrievalCandidate(candidate.chunk, {
-            score,
-            route: request.route,
-            strategy: request.strategy,
-            retrieverMetadata: {
-              provider: "pgvector",
-              searchType: "hybrid",
-            },
-          }),
-        ];
-      });
   }
 
   #rowsToCandidates(

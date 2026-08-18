@@ -293,4 +293,110 @@ describe("OpenAIRuntimeGenerator", () => {
       ),
     ).rejects.toThrow(/empty response/);
   });
+
+  it("streams SSE deltas across split chunks and returns the complete answer", async () => {
+    const fetchImpl = vi.fn(async () => {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode('data: {"choices":[{"delta":{"content":"根据"}}]}\n\n'),
+          );
+          controller.enqueue(
+            encoder.encode(
+              'data: {"choices":[{"delta":{"content":"上下文"}}]}\n\ndata: [DONE]\n\n',
+            ),
+          );
+          controller.close();
+        },
+      });
+
+      return new Response(stream, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      });
+    });
+    const generator = new OpenAIRuntimeGenerator({
+      model: "demo-chat",
+      baseUrl: TEST_OPENAI_BASE_URL,
+      apiKey: "test-key",
+      fetch: fetchImpl,
+    });
+    const events = [];
+
+    for await (const event of generator.generateStream(
+      {
+        request: {
+          originalQuery: { query: "runtime 是什么" },
+          effectiveQuery: { query: "runtime 是什么" },
+        },
+        chunks: [{ id: "chunk-1", content: "runtime 负责在线四阶段编排。" }],
+      },
+      {
+        requestId: "req-stream",
+        input: { query: "runtime 是什么" },
+        options: {},
+        startedAt: Date.now(),
+      },
+    )) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { type: "delta", text: "根据" },
+      { type: "delta", text: "上下文" },
+      {
+        type: "complete",
+        result: {
+          answer: "根据上下文",
+          generationMetadata: {
+            provider: "openai",
+            model: "demo-chat",
+            streamed: true,
+            chunkIds: ["chunk-1"],
+          },
+        },
+      },
+    ]);
+
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)) as {
+      stream: boolean;
+    };
+    expect(body.stream).toBe(true);
+  });
+
+  it("rejects an empty chat stream", async () => {
+    const generator = new OpenAIRuntimeGenerator({
+      model: "demo-chat",
+      baseUrl: TEST_OPENAI_BASE_URL,
+      apiKey: "test-key",
+      fetch: vi.fn(
+        async () =>
+          new Response("data: [DONE]\n\n", {
+            status: 200,
+            headers: { "content-type": "text/event-stream" },
+          }),
+      ),
+    });
+
+    await expect(async () => {
+      for await (const _event of generator.generateStream(
+        {
+          request: {
+            originalQuery: { query: "runtime 是什么" },
+            effectiveQuery: { query: "runtime 是什么" },
+          },
+          chunks: [],
+        },
+        {
+          requestId: "req-empty-stream",
+          input: { query: "runtime 是什么" },
+          options: {},
+          startedAt: Date.now(),
+        },
+      )) {
+        // drain
+      }
+    }).rejects.toThrow(/empty response/);
+  });
 });

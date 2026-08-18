@@ -1,6 +1,15 @@
-import type { RuntimeGenerator } from "@monai-ragsdk/runtime";
+import type {
+  RuntimeGenerationResult,
+  RuntimeGenerationStreamEvent,
+  RuntimeGenerator,
+  RuntimeGeneratorInput,
+} from "@monai-ragsdk/runtime";
 
-import { postOpenAIJson, type OpenAIHttpOptions } from "../shared/http.js";
+import {
+  postOpenAIJson,
+  postOpenAISse,
+  type OpenAIHttpOptions,
+} from "../shared/http.js";
 
 export type OpenAIRuntimeGeneratorOptions = Omit<OpenAIHttpOptions, "apiKey"> & {
   model: string;
@@ -40,7 +49,7 @@ function readMessageContent(content: OpenAIChatMessage["content"]): string {
     .trim();
 }
 
-/** 按 OpenAI 兼容 /chat/completions 生成答案；baseUrl / model 由调用方传入，当前一次返回完整结果，不做流式。 */
+/** 按 OpenAI 兼容 /chat/completions 生成答案；baseUrl / model 由调用方传入。 */
 export class OpenAIRuntimeGenerator implements RuntimeGenerator {
   readonly #model: string;
   readonly #baseUrl: string;
@@ -80,36 +89,12 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
     };
   }
 
-  async generate(input: Parameters<RuntimeGenerator["generate"]>[0]) {
-    const contextText = input.chunks
-      .map((chunk, index) => `[${index + 1}] ${chunk.content}`)
-      .join("\n\n");
-    // 有 postprocessor prompt 时不再本地拼装，避免和 runtime 后处理分叉
-    const prompt = input.promptContext
-      ? input.promptContext
-      : [
-          `问题：${input.request.effectiveQuery.query}`,
-          "",
-          "上下文：",
-          contextText || "（无检索上下文）",
-        ].join("\n");
-
+  async generate(
+    input: RuntimeGeneratorInput,
+  ): Promise<RuntimeGenerationResult> {
     const payload = await postOpenAIJson<OpenAIChatResponse>(
       `${this.#baseUrl}/chat/completions`,
-      {
-        model: this.#model,
-        stream: false,
-        messages: [
-          {
-            role: "system",
-            content: this.#systemPrompt,
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      },
+      this.#buildChatBody(input, false),
       this.#http,
     );
 
@@ -121,11 +106,82 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
 
     return {
       answer,
-      generationMetadata: {
-        provider: "openai",
-        model: this.#model,
-        chunkIds: input.chunks.map((chunk) => chunk.id),
+      generationMetadata: this.#buildMetadata(input, false),
+    };
+  }
+
+  /** SSE 增量输出；run() 仍走 generate()，避免把流式超时套到非流式 JSON 调用。 */
+  async *generateStream(
+    input: RuntimeGeneratorInput,
+  ): AsyncIterable<RuntimeGenerationStreamEvent> {
+    let answer = "";
+
+    for await (const text of postOpenAISse(
+      `${this.#baseUrl}/chat/completions`,
+      this.#buildChatBody(input, true),
+      this.#http,
+    )) {
+      answer += text;
+      yield {
+        type: "delta",
+        text,
+      };
+    }
+
+    if (!answer.trim()) {
+      throw new Error("OpenAI-compatible chat returned an empty response");
+    }
+
+    yield {
+      type: "complete",
+      result: {
+        answer,
+        generationMetadata: this.#buildMetadata(input, true),
       },
+    };
+  }
+
+  #buildPrompt(input: RuntimeGeneratorInput): string {
+    // 有 postprocessor prompt 时不再本地拼装，避免和 runtime 后处理分叉
+    if (input.promptContext) {
+      return input.promptContext;
+    }
+
+    const contextText = input.chunks
+      .map((chunk, index) => `[${index + 1}] ${chunk.content}`)
+      .join("\n\n");
+
+    return [
+      `问题：${input.request.effectiveQuery.query}`,
+      "",
+      "上下文：",
+      contextText || "（无检索上下文）",
+    ].join("\n");
+  }
+
+  #buildChatBody(input: RuntimeGeneratorInput, stream: boolean) {
+    return {
+      model: this.#model,
+      stream,
+      messages: [
+        {
+          role: "system",
+          content: this.#systemPrompt,
+        },
+        {
+          role: "user",
+          content: this.#buildPrompt(input),
+        },
+      ],
+    };
+  }
+
+  #buildMetadata(input: RuntimeGeneratorInput, streamed: boolean) {
+    return {
+      provider: "openai",
+      model: this.#model,
+      streamed,
+      chunkIds: input.chunks.map((chunk) => chunk.id),
     };
   }
 }
