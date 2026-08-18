@@ -16,7 +16,7 @@
 
 - 仓库已完成 `core + indexing + adapters + runtime + observability` 的最小实现与验证；根目录已覆盖 `runtime + adapters` 与 `indexing + runtime` 两条最小跨包闭环。
 - 演进方向已立项：先做稳 RAG 内核（增量索引、OpenAI 兼容 embedding / chat + pgvector 闭环，Ollama 仍可选），知识库门面后置。阶段 1 重心是完善 SDK，先不管 CLI。详见 `sdk-evolution-roadmap.md`。
-- 阶段 1 已经落地；阶段 2 仍需明确授权，不要自动解冻 `runtime`。
+- 阶段 1 已经落地；阶段 2 流式生成、citation / grounding、pipeline 策略框架与 pre-retrieval LLM 策略已落地，真实 rerank、Context Compression 与 Active RAG 仍需明确授权。Chroma 查询与第二查询路径已移出阶段 2。
 - `eval` 与 `utils` 仍不应跳过阶段顺序提前实现；`runtime` 与 `observability` 无故不得继续扩散。
 
 ## 使用规则

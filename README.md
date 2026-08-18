@@ -7,7 +7,7 @@ TypeScript monorepo，提供可替换实现的检索增强生成（RAG）SDK。�
 ## 能力概览
 
 - **索引**：文档加载、清洗、切分、chunk 增强、metadata 抽取、embedding、向量写入；支持全量与增量（fingerprint skip / replace / stale cleanup）
-- **查询**：预处理 → 检索 → 后处理 → 生成
+- **查询**：预处理 → 检索 → 后处理 → 生成；`runtime.run()` 一次返回完整答案，`runtime.runStream()` 推送增量 token；`RuntimeResult.citations` 给出 grounding 引用
 - **默认栈**：OpenAI 兼容 embedding / chat + pgvector 读写闭环；Ollama 与 Chroma 写入仍可选
 - **适配**：LangChain loader / chunker / embedder / retriever / generator，以及 pgvector、Chroma、Ollama、OpenAI 兼容接口
 - **观测**：trace / event / observer，以及 console、memory、JSONL exporter

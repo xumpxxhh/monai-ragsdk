@@ -20,7 +20,7 @@
 
 - 离线索引构建
 - 第三方生态的具体 retriever / generator 适配
-- 流式输出、复杂 hooks、正式 observability / eval 对接
+- 复杂 hooks、正式 observability / eval 对接
 
 ## 当前已实现范围
 
@@ -30,6 +30,8 @@
 - `createRuntime()`
 - `createDefaultRuntime()`
 - `runtime.run()` 的主流程编排
+- `runtime.runStream()` 的流式 generation
+- `RuntimeResult.citations` 的 grounding 引用
 - `RuntimeError` 与阶段错误包装
 - `NoopQueryPreprocessor`
 - `PassthroughRetrievalPostprocessor`
@@ -44,13 +46,17 @@
 - 已补 `PostRetrievalResult` 的 `selectedCandidates` / `droppedCandidates` 与裁剪结果字段
 - 已补 `RuntimeDebugInfo` 的 route、rewrite、budget、threshold 与 selection 计数
 - 已补 indexing 查询协议 helper，用于把 indexing canonical metadata 真正映射到 runtime 请求与候选结构
-- 已补第一版可复用 post-retrieval 策略件：score threshold、predicate filtering、near-duplicate removal、budget trim、source coverage、context ordering 与 selection trace
+- 已补第一版可复用 post-retrieval 策略件：score threshold、predicate filtering、near-duplicate removal、budget trim、source coverage、context ordering、Lost in the Middle 与 selection trace
+- 已补可组合 pipeline 策略框架：`QueryStrategy`、`PostRetrievalStrategy`、`StrategyQueryPreprocessor`、`StrategyRetrievalPostprocessor`、`FanOutRetriever`、`fuseByReciprocalRankFusion`
+- 已补 pre-retrieval LLM 策略：`createQueryRewriteStrategy`、`createQueryExpansionStrategy`、`createQueryDecompositionStrategy`、`createMultiQueryStrategy`
+- 已补 `RuntimeStrategyModel` 契约（厂商实现放在 adapters）
+- `RetrievalRequest.subQueries` 供 multi-query fan-out 消费
 
 当前仍未覆盖：
 
 - `runtime` 包内不提供官方默认的第三方 retriever / generator adapter；当前 LangChain 查询期适配实现已放在 `@monai-ragsdk/adapters`
-- 流式输出
-- 复杂 rerank / trim 策略集合
+- Query Routing 与业务前处理预留点（框架已提供可组合能力，具体路由规则需按业务配置）
+- Active RAG / Self-Correction 循环编排
 - 更完整的 integration / smoke 级跨包验证覆盖
 
 当前根级已覆盖的跨包验证：
@@ -64,11 +70,15 @@
 packages/runtime/
   src/
     index.ts
-    types/
-    interfaces/
+    types/            跨阶段共享契约
     errors/
-    defaults/
-    pipeline/
+    indexing/           查询协议 helper
+    pipeline/           createRuntime / runRuntime / createDefaultRuntime
+    stages/
+      pre-retrieval/    QueryPreprocessor、QueryStrategy、NoopQueryPreprocessor
+      retrieval/        RuntimeRetriever、FanOutRetriever、fuseByReciprocalRankFusion
+      post-retrieval/   RetrievalPostprocessor、策略件与 Passthrough
+      generation/       RuntimeGenerator、iterateRuntimeGeneratorStream
   demo/
   __tests__/
   README.md
@@ -78,42 +88,43 @@ packages/runtime/
 
 目录职责：
 
-- `src/types/`：运行时输入输出、上下文、阶段结果
-- `src/interfaces/`：四阶段接口
+- `src/types/`：运行时输入输出、上下文、阶段结果、`RuntimeStrategyModel`
+- `src/stages/*/`：各阶段 interface、默认件与策略件（按 pipeline 阶段组织）
 - `src/errors/`：运行时错误边界与包装
-- `src/defaults/`：最小默认件
-- `src/pipeline/`：`createRuntime()` 与 `runRuntime()`
-- `demo/`：最小可运行示例
-- `__tests__/`：公开导出、默认件和主流程测试
+- `src/pipeline/`：`createRuntime()`、`runRuntime()` 与顶层装配
+- `src/indexing/`：indexing canonical metadata 到 runtime 查询协议的 helper
+- `demo/`：最小可运行示例（含 `strategy-pipeline.ts`）
+- `__tests__/`：公开导出、默认件、主流程与策略框架测试
+
+## 策略件落点约定
+
+- **runtime**：策略件本体（含 prompt 模板与解析逻辑），包括纯计算策略与依赖 `RuntimeStrategyModel` 的 LLM 类策略
+- **adapters**：绑定具体厂商或协议的实现（如 `OpenAIStrategyModel`、`PgVectorRuntimeRetrieverAdapter`）
+- runtime 保持零第三方运行时依赖，只依赖 `core` 与 `observability`
 
 ## 当前公开导出
 
 包入口 `src/index.ts` 当前统一导出：
 
 - `types/*`
-- `interfaces/*`
 - `errors/*`
-- `defaults/*`
+- `stages/*`（四阶段 interface、默认件与策略件）
+- `indexing/*`
 - `pipeline/*`
 
 最常用的公开 API：
 
-- `createRuntime()`
-- `createDefaultRuntime()`
+- `createRuntime()` / `createDefaultRuntime()`
+- `runtime.run()` / `runtime.runStream()`
+- `StrategyQueryPreprocessor` / `StrategyRetrievalPostprocessor`
+- `FanOutRetriever` / `fuseByReciprocalRankFusion`
+- `createScoreThresholdStrategy()` 等 post-retrieval 策略工厂
+- `createLostInTheMiddleStrategy()` / `applyLostInTheMiddleStrategy()`
+- `buildPassthroughStrategies()` / `buildRuntimeCitations()`
 - `createDefaultPostprocessor()`
-- `applyCandidatePredicateStrategy()`
-- `applyCandidateOrderingStrategy()`
-- `applyNearDuplicateRemovalStrategy()`
-- `applySourceCoverageStrategy()`
-- `applyScoreThresholdStrategy()`
-- `applyBudgetTrimStrategy()`
-- `createIndexingRetrievalFilters()`
-- `createIndexingRetrievalRequest()`
-- `createIndexingRetrievalCandidate()`
-- `filterRetrievalCandidatesByIndexingFilters()`
-- `RuntimeError`
-- `NoopQueryPreprocessor`
-- `PassthroughRetrievalPostprocessor`
+- `applyCandidatePredicateStrategy()` 等策略 helper
+- indexing 查询协议 helper（`createIndexingRetrievalRequest` 等）
+- `RuntimeError` / `NoopQueryPreprocessor` / `PassthroughRetrievalPostprocessor`
 
 ## 关键类型与接口
 
@@ -126,6 +137,7 @@ packages/runtime/
 - `RetrievalRequest`
 - `RetrievalCandidate`
 - `RuntimeResult`
+- `RuntimeCitation`
 - `RuntimeRunOptions`
 - `RuntimeContext`
 
@@ -167,6 +179,18 @@ packages/runtime/
 当前仍未落地：
 
 - 更完整的 rerank / trim 默认策略集合
+
+本轮新增的 citation / grounding 切片：
+
+- `RuntimeResult.citations` 按进入 generation 的 chunks 生成 grounding 引用
+- `run()` 与 `runStream()` 共用 `buildRuntimeCitations()`，最终 result 同构
+- 不解析答案标记，也不要求 generator 另产出引用
+
+本轮新增的流式切片：
+
+- `RuntimeGenerator.generateStream()` 为可选能力；缺省时 `runStream()` 回退到一次 `generate()`
+- `runtime.runStream()` 检索三阶段仍一次性完成，只在 generation 向外推 `delta`，最后给出与 `run()` 同构的 `result`
+- `run()` 始终走非流式 `generate()`，避免把流式超时套到 JSON 调用上
 
 本轮新增的 Phase 1 增量点：
 

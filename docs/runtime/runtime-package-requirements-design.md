@@ -59,9 +59,8 @@
 当前仍缺失：
 
 1. `runtime` 包内不提供第三方默认 retriever / generator 适配；当前 LangChain 查询期默认适配已归入 `adapters`
-2. 流式输出
-3. 更复杂的 rerank / budget trim / hooks
-4. 与 `eval`、`observability` 的正式对接
+2. 更复杂的 rerank / budget trim / hooks
+3. 与 `eval`、`observability` 的正式对接
 
 当前 Phase D 第一批已经开始落地：
 
@@ -75,7 +74,7 @@
 这里需要额外强调：
 
 1. 当前 `indexing` 到 `runtime` 的查询协议已具备最小 helper 与根级闭环验证，但尚未等同于完整 Phase D 层级召回或增量索引查询能力
-2. 当前 `adapters` 已形成 LangChain 查询期 retriever / generator 默认适配，但 OpenAI、Pinecone 等 provider 级预设仍未落地
+2. 当前 `adapters` 已形成 LangChain、OpenAI 兼容与 Ollama 查询期 retriever / generator 适配；Pinecone 等其余 provider 级预设仍未落地
 3. 因此，`runtime` 当前阶段的推进重点仍应是“继续稳定抽象、编排与结果结构”，第三方默认实现继续归入 `adapters`
 
 ## 问题背景
@@ -755,7 +754,7 @@ MVP 先统一使用 `RuntimeError + stage + cause` 即可。
 1. 多路 query rewrite
 2. 混合检索
 3. reranker provider 预设
-4. 流式输出
+4. 答案内 citation 标记解析，或要求 generator 另产出引用
 5. 复杂 hooks 机制
 6. 与 eval / observability 的正式对接
 

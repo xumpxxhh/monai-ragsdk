@@ -14,18 +14,20 @@
 当前 `runtime` 已提供：
 
 - 四阶段在线编排：`pre-retrieval -> retrieval -> post-retrieval -> generation`
-- 公开入口：`createRuntime()`、`createDefaultRuntime()`、`runtime.run()`
+- 公开入口：`createRuntime()`、`createDefaultRuntime()`、`runtime.run()`、`runtime.runStream()`
 - 最小默认件：`NoopQueryPreprocessor`、`PassthroughRetrievalPostprocessor`、`createDefaultPostprocessor()`
-- 查询期结构化结果：`RetrievalRequest`、`RetrievalCandidate`、`PostRetrievalResult`、`RuntimeResult`
+- 查询期结构化结果：`RetrievalRequest`、`RetrievalCandidate`、`PostRetrievalResult`、`RuntimeResult`、`RuntimeCitation`
 - Phase D 第一批查询协议扩展：`RetrievalFilters`、`RetrievalBudget`、`RetrievalRerankPolicy`
-- 第一版可复用 post-retrieval 策略件：`applyScoreThresholdStrategy()`、`applyCandidatePredicateStrategy()`、`applyNearDuplicateRemovalStrategy()`、`applyBudgetTrimStrategy()`、`applySourceCoverageStrategy()`、`applyCandidateOrderingStrategy()` 与 selection trace
+- 第一版可复用 post-retrieval 策略件：`applyScoreThresholdStrategy()` 等，以及 `create*Strategy()` 工厂
+- 可组合 pipeline 策略框架：`QueryStrategy`、`PostRetrievalStrategy`、`StrategyQueryPreprocessor`、`StrategyRetrievalPostprocessor`、`FanOutRetriever`、`fuseByReciprocalRankFusion`、`createLostInTheMiddleStrategy()`
+- `RuntimeStrategyModel` 契约（OpenAI / Ollama 实现在 `@monai-ragsdk/adapters`）
+- `RetrievalRequest.subQueries` 供 multi-query fan-out
 - 统一错误边界：`RuntimeError`
 - 最小 demo 与 unit test
 
 当前仍未提供：
 
 - `runtime` 包内的第三方默认 retriever / generator 适配；当前 LangChain 查询期适配已放在 `@monai-ragsdk/adapters`
-- 流式输出
 - 复杂 rerank / budget trim / hooks
 - 与 `eval`、`observability` 的正式对接
 
@@ -34,9 +36,9 @@
 `@monai-ragsdk/runtime` 当前从包入口统一导出以下分层：
 
 - `types/*`
-- `interfaces/*`
 - `errors/*`
-- `defaults/*`
+- `stages/*`（四阶段 interface、默认件与策略件）
+- `indexing/*`
 - `pipeline/*`
 
 最常用的入口有：
@@ -54,6 +56,7 @@
 - `applyBudgetTrimStrategy()`：按 `RetrievalBudget` 执行候选数、chunk 数与 prompt 长度裁剪
 - `applySourceCoverageStrategy()`：按 source 配额控制最终候选覆盖
 - `applyCandidateOrderingStrategy()`：按自定义 comparator 稳定排序最终候选
+- `buildRuntimeCitations()`：把 post-retrieval chunks 转成 `RuntimeResult.citations`
 - `RuntimeError`：统一捕获任一阶段的运行时失败
 
 ## 最小接入
@@ -95,6 +98,19 @@ const runtime = createDefaultRuntime({
 });
 
 const result = await runtime.run({ query: "Explain runtime MVP" });
+```
+
+需要边生成边消费 token 时，使用 `runtime.runStream()`。没有 `generateStream` 的 generator 会把完整 `generate()` 结果当成一次 delta。
+
+```ts
+for await (const event of runtime.runStream({ query: "Explain runtime MVP" })) {
+  if (event.type === "delta") {
+    process.stdout.write(event.text);
+    continue;
+  }
+
+  console.log(event.result.answer);
+}
 ```
 
 这里的默认行为是：
@@ -329,6 +345,7 @@ type RuntimeRunOptions = {
 type RuntimeResult = {
   answer: string;
   chunks: Chunk[];
+  citations: RuntimeCitation[];
   originalQuery: Query;
   effectiveQuery: Query;
   retrievalMetadata?: Record<string, JsonValue>;
@@ -336,7 +353,23 @@ type RuntimeResult = {
   generationMetadata?: Record<string, JsonValue>;
   debug?: RuntimeDebugInfo;
 };
+
+type RuntimeCitation = {
+  index: number;
+  chunkId: string;
+  sourceId?: string;
+  score?: number;
+  title?: string;
+  hierarchyPath?: string;
+};
 ```
+
+`citations` 是 grounding 引用，不是答案解析结果：
+
+- 顺序与送入 generation 的 `chunks` 一致，`index` 从 1 开始
+- 优先用 `selectedCandidates` 补 `score` / `sourceId`；没有 candidate 时从 chunk metadata 回退
+- 检索为空时为 `[]`，`run()` 与 `runStream()` 的最终 `result` 同构
+- 本切片不解析答案里的 `[1]` / `[2]`，也不要求 generator 另产出引用
 
 `includeDebug` 为 `true` 时，返回的 `debug` 结构为：
 
@@ -538,6 +571,72 @@ type PostRetrievalResult = {
 - `promptContext` 在 MVP 中固定为 `string | undefined`
 - `selectedCandidates` 与 `droppedCandidates` 是 Phase D 第一批新增的可选调试落点，不要求所有 postprocessor 都立即实现
 
+## 可组合 pipeline 策略框架
+
+四阶段主流程（`run-runtime.ts`）仍按单实例 DI 编排；组合能力通过策略件 + 组合型默认件实现，**不改变** `QueryPreprocessor` / `RetrievalPostprocessor` 接口签名。
+
+### pre-retrieval：`StrategyQueryPreprocessor`
+
+推荐顺序：`query-rewrite` 在前，再接 `query-expansion` / `query-decomposition` / `multi-query` 之一。后三者写入 `subQueries`，需要配合 `FanOutRetriever`。
+
+```ts
+import {
+  StrategyQueryPreprocessor,
+  createQueryRewriteStrategy,
+  createMultiQueryStrategy,
+} from "@monai-ragsdk/runtime";
+import { OpenAIStrategyModel } from "@monai-ragsdk/adapters";
+
+const model = new OpenAIStrategyModel({
+  model: "deepseek-v4-flash",
+  baseUrl: chatBaseUrl,
+});
+
+const preprocessor = new StrategyQueryPreprocessor({
+  strategies: [
+    createQueryRewriteStrategy({ model }),
+    createMultiQueryStrategy({ model, count: 3 }),
+  ],
+});
+```
+
+LLM 调用失败或输出无法解析时，默认 `onError: "passthrough"`，检索仍用原 query。需要失败即中断时设 `onError: "throw"`。
+
+四个策略的差异：
+
+- `createQueryRewriteStrategy`：改写 `effectiveQuery`，不产 `subQueries`
+- `createQueryExpansionStrategy`：相关概念扩展，默认把原 query 放进 `subQueries` 首位
+- `createQueryDecompositionStrategy`：拆成独立子问题，默认不把原复合问句放进列表
+- `createMultiQueryStrategy`：同一意图的多种措辞，默认保留原 query
+- `createQueryRoutingStrategy`：用 LLM 写回 `request.route`（以及可选 `request.budget/topK/filters`），供后续检索/后处理选择策略
+
+### retrieval：`FanOutRetriever`
+
+读 `RetrievalRequest.subQueries`，对每个子查询 fan-out 底层 retriever，默认用 `fuseByReciprocalRankFusion()` 融合。无 `subQueries` 时退化为单次检索。
+
+### post-retrieval：`StrategyRetrievalPostprocessor`
+
+```ts
+import {
+  StrategyRetrievalPostprocessor,
+  createScoreThresholdStrategy,
+  createLostInTheMiddleStrategy,
+} from "@monai-ragsdk/runtime";
+
+const postprocessor = new StrategyRetrievalPostprocessor({
+  strategies: [
+    createScoreThresholdStrategy({ scoreThreshold: 0.7 }),
+    createLostInTheMiddleStrategy(),
+  ],
+});
+```
+
+`PassthroughRetrievalPostprocessor` 内部已委托 `StrategyRetrievalPostprocessor`，历史选项与行为保持等价。
+
+### LLM 策略抽象：`RuntimeStrategyModel`
+
+runtime 只定义 `RuntimeStrategyModel.complete({ prompt, system })`；OpenAI / Ollama 实现在 `@monai-ragsdk/adapters` 的 `OpenAIStrategyModel` / `OllamaStrategyModel`。pre-retrieval 的 rewrite / expansion / decomposition / multi-query 策略件注入该抽象即可。
+
 ## 可复用 post-retrieval 策略件
 
 当前 runtime 已提供第一版通用、厂商无关的后处理策略 helper：
@@ -594,6 +693,29 @@ type PostRetrievalResult = {
 
 - 不会新增或删除候选，只调整顺序
 - selection trace 会记录最终 `order`
+
+### `createLlmRerankStrategy(options)`
+
+用途：
+
+- 通过 LLM 对候选内容做真实相关性重排序
+- 可选写回 `candidate.score`，让后续 score-threshold 策略可继续消费
+
+特点：
+
+- 默认重排不丢弃候选（drop 交给 budget / trim 策略）
+- LLM 失败或 JSON 解析失败时，可通过 `onError` 选择透传或抛错
+
+### `createContextCompressionStrategy(options)`
+
+用途：
+
+- 用 LLM 压缩 `candidate.chunk.content`，从而让后续 `promptContext` 与最终答案使用压缩后的上下文
+
+特点：
+
+- 不改变候选数量，只替换每个 chunk 的内容
+- 失败时支持透传（`onError: "passthrough"`）或中断（`onError: "throw"`）
 
 ### `applyNearDuplicateRemovalStrategy(candidates, config, input)`
 

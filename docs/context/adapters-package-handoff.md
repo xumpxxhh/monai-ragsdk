@@ -42,9 +42,8 @@
 
 当前未实现：
 
-- 流式 chat 输出
 - Pinecone adapter
-- Chroma 查询侧 adapter
+- Chroma 查询侧 adapter（已移出阶段 2，不要当成当前切片）
 - 其他外部 loader / vector store adapter
 - 更完整的 integration / smoke 覆盖
 
@@ -168,7 +167,8 @@ packages/adapters/
 - 当 embeddings 返回数量与 chunks 数量不一致时，`LangChainEmbeddingsAdapter` 会直接报错，避免静默写入错误向量。
 - `OpenAIEmbedder` 调用 OpenAI 兼容 `/embeddings`；`apiKey` 优先取构造参数，再回退 `EMBEDDING_API_KEY`，密钥不写进源码。`baseUrl` 必须由调用方显式传入。
 - `OpenAIEmbedder` 按返回 `index` 对齐 batch，并校验维度；数量或维度不一致时立即失败。
-- `OpenAIRuntimeGenerator` 调用 OpenAI 兼容 `/chat/completions`；`apiKey` 优先取构造参数，再回退 `OPENAI_API_KEY`。`baseUrl` 与 `model` 必须由调用方显式传入。当前 `stream: false`，一次返回完整答案。
+- `OpenAIRuntimeGenerator` 调用 OpenAI 兼容 `/chat/completions`；`apiKey` 优先取构造参数，再回退 `OPENAI_API_KEY`。`baseUrl` 与 `model` 必须由调用方显式传入。`generate()` 使用 `stream: false`；`generateStream()` 解析 SSE `data:` 行，timeout 只卡到响应头。
+- `OllamaRuntimeGenerator` 调用 Ollama `/api/chat`。`generate()` 使用 `stream: false`；`generateStream()` 解析 NDJSON，timeout 只卡到响应头。
 - `ChromaVectorStoreAdapter` 接收 Chroma 连接配置，并在首次写入时自动获取或创建目标 collection。
 - `ChromaVectorStoreAdapter` 已对齐 `VectorStoreWriteContext` 的签名，但当前不会消费该上下文，也不会主动实现 stale cleanup。
 - `ChromaVectorStoreAdapter` 会在单次 `upsert` 前检查向量维度是否一致，避免把明显错误的 batch 发送到 Chroma。
@@ -206,9 +206,8 @@ packages/adapters/
 - Chroma store upsert 映射与错误路径
 - pgvector store upsert / deleteByFilter / listSourceRecords 映射与错误路径
 - pgvector runtime retriever 的向量 / 关键词并行召回、RRF 融合与 runtime filter
-- Ollama embedding / chat HTTP 映射与重试
-- OpenAI 兼容 embedding HTTP 映射、鉴权、必填 `baseUrl`、重试与维度校验
-- OpenAI 兼容 chat HTTP 映射、鉴权、必填 `baseUrl` / `model` 与 grounded prompt
+- OpenAI 兼容 chat HTTP 映射、鉴权、必填 `baseUrl` / `model`、grounded prompt 与 SSE 流式
+- Ollama embedding / chat HTTP 映射、重试与 NDJSON 流式
 - 空白 chunk 跳过与连续编号
 
 ## 后续建议
@@ -218,4 +217,5 @@ packages/adapters/
 3. 如果要继续扩展 embedder，优先补少量高频 provider 预设，而不是把具体厂商 SDK 直接引入 `indexing`。
 4. 当需要继续补 Pinecone 等向量数据库时，继续保持“第三方能力放 adapters，核心契约放 core”的边界。
 5. PostgreSQL + pgvector 查询期继续走 `PgVectorRuntimeRetrieverAdapter`，不要把检索协议塞回 `VectorStore`。
-6. 当前已具备 `runtime + adapters` 的根级 integration / smoke 最小链路；后续优先在既有场景上扩展更多 adapter 组合，而不是另起一套跨包验证结构。
+6. 阶段 2 不补 Chroma 查询侧，也不新增第二查询路径；Chroma 继续只保留写入。
+7. 当前已具备 `runtime + adapters` 的根级 integration / smoke 最小链路；后续优先在既有场景上扩展更多 adapter 组合，而不是另起一套跨包验证结构。
