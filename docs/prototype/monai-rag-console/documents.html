@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>文档与入库 · MonAI RAG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css"
+    />
+    <script src="assets/theme.js"></script>
+    <link rel="stylesheet" href="assets/theme.css" />
+  </head>
+  <body class="bg-canvas text-ink antialiased">
+    <div class="app-shell flex min-h-screen">
+      <aside class="app-aside w-60 shrink-0 bg-surface border-r border-line flex flex-col">
+        <div class="h-14 flex items-center gap-2.5 px-5 border-b border-line">
+          <span class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm">
+            <i class="fa-solid fa-leaf"></i>
+          </span>
+          <div>
+            <div class="font-semibold text-sm leading-tight">MonAI RAG</div>
+            <div class="text-[10px] text-muted">知识库问答控制台</div>
+          </div>
+        </div>
+        <nav class="flex-1 p-3 space-y-1 text-sm">
+          <a href="home.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-house w-4 text-center"></i> 工作台
+          </a>
+          <a href="knowledge-bases.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium">
+            <i class="fa-solid fa-layer-group w-4 text-center"></i> 知识库
+          </a>
+          <a href="ask.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-regular fa-comments w-4 text-center"></i> 问答
+          </a>
+          <a href="observe.html" data-admin-only class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-timeline w-4 text-center"></i> 观测
+          </a>
+          <a href="settings.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-gear w-4 text-center"></i> 设置
+          </a>
+        </nav>
+      </aside>
+
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-4 md:px-6 gap-2">
+          <div class="text-sm truncate">
+            <a href="knowledge-bases.html" class="text-muted hover:text-brand">知识库</a>
+            <i class="fa-solid fa-angle-right text-[10px] mx-1 text-muted"></i>
+            <span data-kb-label class="font-medium">产品手册库</span>
+            <span class="text-muted"> / 文档与入库</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <a href="strategy.html" class="h-8 px-3 rounded-ctrl border border-line hover:border-brand hover:text-brand inline-flex items-center">策略</a>
+            <a href="search-debug.html" data-admin-only class="h-8 px-3 rounded-ctrl border border-line hover:border-brand hover:text-brand inline-flex items-center">仅检索调试</a>
+            <a href="ask.html" class="h-8 px-3 rounded-ctrl bg-brand text-white hover:bg-brand-hover inline-flex items-center">去问答</a>
+          </div>
+        </header>
+
+        <main class="flex-1 p-4 md:p-6 overflow-auto">
+          <div class="flex flex-col lg:flex-row gap-4 mb-5">
+            <div class="w-full lg:w-48 shrink-0 space-y-2">
+              <button type="button" onclick="demoIngestProgress()" class="w-full h-10 rounded-ctrl bg-brand text-white text-sm font-medium hover:bg-brand-hover">
+                <i class="fa-solid fa-upload mr-1"></i> 上传入库
+              </button>
+              <button type="button" onclick="showComingSoon('从目录同步')" class="w-full h-10 rounded-ctrl border border-line text-sm text-muted">
+                从目录同步 <span class="text-[10px]">后续</span>
+              </button>
+              <button type="button" onclick="showComingSoon('高级索引')" class="w-full h-9 rounded-ctrl text-xs text-muted hover:bg-canvas">
+                索引方案 Tab · 即将推出
+              </button>
+            </div>
+
+            <div class="flex-1 bg-surface rounded-card shadow-card border border-line p-4">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <p class="text-sm">
+                  上次入库：<span class="font-medium">今天 10:21</span>
+                  <span class="text-muted">· 增量</span>
+                </p>
+                <div class="flex items-center gap-1 text-xs">
+                  <button type="button" class="px-2 py-1 rounded bg-canvas text-muted" onclick="document.getElementById('demo-states').classList.toggle('hidden')">演示状态</button>
+                </div>
+              </div>
+              <!-- 签名元素：入库结果计数条 -->
+              <div class="flex flex-wrap gap-2" id="ingest-summary">
+                <span class="count-chip count-chip--add"><i class="fa-solid fa-plus"></i> 新增 3</span>
+                <span class="count-chip count-chip--skip">跳过 40</span>
+                <span class="count-chip count-chip--replace">替换 1</span>
+                <span class="count-chip count-chip--fail">失败 0</span>
+                <span class="count-chip count-chip--clean">清理过期 0</span>
+              </div>
+              <p class="text-xs text-muted mt-3">未变化的文档会计入「跳过」，无需理解指纹细节。</p>
+              <div id="demo-states" class="hidden mt-3 flex flex-wrap gap-2 text-xs">
+                <button type="button" class="px-2 py-1 rounded-ctrl border border-line" onclick="document.getElementById('empty-docs').classList.remove('hidden');document.getElementById('doc-table-wrap').classList.add('hidden')">空状态</button>
+                <button type="button" class="px-2 py-1 rounded-ctrl border border-line" onclick="document.getElementById('empty-docs').classList.add('hidden');document.getElementById('doc-table-wrap').classList.remove('hidden')">有数据</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-2 mb-3">
+            <div class="relative flex-1">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm"></i>
+              <input id="doc-search" type="search" placeholder="搜索源 ID / 标题" class="w-full h-9 pl-9 pr-3 rounded-ctrl border border-line text-sm" />
+            </div>
+            <select id="doc-status-filter" class="h-9 px-3 rounded-ctrl border border-line text-sm">
+              <option value="all">全部状态</option>
+              <option value="indexed">已索引</option>
+              <option value="skipped">未变化</option>
+              <option value="failed">失败</option>
+              <option value="replaced">已替换</option>
+            </select>
+            <button
+              type="button"
+              onclick="confirmDanger('将清理本库中已失效的过期源，此操作不可恢复。确认继续？', function(){ toast('已清理 0 个无效源'); })"
+              class="h-9 px-3 rounded-ctrl border border-line text-sm text-danger hover:bg-danger/5"
+            >
+              清理无效源
+            </button>
+          </div>
+
+          <div id="empty-docs" class="hidden bg-surface rounded-card border border-line py-16 text-center">
+            <i class="fa-regular fa-folder-open text-4xl text-line mb-3"></i>
+            <p class="font-medium">这个知识库还没有文档</p>
+            <p class="text-sm text-muted mt-1">上传第一批文档，建立可引用的知识基础</p>
+            <button type="button" onclick="demoIngestProgress()" class="mt-4 h-9 px-4 rounded-ctrl bg-brand text-white text-sm">
+              <i class="fa-solid fa-upload mr-1"></i> 上传入库
+            </button>
+          </div>
+
+          <div id="doc-table-wrap" class="bg-surface rounded-card shadow-card border border-line overflow-hidden">
+            <div class="overflow-x-auto">
+              <table id="doc-table" class="w-full text-sm min-w-[720px]">
+                <thead>
+                  <tr class="text-left text-muted bg-canvas/70">
+                    <th class="font-medium px-4 py-3">源 ID</th>
+                    <th class="font-medium px-4 py-3">标题 / 路径</th>
+                    <th class="font-medium px-4 py-3">状态</th>
+                    <th class="font-medium px-4 py-3">更新时间</th>
+                    <th class="font-medium px-4 py-3 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-line">
+                  <tr data-row data-status="indexed" class="hover:bg-canvas/50">
+                    <td class="px-4 py-3 font-mono text-xs">d-12</td>
+                    <td class="px-4 py-3 font-medium">退货政策.md</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">已索引</span></td>
+                    <td class="px-4 py-3 text-muted">今天 10:21</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                      <button type="button" class="text-brand hover:underline" onclick="toast('已加入重新入库队列')">重新入库</button>
+                      <button type="button" class="text-muted hover:underline" onclick="showComingSoon('块级浏览')">查看块</button>
+                      <button type="button" class="text-danger hover:underline" onclick="confirmDanger('确认删除源 d-12「退货政策.md」？相关向量将一并移除。', function(){ toast('已删除 d-12'); })">删除</button>
+                    </td>
+                  </tr>
+                  <tr data-row data-status="failed" class="hover:bg-canvas/50 bg-danger/5">
+                    <td class="px-4 py-3 font-mono text-xs">d-09</td>
+                    <td class="px-4 py-3 font-medium">FAQ.md</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-danger/10 text-danger">失败</span></td>
+                    <td class="px-4 py-3 text-muted">今天 10:20</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                      <button type="button" class="text-brand hover:underline" onclick="toast('已重试 FAQ.md')">重试</button>
+                      <button type="button" class="text-muted hover:underline" onclick="toast('原因：内容为空，已跳过并继续')">查看原因</button>
+                    </td>
+                  </tr>
+                  <tr data-row data-status="skipped" class="hover:bg-canvas/50">
+                    <td class="px-4 py-3 font-mono text-xs">d-01</td>
+                    <td class="px-4 py-3 font-medium">手册.pdf</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-canvas text-muted">未变化</span></td>
+                    <td class="px-4 py-3 text-muted">昨天 18:02</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                      <button type="button" class="text-brand hover:underline">重新入库</button>
+                      <button type="button" class="text-muted hover:underline" onclick="showComingSoon('块级浏览')">查看块</button>
+                      <button type="button" class="text-danger hover:underline">删除</button>
+                    </td>
+                  </tr>
+                  <tr data-row data-status="replaced" class="hover:bg-canvas/50">
+                    <td class="px-4 py-3 font-mono text-xs">d-18</td>
+                    <td class="px-4 py-3 font-medium">运费说明.md</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">已替换</span></td>
+                    <td class="px-4 py-3 text-muted">今天 10:21</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                      <button type="button" class="text-brand hover:underline">重新入库</button>
+                      <button type="button" class="text-muted hover:underline" onclick="showComingSoon('块级浏览')">查看块</button>
+                      <button type="button" class="text-danger hover:underline">删除</button>
+                    </td>
+                  </tr>
+                  <tr data-row data-status="indexed" class="hover:bg-canvas/50">
+                    <td class="px-4 py-3 font-mono text-xs">d-22</td>
+                    <td class="px-4 py-3 font-medium">发票开具指引.md</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">已索引</span></td>
+                    <td class="px-4 py-3 text-muted">今天 09:48</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                      <button type="button" class="text-brand hover:underline">重新入库</button>
+                      <button type="button" class="text-muted hover:underline" onclick="showComingSoon('块级浏览')">查看块</button>
+                      <button type="button" class="text-danger hover:underline">删除</button>
+                    </td>
+                  </tr>
+                  <tr data-row data-status="indexed" class="hover:bg-canvas/50">
+                    <td class="px-4 py-3 font-mono text-xs">d-30</td>
+                    <td class="px-4 py-3 font-medium">会员积分规则.md</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">已索引</span></td>
+                    <td class="px-4 py-3 text-muted">周一 14:11</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                      <button type="button" class="text-brand hover:underline">重新入库</button>
+                      <button type="button" class="text-muted hover:underline" onclick="showComingSoon('块级浏览')">查看块</button>
+                      <button type="button" class="text-danger hover:underline">删除</button>
+                    </td>
+                  </tr>
+                  <tr data-row data-status="indexed" class="hover:bg-canvas/50">
+                    <td class="px-4 py-3 font-mono text-xs">d-31</td>
+                    <td class="px-4 py-3 font-medium">保修服务条款.pdf</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">已索引</span></td>
+                    <td class="px-4 py-3 text-muted">周一 11:02</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                      <button type="button" class="text-brand hover:underline">重新入库</button>
+                      <button type="button" class="text-muted hover:underline" onclick="showComingSoon('块级浏览')">查看块</button>
+                      <button type="button" class="text-danger hover:underline">删除</button>
+                    </td>
+                  </tr>
+                  <tr data-row data-status="failed" class="hover:bg-canvas/50 bg-danger/5">
+                    <td class="px-4 py-3 font-mono text-xs">d-33</td>
+                    <td class="px-4 py-3 font-medium">扫描件_模糊.jpg</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-danger/10 text-danger">失败</span></td>
+                    <td class="px-4 py-3 text-muted">上周日</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                      <button type="button" class="text-brand hover:underline">重试</button>
+                      <button type="button" class="text-muted hover:underline" onclick="toast('原因：无法提取有效文本')">查看原因</button>
+                    </td>
+                  </tr>
+                  <tr data-row data-status="skipped" class="hover:bg-canvas/50">
+                    <td class="px-4 py-3 font-mono text-xs">d-07</td>
+                    <td class="px-4 py-3 font-medium">包装尺寸表.csv</td>
+                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-canvas text-muted">未变化</span></td>
+                    <td class="px-4 py-3 text-muted">上周五</td>
+                    <td class="px-4 py-3 text-right space-x-2">
+                      <button type="button" class="text-brand hover:underline">重新入库</button>
+                      <button type="button" class="text-muted hover:underline" onclick="showComingSoon('块级浏览')">查看块</button>
+                      <button type="button" class="text-danger hover:underline">删除</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="px-4 py-3 border-t border-line flex items-center justify-between text-sm text-muted">
+              <span>共 128 条 · 本页 9 条</span>
+              <div class="flex items-center gap-1">
+                <button type="button" class="w-8 h-8 rounded-ctrl border border-line hover:bg-canvas">1</button>
+                <button type="button" class="w-8 h-8 rounded-ctrl border border-brand bg-brand-soft text-brand">2</button>
+                <button type="button" class="w-8 h-8 rounded-ctrl border border-line hover:bg-canvas">3</button>
+                <button type="button" class="w-8 h-8 rounded-ctrl border border-line hover:bg-canvas"><i class="fa-solid fa-angle-right"></i></button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- 入库进度抽屉 -->
+    <div id="drawer-ingest" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/40" onclick="closeModal('drawer-ingest')"></div>
+      <div class="absolute right-0 top-0 h-full w-full max-w-md bg-surface shadow-soft border-l border-line flex flex-col">
+        <div class="h-14 px-5 border-b border-line flex items-center justify-between">
+          <h3 class="font-medium">入库进行中</h3>
+          <button type="button" onclick="closeModal('drawer-ingest')" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 flex-1">
+          <p id="ingest-label" class="text-sm font-medium mb-2">正在处理 0 / 48</p>
+          <div class="h-2.5 rounded-full bg-canvas overflow-hidden mb-2">
+            <div id="ingest-bar" class="h-full bg-brand rounded-full transition-all" style="width: 0%"></div>
+          </div>
+          <p id="ingest-live" class="text-xs text-muted mb-4">当前：—</p>
+          <div id="ingest-log" class="text-sm"></div>
+        </div>
+        <div class="p-5 border-t border-line">
+          <button type="button" onclick="closeModal('drawer-ingest'); toast('已转后台继续')" class="w-full h-10 rounded-ctrl border border-line text-sm">
+            后台继续
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-coming-soon" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/40" onclick="closeModal('modal-coming-soon')"></div>
+      <div class="relative mx-auto mt-28 w-[420px] max-w-[92vw] bg-surface rounded-card shadow-soft">
+        <div class="flex items-center justify-between px-5 h-14 border-b border-line">
+          <h3 class="font-medium">规划中</h3>
+          <button type="button" onclick="closeModal('modal-coming-soon')" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 text-sm text-muted"><span id="coming-soon-title" class="text-ink font-medium">能力</span> 规划中，不影响当前问答。</div>
+        <div class="px-5 h-14 border-t border-line flex justify-end">
+          <button type="button" onclick="closeModal('modal-coming-soon')" class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm">知道了</button>
+        </div>
+      </div>
+    </div>
+    <script src="assets/app.js"></script>
+  </body>
+</html>

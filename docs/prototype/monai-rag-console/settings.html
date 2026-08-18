@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>设置 · MonAI RAG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css"
+    />
+    <script src="assets/theme.js"></script>
+    <link rel="stylesheet" href="assets/theme.css" />
+  </head>
+  <body class="bg-canvas text-ink antialiased">
+    <div class="app-shell flex min-h-screen">
+      <aside class="app-aside w-60 shrink-0 bg-surface border-r border-line flex flex-col">
+        <div class="h-14 flex items-center gap-2.5 px-5 border-b border-line">
+          <span class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm">
+            <i class="fa-solid fa-leaf"></i>
+          </span>
+          <div>
+            <div class="font-semibold text-sm leading-tight">MonAI RAG</div>
+            <div class="text-[10px] text-muted">知识库问答控制台</div>
+          </div>
+        </div>
+        <nav class="flex-1 p-3 space-y-1 text-sm">
+          <a href="home.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-house w-4 text-center"></i> 工作台
+          </a>
+          <a href="knowledge-bases.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-layer-group w-4 text-center"></i> 知识库
+          </a>
+          <a href="ask.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-regular fa-comments w-4 text-center"></i> 问答
+          </a>
+          <a href="observe.html" data-admin-only class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-timeline w-4 text-center"></i> 观测
+          </a>
+          <a href="settings.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium">
+            <i class="fa-solid fa-gear w-4 text-center"></i> 设置
+          </a>
+        </nav>
+      </aside>
+
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="h-14 shrink-0 bg-surface border-b border-line flex items-center px-4 md:px-6">
+          <h1 class="text-sm font-medium">设置</h1>
+        </header>
+
+        <main class="flex-1 p-4 md:p-6 overflow-auto max-w-2xl space-y-4">
+          <section class="bg-surface rounded-card shadow-card border border-line p-5">
+            <h2 class="font-medium mb-4">外观</h2>
+            <div class="flex gap-3">
+              <label class="flex-1 border border-line rounded-ctrl p-3 cursor-pointer has-[:checked]:border-brand has-[:checked]:bg-brand-soft">
+                <input type="radio" name="density" class="sr-only" />
+                <span class="text-sm font-medium">紧凑</span>
+                <span class="block text-xs text-muted mt-1">表格与列表更密，适合大屏运维</span>
+              </label>
+              <label class="flex-1 border border-brand bg-brand-soft rounded-ctrl p-3 cursor-pointer">
+                <input type="radio" name="density" checked class="sr-only" />
+                <span class="text-sm font-medium">舒适</span>
+                <span class="block text-xs text-muted mt-1">默认间距，适合日常问答</span>
+              </label>
+            </div>
+          </section>
+
+          <section class="bg-surface rounded-card shadow-card border border-line p-5">
+            <h2 class="font-medium mb-4">默认着陆页</h2>
+            <div class="space-y-2 text-sm">
+              <label class="flex items-center gap-2"><input type="radio" name="landing" checked class="text-brand" /> 工作台（管理员推荐）</label>
+              <label class="flex items-center gap-2"><input type="radio" name="landing" class="text-brand" /> 问答（终端用户推荐）</label>
+            </div>
+          </section>
+
+          <section class="bg-surface rounded-card shadow-card border border-line p-5">
+            <h2 class="font-medium mb-1">角色（演示）</h2>
+            <p class="text-xs text-muted mb-4">便于评审切换信息密度；真实部署接入权限后移除此开关。</p>
+            <select data-role-select class="h-9 px-3 rounded-ctrl border border-line text-sm w-full max-w-xs">
+              <option value="admin">管理员</option>
+              <option value="user">终端用户</option>
+            </select>
+            <p class="text-xs text-muted mt-3">当前：<span data-role-label class="text-ink font-medium">管理员</span> · 切换后侧栏「观测」等入口会随之显隐</p>
+          </section>
+
+          <section class="bg-surface rounded-card shadow-card border border-line p-5">
+            <h2 class="font-medium mb-4">连接与模型</h2>
+            <p class="text-xs text-muted mb-4">由部署环境注入，页面只展示状态，不收集密钥明文。</p>
+            <ul class="space-y-3 text-sm">
+              <li class="flex items-center justify-between py-2 border-b border-line">
+                <span>Embedding 服务</span>
+                <span class="inline-flex items-center gap-1.5 text-success text-xs font-medium">
+                  <i class="fa-solid fa-circle text-[6px]"></i> 已连接 · OpenAI 兼容
+                </span>
+              </li>
+              <li class="flex items-center justify-between py-2 border-b border-line">
+                <span>Chat 生成</span>
+                <span class="inline-flex items-center gap-1.5 text-success text-xs font-medium">
+                  <i class="fa-solid fa-circle text-[6px]"></i> 已连接 · gpt-4o-mini 兼容
+                </span>
+              </li>
+              <li class="flex items-center justify-between py-2 border-b border-line">
+                <span>向量存储</span>
+                <span class="inline-flex items-center gap-1.5 text-success text-xs font-medium">
+                  <i class="fa-solid fa-circle text-[6px]"></i> 已连接 · pgvector
+                </span>
+              </li>
+              <li class="flex items-center justify-between py-2">
+                <span>Ollama（可选）</span>
+                <span class="inline-flex items-center gap-1.5 text-muted text-xs font-medium">
+                  <i class="fa-solid fa-circle text-[6px]"></i> 未配置
+                </span>
+              </li>
+            </ul>
+          </section>
+
+          <p class="text-xs text-muted text-center pt-2">
+            <a href="index.html" class="text-brand hover:underline">返回原型总览</a>
+          </p>
+        </main>
+      </div>
+    </div>
+    <script src="assets/app.js"></script>
+  </body>
+</html>

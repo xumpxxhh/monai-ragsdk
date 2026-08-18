@@ -1,0 +1,174 @@
+:root {
+  font-family:
+    'PingFang SC',
+    'Microsoft YaHei',
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color-scheme: light;
+}
+
+body {
+  background-color: #f2f7f5;
+  color: #152520;
+}
+
+/* 签名：入库计数条色块 */
+.count-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.count-chip--add {
+  background: #e5f8f3;
+  color: #0a6b5c;
+}
+.count-chip--skip {
+  background: #eef2f1;
+  color: #5a6e68;
+}
+.count-chip--replace {
+  background: #fef3c7;
+  color: #b45309;
+}
+.count-chip--fail {
+  background: #fee2e6;
+  color: #dc2626;
+}
+.count-chip--clean {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+/* 引用角标 */
+.cite-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.2rem;
+  margin: 0 0.1rem;
+  border-radius: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: super;
+  cursor: pointer;
+  background: #e5f8f3;
+  color: #0a6b5c;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.cite-badge:hover,
+.cite-badge.is-active {
+  background: #0e9f85;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(14, 159, 133, 0.25);
+}
+
+.cite-card.is-active {
+  border-color: #0e9f85;
+  background: #e5f8f3;
+  box-shadow: 0 0 0 1px #0e9f85;
+}
+
+/* 时间线节点 */
+.trace-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: #0e9f85;
+  box-shadow: 0 0 0 3px #e5f8f3;
+}
+.trace-dot--warn {
+  background: #d97706;
+  box-shadow: 0 0 0 3px #fef3c7;
+}
+
+/* 流式光标 */
+.stream-cursor::after {
+  content: '';
+  display: inline-block;
+  width: 0.45rem;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: #0e9f85;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.toast-enter {
+  animation: toast-in 0.2s ease-out;
+}
+
+/* 侧栏占位项 */
+.nav-soon {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* 焦点可见 */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(14, 159, 133, 0.45);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* 窄屏侧栏 */
+@media (max-width: 900px) {
+  .app-shell {
+    flex-direction: column;
+  }
+  .app-aside {
+    width: 100% !important;
+    border-right: none;
+    border-bottom: 1px solid #d5e4df;
+  }
+  .ask-layout {
+    flex-direction: column !important;
+  }
+  .ask-cite-panel {
+    width: 100% !important;
+    border-left: none !important;
+    border-top: 1px solid #d5e4df;
+    max-height: 40vh;
+  }
+}

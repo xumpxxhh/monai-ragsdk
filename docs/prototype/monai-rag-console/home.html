@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>工作台 · MonAI RAG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css"
+    />
+    <script src="assets/theme.js"></script>
+    <link rel="stylesheet" href="assets/theme.css" />
+  </head>
+  <body class="bg-canvas text-ink antialiased">
+    <div class="app-shell flex min-h-screen">
+      <aside class="app-aside w-60 shrink-0 bg-surface border-r border-line flex flex-col">
+        <div class="h-14 flex items-center gap-2.5 px-5 border-b border-line">
+          <span class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm">
+            <i class="fa-solid fa-leaf"></i>
+          </span>
+          <div>
+            <div class="font-semibold text-sm leading-tight">MonAI RAG</div>
+            <div class="text-[10px] text-muted">知识库问答控制台</div>
+          </div>
+        </div>
+        <nav class="flex-1 p-3 space-y-1 text-sm">
+          <a href="home.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium">
+            <i class="fa-solid fa-house w-4 text-center"></i> 工作台
+          </a>
+          <a href="knowledge-bases.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-layer-group w-4 text-center"></i> 知识库
+          </a>
+          <a href="ask.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-regular fa-comments w-4 text-center"></i> 问答
+          </a>
+          <a href="observe.html" data-admin-only class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-timeline w-4 text-center"></i> 观测
+          </a>
+          <a href="settings.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-gear w-4 text-center"></i> 设置
+          </a>
+          <div class="pt-4 mt-2 border-t border-line">
+            <button type="button" onclick="showComingSoon('评测中心')" class="nav-soon w-full flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted text-left">
+              <i class="fa-solid fa-flask w-4 text-center"></i>
+              <span class="flex-1">评测</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-canvas">即将推出</span>
+            </button>
+          </div>
+        </nav>
+        <div class="p-3 border-t border-line text-xs text-muted">
+          视图：<span data-role-label>管理员</span>
+        </div>
+      </aside>
+
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-4 md:px-6 gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-sm text-muted hidden sm:inline">当前知识库</span>
+            <select data-kb-switch class="h-9 px-3 rounded-ctrl border border-line bg-surface text-sm max-w-[200px]">
+              <option>产品手册库</option>
+              <option>内部制度库</option>
+              <option>售后话术库</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-4">
+            <button type="button" class="relative text-muted hover:text-ink" aria-label="通知">
+              <i class="fa-regular fa-bell"></i>
+              <span class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-danger"></span>
+            </button>
+            <div class="flex items-center gap-2">
+              <img
+                src="https://i.pravatar.cc/80?img=32"
+                alt="林晓雯头像"
+                class="w-8 h-8 rounded-full object-cover"
+              />
+              <span class="text-sm hidden sm:inline" data-role-label>管理员</span>
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 p-4 md:p-6 overflow-auto">
+          <div class="flex items-center justify-between mb-5">
+            <h1 class="text-xl font-semibold">工作台</h1>
+            <label class="text-xs text-muted flex items-center gap-2" data-admin-only>
+              <input id="toggle-health" type="checkbox" checked class="rounded border-line text-brand" onchange="document.getElementById('health-zone').classList.toggle('hidden', !this.checked)" />
+              显示健康卡片
+            </label>
+          </div>
+
+          <!-- 快捷提问 -->
+          <section class="bg-surface rounded-card shadow-card border border-line p-5 mb-5 relative overflow-hidden">
+            <div class="absolute right-0 top-0 w-40 h-40 bg-brand-soft/60 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+            <p class="text-sm text-muted mb-2">有问题？直接问当前知识库 · <span data-kb-label class="text-brand font-medium">产品手册库</span></p>
+            <div class="flex flex-col sm:flex-row gap-3 relative">
+              <input
+                id="home-ask"
+                type="text"
+                placeholder="例如：退货时效是多久？发票抬头怎么改？"
+                class="flex-1 h-11 px-4 rounded-ctrl border border-line text-sm focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+              <a
+                href="ask.html"
+                class="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-ctrl bg-brand text-white text-sm font-medium hover:bg-brand-hover"
+              >
+                提问 <i class="fa-solid fa-arrow-right"></i>
+              </a>
+            </div>
+          </section>
+
+          <div id="health-zone" data-admin-only>
+            <div class="grid md:grid-cols-3 gap-4 mb-6">
+              <div class="bg-surface rounded-card shadow-card border border-line p-5">
+                <div class="flex items-center justify-between text-sm text-muted mb-2">
+                  <span>文档源</span>
+                  <i class="fa-solid fa-file-lines text-brand"></i>
+                </div>
+                <p class="text-3xl font-semibold tracking-tight">128</p>
+                <p class="text-xs text-success mt-2"><i class="fa-solid fa-check"></i> 上次入库成功 · 今天 10:21</p>
+              </div>
+              <div class="bg-surface rounded-card shadow-card border border-line p-5">
+                <div class="flex items-center justify-between text-sm text-muted mb-2">
+                  <span>近 7 日问答</span>
+                  <i class="fa-solid fa-comments text-brand"></i>
+                </div>
+                <p class="text-3xl font-semibold tracking-tight">312 <span class="text-base font-normal text-muted">次</span></p>
+                <p class="text-xs text-muted mt-2">平均引用 3.4 段 / 次</p>
+              </div>
+              <div class="bg-surface rounded-card shadow-card border border-line p-5 ring-1 ring-warning/30">
+                <div class="flex items-center justify-between text-sm text-muted mb-2">
+                  <span>失败入库</span>
+                  <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+                </div>
+                <p class="text-3xl font-semibold tracking-tight text-warning">2</p>
+                <a href="documents.html" class="inline-flex mt-2 text-xs font-medium text-brand hover:underline">去处理 →</a>
+              </div>
+            </div>
+          </div>
+
+          <section class="bg-surface rounded-card shadow-card border border-line">
+            <div class="px-5 py-4 border-b border-line flex items-center justify-between">
+              <h2 class="font-medium">最近动态</h2>
+              <a href="observe.html" data-admin-only class="text-xs text-brand hover:underline">查看观测</a>
+            </div>
+            <ul class="divide-y divide-line text-sm">
+              <li class="px-5 py-3.5 flex gap-3">
+                <span class="text-muted w-12 shrink-0">10:21</span>
+                <div>
+                  <span class="font-medium">入库完成</span>
+                  <div class="mt-1.5 flex flex-wrap gap-1.5">
+                    <span class="count-chip count-chip--add">新增 3</span>
+                    <span class="count-chip count-chip--skip">跳过 40</span>
+                    <span class="count-chip count-chip--fail">失败 0</span>
+                  </div>
+                </div>
+              </li>
+              <li class="px-5 py-3.5 flex gap-3">
+                <span class="text-muted w-12 shrink-0">10:05</span>
+                <div>
+                  用户提问「退货时效？」→ 已引用 4 段
+                  <a href="ask.html" class="text-brand ml-2 hover:underline">复现问答</a>
+                </div>
+              </li>
+              <li class="px-5 py-3.5 flex gap-3">
+                <span class="text-muted w-12 shrink-0">昨日</span>
+                <div>策略：开启「查询改写」· <span data-kb-label>产品手册库</span></div>
+              </li>
+              <li class="px-5 py-3.5 flex gap-3">
+                <span class="text-muted w-12 shrink-0">昨日</span>
+                <div>内部制度库出现 2 条失败入库，待重试</div>
+              </li>
+            </ul>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div id="modal-coming-soon" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/40" onclick="closeModal('modal-coming-soon')"></div>
+      <div class="relative mx-auto mt-28 w-[420px] max-w-[92vw] bg-surface rounded-card shadow-soft">
+        <div class="flex items-center justify-between px-5 h-14 border-b border-line">
+          <h3 class="font-medium">规划中</h3>
+          <button type="button" onclick="closeModal('modal-coming-soon')" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 text-sm text-muted leading-relaxed">
+          <span id="coming-soon-title" class="text-ink font-medium">评测中心</span>
+          正在建设中，不影响当前入库与问答。MVP 先打通「入库 → 可引用问答 → 可解释调优」。
+        </div>
+        <div class="px-5 h-14 border-t border-line flex justify-end">
+          <button type="button" onclick="closeModal('modal-coming-soon')" class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm">知道了</button>
+        </div>
+      </div>
+    </div>
+    <script src="assets/app.js"></script>
+  </body>
+</html>

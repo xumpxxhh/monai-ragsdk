@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>问答 · MonAI RAG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css"
+    />
+    <script src="assets/theme.js"></script>
+    <link rel="stylesheet" href="assets/theme.css" />
+  </head>
+  <body class="bg-canvas text-ink antialiased">
+    <div class="app-shell flex min-h-screen">
+      <aside class="app-aside w-60 shrink-0 bg-surface border-r border-line flex flex-col">
+        <div class="h-14 flex items-center gap-2.5 px-5 border-b border-line">
+          <span class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm">
+            <i class="fa-solid fa-leaf"></i>
+          </span>
+          <div>
+            <div class="font-semibold text-sm leading-tight">MonAI RAG</div>
+            <div class="text-[10px] text-muted">知识库问答控制台</div>
+          </div>
+        </div>
+        <nav class="flex-1 p-3 space-y-1 text-sm">
+          <a href="home.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-house w-4 text-center"></i> 工作台
+          </a>
+          <a href="knowledge-bases.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-layer-group w-4 text-center"></i> 知识库
+          </a>
+          <a href="ask.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium">
+            <i class="fa-regular fa-comments w-4 text-center"></i> 问答
+          </a>
+          <a href="observe.html" data-admin-only class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-timeline w-4 text-center"></i> 观测
+          </a>
+          <a href="settings.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+            <i class="fa-solid fa-gear w-4 text-center"></i> 设置
+          </a>
+        </nav>
+      </aside>
+
+      <div class="flex-1 flex flex-col min-w-0">
+        <header class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-4 md:px-6 gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <h1 class="text-sm font-medium shrink-0">问答 · <span data-kb-label>产品手册库</span></h1>
+            <select data-kb-switch class="h-8 px-2 rounded-ctrl border border-line text-xs max-w-[140px]">
+              <option>产品手册库</option>
+              <option>内部制度库</option>
+              <option>售后话术库</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-3 text-sm">
+            <div class="hidden sm:flex items-center gap-3 rounded-ctrl border border-line px-3 h-8">
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="mode" checked class="text-brand" /> 问答
+              </label>
+              <label data-admin-only class="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="mode" class="text-brand" onchange="if(this.checked) location.href='search-debug.html'" /> 仅检索
+              </label>
+            </div>
+            <button type="button" class="text-xs text-muted border border-line rounded-ctrl px-2 h-8" onclick="document.getElementById('ask-empty').classList.toggle('hidden'); document.getElementById('ask-main').classList.toggle('hidden')">
+              切换空状态
+            </button>
+          </div>
+        </header>
+
+        <!-- 空状态 -->
+        <div id="ask-empty" class="hidden flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <i class="fa-regular fa-folder-open text-5xl text-line mb-4"></i>
+          <p class="font-medium text-lg">这个知识库还没有文档</p>
+          <p class="text-sm text-muted mt-1">请先让管理员完成入库，或切换其他知识库</p>
+          <a href="documents.html" class="mt-4 h-9 px-4 rounded-ctrl bg-brand text-white text-sm inline-flex items-center">去文档与入库</a>
+        </div>
+
+        <div id="ask-main" class="flex-1 flex flex-col min-h-0">
+          <div class="ask-layout flex flex-1 min-h-0">
+            <!-- 对话区 -->
+            <section class="flex-1 flex flex-col min-w-0">
+              <div class="flex-1 overflow-auto p-4 md:p-6 space-y-5">
+                <div class="flex justify-end">
+                  <div class="max-w-[85%] bg-brand text-white rounded-card rounded-br-md px-4 py-3 text-sm shadow-card">
+                    <span id="demo-user-msg">退货时效是多久？</span>
+                  </div>
+                </div>
+                <div class="flex justify-start">
+                  <div class="max-w-[90%] bg-surface border border-line rounded-card rounded-bl-md px-4 py-3 text-sm shadow-card leading-relaxed">
+                    <div id="assistant-stream">
+                      一般情况下，自签收之日起 7 日内可申请退货<span class="cite-badge is-active" data-cite="1">1</span>。若商品属于特殊品类（如定制件、鲜活易腐），则不适用该时效<span class="cite-badge" data-cite="2">2</span>。建议在申请时准备订单号与签收凭证，以便客服核对。
+                    </div>
+                  </div>
+                </div>
+                <div id="no-ground-demo" class="hidden flex justify-start">
+                  <div class="max-w-[90%] bg-warning/5 border border-warning/30 rounded-card px-4 py-3 text-sm">
+                    <p class="font-medium text-warning mb-1">知识库未覆盖该问题</p>
+                    <p class="text-muted">当前库中没有足够依据回答「跨境退货运费由谁承担」。可换一种问法，或请管理员补充相关文档。</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="shrink-0 border-t border-line bg-surface p-4">
+                <div class="flex gap-2 items-end">
+                  <button type="button" onclick="showComingSoon('附件上传')" class="h-10 w-10 rounded-ctrl border border-line text-muted shrink-0" title="附件（后续）">
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
+                  <input
+                    id="ask-input"
+                    type="text"
+                    placeholder="输入问题，例如：运费谁承担？"
+                    class="flex-1 h-10 px-3 rounded-ctrl border border-line text-sm focus:border-brand focus:ring-2 focus:ring-brand/20"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('btn-send').click();}"
+                  />
+                  <button id="btn-send" type="button" class="h-10 px-5 rounded-ctrl bg-brand text-white text-sm font-medium hover:bg-brand-hover shrink-0">
+                    发送
+                  </button>
+                </div>
+                <p class="text-xs text-muted mt-2">答案均基于当前知识库；可点击角标查看原文。</p>
+              </div>
+            </section>
+
+            <!-- 引用面板 -->
+            <aside class="ask-cite-panel w-80 shrink-0 border-l border-line bg-surface flex flex-col">
+              <div class="h-12 px-4 border-b border-line flex items-center justify-between">
+                <h2 class="text-sm font-medium">本轮依据</h2>
+                <a href="observe.html" data-admin-only class="text-xs text-brand hover:underline">看时间线</a>
+              </div>
+              <div id="cite-panel" class="flex-1 overflow-auto p-3 space-y-2">
+                <article class="cite-card is-active border border-line rounded-ctrl p-3 cursor-pointer transition-colors" data-cite="1">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="cite-badge is-active" data-cite="1">1</span>
+                    <span class="text-[10px] text-success font-medium">相似度高</span>
+                  </div>
+                  <p class="text-xs font-medium mb-1">退货政策.md</p>
+                  <p class="text-xs text-muted leading-relaxed">…自签收之日起 7 日内可申请退货，商品需保持原包装完好…</p>
+                  <button type="button" class="text-[11px] text-brand mt-2 hover:underline">查看原文片段</button>
+                </article>
+                <article class="cite-card border border-line rounded-ctrl p-3 cursor-pointer transition-colors" data-cite="2">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="cite-badge" data-cite="2">2</span>
+                    <span class="text-[10px] text-muted">FAQ.md</span>
+                  </div>
+                  <p class="text-xs text-muted leading-relaxed">…特殊品类除外，包括定制件、鲜活易腐、贴身衣物…</p>
+                  <button type="button" class="text-[11px] text-brand mt-2 hover:underline">查看原文片段</button>
+                </article>
+                <details class="mt-3 text-sm" data-admin-only open>
+                  <summary class="cursor-pointer text-muted text-xs font-medium">有效提问（改写后）</summary>
+                  <p class="mt-2 text-xs bg-brand-soft text-brand-deep rounded-ctrl px-3 py-2">「商品退货申请时限」</p>
+                </details>
+                <details class="mt-2 text-sm" data-user-only>
+                  <summary class="cursor-pointer text-muted text-xs">有效提问（可展开）</summary>
+                  <p class="mt-2 text-xs bg-canvas rounded-ctrl px-3 py-2 text-muted">「商品退货申请时限」</p>
+                </details>
+              </div>
+              <div id="cite-empty" class="hidden flex-1 flex items-center justify-center p-6 text-center text-sm text-muted">
+                本轮未产生引用
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-coming-soon" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/40" onclick="closeModal('modal-coming-soon')"></div>
+      <div class="relative mx-auto mt-28 w-[420px] max-w-[92vw] bg-surface rounded-card shadow-soft">
+        <div class="flex items-center justify-between px-5 h-14 border-b border-line">
+          <h3 class="font-medium">规划中</h3>
+          <button type="button" onclick="closeModal('modal-coming-soon')" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 text-sm text-muted"><span id="coming-soon-title" class="text-ink font-medium">能力</span> 规划中，不影响当前问答。</div>
+        <div class="px-5 h-14 border-t border-line flex justify-end">
+          <button type="button" onclick="closeModal('modal-coming-soon')" class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm">知道了</button>
+        </div>
+      </div>
+    </div>
+    <script src="assets/app.js"></script>
+  </body>
+</html>
