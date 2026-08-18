@@ -120,7 +120,7 @@ export async function runLocalIndexing(input: {
   });
 
   return {
-    createdAt: new Date().toISOString(),
+    createdAt: Date.now(),
     directoryPath: resolvedDirectoryPath,
     indexingResult,
     chunks: memoryStore

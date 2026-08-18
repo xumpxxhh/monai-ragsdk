@@ -40,7 +40,7 @@ describe("observability phase 1", () => {
       scope: "runtime",
       stage: "retrieval",
       name: "runtime.retrieval.complete",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
     };
 
     expect(event.name).toBe("runtime.retrieval.complete");
@@ -52,7 +52,7 @@ describe("observability phase 1", () => {
       scope: "runtime",
       stage: "retrieval",
       name: "runtime.retrieval.complete",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
     };
 
     const error: RAGErrorRecord = {
@@ -60,7 +60,7 @@ describe("observability phase 1", () => {
       scope: "runtime",
       stage: "generation",
       name: "runtime.generation.fail",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       error: {
         name: "RuntimeError",
         message: "generation failed",
@@ -70,7 +70,7 @@ describe("observability phase 1", () => {
     const trace: RAGTrace = {
       traceId: "trace-1",
       scope: "runtime",
-      startedAt: new Date().toISOString(),
+      startedAt: Date.now(),
       status: "ok",
       events: [event],
     };
@@ -91,7 +91,7 @@ describe("observability phase 1", () => {
       scope: "runtime",
       stage: "retrieval",
       name: "runtime.retrieval.complete",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
     };
 
     await expect(observer.onEvent?.(event)).resolves.toBeUndefined();
@@ -109,7 +109,7 @@ describe("observability phase 1", () => {
       scope: "runtime",
       stage: "query",
       name: "runtime.query.receive",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       attributes: {
         query: "公司年假政策是什么？",
       },

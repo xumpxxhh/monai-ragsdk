@@ -52,7 +52,8 @@ export type CliOptions =
 export type IndexedChunkMap = Map<string, Chunk>;
 
 export type IndexSnapshot = {
-  createdAt: string;
+  /** Unix 毫秒时间戳；快照落盘用 number，展示时再转 ISO。 */
+  createdAt: number;
   directoryPath: string;
   indexingResult: IndexingResult;
   chunks: Chunk[];

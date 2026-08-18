@@ -13,7 +13,8 @@ export interface RAGErrorRecord {
   scope: RAGEventScope;
   stage: string;
   name: RAGEventName;
-  timestamp: string;
+  /** Unix 毫秒时间戳；与 RAGEvent.timestamp 同一口径。 */
+  timestamp: number;
   error: RAGErrorSummary;
   attributes?: RAGAttributes;
 }

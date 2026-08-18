@@ -55,14 +55,14 @@ describe("observability phase 4", () => {
       scope: "runtime",
       stage: "retrieval",
       name: "runtime.retrieval.complete",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
     };
 
     await observer.onEvent?.(event);
     await observer.onTraceEnd?.({
       traceId: "trace-1",
       scope: "runtime",
-      startedAt: new Date().toISOString(),
+      startedAt: Date.now(),
       status: "ok",
       events: [],
     });
@@ -96,7 +96,7 @@ describe("observability phase 4", () => {
       observer.onTraceEnd?.({
         traceId: "trace-2",
         scope: "runtime",
-        startedAt: new Date().toISOString(),
+        startedAt: Date.now(),
         status: "ok",
         events: [],
       }),
@@ -116,7 +116,7 @@ describe("observability phase 4", () => {
       scope: "indexing",
       stage: "embed",
       name: "indexing.embed.fail",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       error: {
         name: "IndexingError",
         message: "embedding failed",
@@ -127,7 +127,7 @@ describe("observability phase 4", () => {
     await observer.onTraceEnd?.({
       traceId: "trace-3",
       scope: "indexing",
-      startedAt: new Date().toISOString(),
+      startedAt: Date.now(),
       status: "error",
       events: [],
     });
@@ -142,7 +142,7 @@ describe("observability phase 4", () => {
     const trace: RAGTrace = {
       traceId: "trace-4",
       scope: "runtime",
-      startedAt: new Date().toISOString(),
+      startedAt: Date.now(),
       status: "ok",
       events: [],
     };
@@ -163,7 +163,7 @@ describe("observability phase 4", () => {
     await exporter.export({
       traceId: "trace-5",
       scope: "runtime",
-      startedAt: new Date().toISOString(),
+      startedAt: Date.now(),
       durationMs: 25,
       status: "ok",
       events: [],
@@ -178,14 +178,14 @@ describe("observability phase 4", () => {
     const firstTrace: RAGTrace = {
       traceId: "trace-jsonl-1",
       scope: "runtime",
-      startedAt: new Date().toISOString(),
+      startedAt: Date.now(),
       status: "ok",
       events: [],
     };
     const secondTrace: RAGTrace = {
       traceId: "trace-jsonl-2",
       scope: "indexing",
-      startedAt: new Date().toISOString(),
+      startedAt: Date.now(),
       status: "error",
       events: [],
     };
@@ -215,7 +215,7 @@ describe("observability phase 4", () => {
     const trace: RAGTrace = {
       traceId: "trace-jsonl-3",
       scope: "runtime",
-      startedAt: new Date().toISOString(),
+      startedAt: Date.now(),
       status: "ok",
       events: [],
     };
@@ -237,7 +237,7 @@ describe("observability phase 4", () => {
       scope: "runtime",
       stage: "query",
       name: "runtime.query.receive",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       attributes: {
         query: "公司年假政策是什么？",
       },
@@ -247,7 +247,7 @@ describe("observability phase 4", () => {
     await observer.onTraceEnd?.({
       traceId: "trace-jsonl-4",
       scope: "runtime",
-      startedAt: new Date().toISOString(),
+      startedAt: Date.now(),
       status: "ok",
       events: [],
     });

@@ -37,7 +37,7 @@ describe("LangChainLoaderAdapter", () => {
         content: "hello adapters",
         metadata: {
           source: "unit-test",
-          createdAt: "2026-04-14T00:00:00.000Z",
+          createdAt: new Date("2026-04-14T00:00:00.000Z").getTime(),
           nested: { page: 1 },
           tags: ["a", 2, true],
         },

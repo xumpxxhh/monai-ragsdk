@@ -99,7 +99,7 @@ async function emitEvent(
   observation: IndexingObservation,
   stage: string,
   action: "start" | "complete" | "fail",
-  timestamp: string,
+  timestamp: number,
   durationMs?: number,
   attributes?: RAGAttributes,
 ): Promise<RAGEvent> {
@@ -123,7 +123,7 @@ async function emitEvent(
 async function emitError(
   observation: IndexingObservation,
   stage: string,
-  timestamp: string,
+  timestamp: number,
   error: IndexingError,
   attributes?: RAGAttributes,
 ): Promise<RAGErrorRecord> {
@@ -164,8 +164,8 @@ async function endTrace(
       ? { version: observation.trace.version }
       : {}),
     ...(observation.trace.tags ? { tags: observation.trace.tags } : {}),
-    startedAt: new Date(observation.trace.startedAt).toISOString(),
-    endedAt: new Date(endedAt).toISOString(),
+    startedAt: observation.trace.startedAt,
+    endedAt,
     durationMs: endedAt - observation.trace.startedAt,
     status,
     events: [...observation.trace.events],
@@ -202,7 +202,7 @@ export async function runIndexing(
     observation,
     "run",
     "start",
-    new Date().toISOString(),
+    Date.now(),
     undefined,
     {
       mode,
@@ -498,7 +498,7 @@ export async function runIndexing(
       observation,
       "run",
       "complete",
-      new Date().toISOString(),
+      Date.now(),
       Date.now() - startedAt,
       {
         documentsTotal: result.documentsTotal,
@@ -517,7 +517,7 @@ export async function runIndexing(
     return result;
   } catch (error) {
     const indexingError = toIndexingError(error, { mode });
-    const timestamp = new Date().toISOString();
+    const timestamp = Date.now();
 
     await emitEvent(
       observation,
@@ -811,7 +811,7 @@ async function runStage<T>(
   observation?: IndexingObservation,
   stageObservation?: StageObservation<T>,
 ): Promise<T> {
-  const timestamp = new Date().toISOString();
+  const timestamp = Date.now();
   const startedAt = Date.now();
 
   if (observation) {
@@ -833,7 +833,7 @@ async function runStage<T>(
         observation,
         stage,
         "complete",
-        new Date().toISOString(),
+        Date.now(),
         Date.now() - startedAt,
         stageObservation?.completeAttributes?.(result),
       );
@@ -844,7 +844,7 @@ async function runStage<T>(
     const indexingError = toIndexingError(error, context, stage);
 
     if (observation) {
-      const failTimestamp = new Date().toISOString();
+      const failTimestamp = Date.now();
       await emitEvent(
         observation,
         stage,

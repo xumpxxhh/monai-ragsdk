@@ -23,7 +23,8 @@ export const normalizeJsonValue = (value: unknown): JsonValue | undefined => {
   }
 
   if (value instanceof Date) {
-    return value.toISOString();
+    // Date 一旦进入 metadata / JSON 就会跨包流通；统一成毫秒时间戳，避免 ISO 字符串混入存储。
+    return value.getTime();
   }
 
   if (value instanceof URL) {

@@ -67,6 +67,8 @@
 - `RAGMetric`
 - `RAGErrorRecord`
 
+时间字段（`RAGEvent.timestamp`、`RAGErrorRecord.timestamp`、`RAGTrace.startedAt` / `endedAt`）统一为 Unix 毫秒时间戳；JSONL 落盘与 observer 流通保持 number，控制台展示时再转 ISO。
+
 这些导出当前只覆盖包内协议和本地最小观测，不代表已经进入完整生产能力阶段。
 
 ## 接入说明

@@ -14,8 +14,9 @@ export interface RAGTrace {
   sampleId?: string;
   dataset?: string;
   version?: string;
-  startedAt: string;
-  endedAt?: string;
+  /** Unix 毫秒时间戳；存储与流通用 number，展示层再转 ISO。 */
+  startedAt: number;
+  endedAt?: number;
   durationMs?: number;
   status: "ok" | "error";
   tags?: RAGTags;
