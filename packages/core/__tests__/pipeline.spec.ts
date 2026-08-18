@@ -31,13 +31,25 @@ describe("core pipeline contract", () => {
       const chunks = await retriever.retrieve(query);
       const answer = await generator.generate({ query, chunks });
 
-      return RAGResponseSchema.parse({ answer, chunks });
+      return RAGResponseSchema.parse({
+        answer,
+        chunks,
+        originalQuery: query,
+        effectiveQuery: query,
+        citations: chunks.map((chunk, offset) => ({
+          index: offset + 1,
+          chunkId: chunk.id,
+        })),
+      });
     };
 
     await expect(
       pipeline({ query: "Explain the contract" }),
     ).resolves.toMatchObject({
       answer: "Explain the contract -> retrieved for: Explain the contract",
+      originalQuery: { query: "Explain the contract" },
+      effectiveQuery: { query: "Explain the contract" },
+      citations: [{ index: 1, chunkId: "chunk-1" }],
       chunks: [
         {
           id: "chunk-1",

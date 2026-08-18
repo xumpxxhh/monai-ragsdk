@@ -29,6 +29,12 @@ const pipeline: RAGPipeline = async (query: Query) => {
   return {
     answer,
     chunks,
+    originalQuery: query,
+    effectiveQuery: query,
+    citations: chunks.map((chunk, offset) => ({
+      index: offset + 1,
+      chunkId: chunk.id,
+    })),
   };
 };
 

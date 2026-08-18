@@ -21,13 +21,15 @@
 当前已完成第一批共享契约实现：
 
 - `JsonValueSchema`、`JsonObjectSchema`
-- `QuerySchema`、`ChunkSchema`、`RAGResponseSchema`
-- `Query`、`Chunk`、`RAGResponse`
+- `QuerySchema`、`ChunkSchema`、`RAGCitationSchema`、`RAGSelectionTraceEntrySchema`、`RAGStageStrategiesSchema`、`RAGFiltersSchema`、`RAGBudgetSchema`、`RAGRerankSchema`、`RAGCountsSchema`、`RAGTimingsSchema`、`RAGRetrievedCandidateSchema`、`RAGResponseSchema`
+- `Query`、`Chunk`、`RAGCitation`、`RAGSelectionTraceEntry`、`RAGStageStrategies`、`RAGFilters`、`RAGBudget`、`RAGRerank`、`RAGCounts`、`RAGTimings`、`RAGRetrievedCandidate`、`RAGResponse`
 - `Retriever`、`Generator`
 - `RAGCoreError`、`ValidationError`、`RetrievalError`、`GenerationError`
 - `RAGPipeline` 类型占位
 - `demo/` 最小运行示例
 - `__tests__/` 最小单元测试
+
+`RAGResponse` 是一次查询结束后的审计快照：可 Zod 校验、可 JSON 落盘。必填字段支撑答案溯源与原/有效查询对照；可选字段承载决策留痕与回放参数。`debug` 只作非契约溢出袋。
 
 当前仍不包含：
 
@@ -39,11 +41,26 @@
 
 当前 `@monai-ragsdk/core` 对外导出按以下分层组织：
 
-- `spec`：`JsonValueSchema`、`JsonObjectSchema`、`QuerySchema`、`ChunkSchema`、`RAGResponseSchema`
-- `types`：`Query`、`Chunk`、`RAGResponse`
+- `spec`：`JsonValueSchema`、`JsonObjectSchema`、`QuerySchema`、`ChunkSchema`、`RAGCitationSchema`、`RAGSelectionTraceEntrySchema`、`RAGStageStrategiesSchema`、`RAGFiltersSchema`、`RAGBudgetSchema`、`RAGRerankSchema`、`RAGCountsSchema`、`RAGTimingsSchema`、`RAGRetrievedCandidateSchema`、`RAGResponseSchema`
+- `types`：`Query`、`Chunk`、`RAGCitation`、`RAGSelectionTraceEntry`、`RAGStageStrategies`、`RAGFilters`、`RAGBudget`、`RAGRerank`、`RAGCounts`、`RAGTimings`、`RAGRetrievedCandidate`、`RAGResponse`
 - `interfaces`：`Retriever`、`Generator`
 - `errors`：`RAGCoreError`、`ValidationError`、`RetrievalError`、`GenerationError`
 - `pipeline`：`RAGPipeline`
+
+`Query` 必填 `query`，可选 `metadata`（回放上下文，不当查询正文）。
+
+`RAGResponse` 必填：`answer`、`chunks`（进入生成的上下文）、`citations`（与 chunks 等长同序、`index` 从 1 起编；空检索为 `[]`）、`originalQuery`、`effectiveQuery`。
+
+`RAGResponse` 可选：
+
+- 关联：`requestId` / `traceId` / `startedAt` / `endedAt`（Unix 毫秒时间戳，`endedAt >= startedAt`）
+- 查询演变：`subQueries` / `rewriteReason` / `route` / `routeReason` / `strategies`
+- 回放意图与实际：`topK` / `filters` / `budget` / `appliedBudget` / `rerank` / `appliedScoreThreshold` / `indexingMode`
+- 决策留痕：`retrievedCandidates` / `droppedChunkIds` / `selectionTrace` / `counts` / `timings` / `promptContext`
+- 生成：`streamed` / `generationModel`
+- 溢出袋：各阶段 metadata、`debug`
+
+`strategies` 按阶段记录策略名：`preRetrieval` / `retrieval` / `postRetrieval` / `generation`，每阶段为有序字符串数组。`rewriteReason` 与 `route` / `routeReason` 是独立具名字段，不替代 `strategies`。`filters` / `budget` / `rerank` 是回放意图；`appliedBudget` / `appliedScoreThreshold` / `counts` 是实际结果。`retrievedCandidates` 不嵌套 Chunk；压缩若改写正文，原文放在 citation / selectionTrace 的 `originalContent`。
 
 所有导出统一经由 `src/index.ts` 聚合，并构建到 `dist/index.js` / `dist/index.d.ts`。
 

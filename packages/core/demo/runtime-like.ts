@@ -30,6 +30,12 @@ async function run(query: Query): Promise<RAGResponse> {
   return RAGResponseSchema.parse({
     answer,
     chunks,
+    originalQuery: query,
+    effectiveQuery: query,
+    citations: chunks.map((chunk, offset) => ({
+      index: offset + 1,
+      chunkId: chunk.id,
+    })),
   });
 }
 
