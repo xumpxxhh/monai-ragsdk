@@ -4,9 +4,37 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "node -e \"console.log('apps/web 尚未开始实现，当前请先使用 apps/cli。')\"",
-    "check-types": "node -e \"process.exit(0)\"",
-    "dev": "node -e \"console.log('apps/web 尚未开始实现，当前请先使用 apps/cli。')\"",
-    "start": "node -e \"console.log('apps/web 尚未开始实现，当前请先使用 apps/cli。')\""
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "check-types": "tsc -b",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "start": "vite preview --host"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-select": "^2.2.5",
+    "@radix-ui/react-switch": "^1.2.5",
+    "@radix-ui/react-tabs": "^1.1.12",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.511.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.2",
+    "sonner": "^2.0.5",
+    "tailwind-merge": "^3.3.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.5.2",
+    "autoprefixer": "^10.4.21",
+    "jsdom": "^26.1.0",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^3.4.17",
+    "typescript": "catalog:",
+    "vite": "^6.3.5",
+    "vitest": "catalog:"
   }
 }

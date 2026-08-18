@@ -51,7 +51,16 @@ export default tseslint.config(
       '@typescript-eslint/no-empty-object-type': 'off',
     },
   },
-  // web 尚未落地 tsconfig；等有 apps/web/tsconfig.*.json 后再开 type-aware project
+  // web 应用 tsconfig 已落地，开启 type-aware lint
+  {
+    files: ['apps/web/**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir,
+        project: ['./apps/web/tsconfig.app.json'],
+      },
+    },
+  },
   {
     files: ['apps/web/**/*.{ts,tsx}'],
     plugins: {

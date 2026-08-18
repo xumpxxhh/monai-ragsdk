@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family:
+    'PingFang SC',
+    'Microsoft YaHei',
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color-scheme: light;
+}
+
+body {
+  @apply bg-canvas text-ink antialiased;
+  margin: 0;
+}
+
+@layer components {
+  .count-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium leading-tight;
+  }
+  .count-chip--add {
+    @apply bg-brand-soft text-brand-deep;
+  }
+  .count-chip--skip {
+    @apply bg-canvas text-muted;
+  }
+  .count-chip--replace {
+    @apply bg-amber-100 text-amber-700;
+  }
+  .count-chip--fail {
+    @apply bg-red-100 text-danger;
+  }
+  .count-chip--clean {
+    @apply bg-sky-100 text-sky-700;
+  }
+
+  .cite-badge {
+    @apply inline-flex min-w-[1.15rem] h-[1.15rem] items-center justify-center rounded px-0.5 mx-0.5 align-super text-[0.7rem] font-semibold cursor-pointer bg-brand-soft text-brand transition-all;
+  }
+  .cite-badge:hover,
+  .cite-badge.is-active {
+    @apply bg-brand text-white shadow-[0_0_0_2px_rgba(14,159,133,0.25)];
+  }
+
+  .cite-card.is-active {
+    @apply border-brand bg-brand-soft shadow-[0_0_0_1px_#0E9F85];
+  }
+
+  .trace-dot {
+    @apply h-[0.65rem] w-[0.65rem] rounded-full bg-brand shadow-[0_0_0_3px_#E5F8F3];
+  }
+  .trace-dot--warn {
+    @apply bg-warning shadow-[0_0_0_3px_#FEF3C7];
+  }
+
+  .stream-cursor::after {
+    content: '';
+    @apply inline-block w-[0.45rem] h-[1em] ml-0.5 align-text-bottom bg-brand;
+    animation: blink 1s step-end infinite;
+  }
+
+  .nav-soon {
+    @apply opacity-55 cursor-not-allowed;
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    @apply flex-col;
+  }
+  .app-aside {
+    @apply w-full border-r-0 border-b border-line;
+  }
+  .ask-layout {
+    @apply flex-col;
+  }
+  .ask-cite-panel {
+    @apply w-full border-l-0 border-t border-line max-h-[40vh];
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(14, 159, 133, 0.45);
+  outline-offset: 2px;
+}
