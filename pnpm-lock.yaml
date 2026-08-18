@@ -56,6 +56,9 @@ importers:
       '@monai-ragsdk/indexing':
         specifier: workspace:*
         version: link:../../packages/indexing
+      '@monai-ragsdk/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@monai-ragsdk/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
@@ -124,6 +127,9 @@ importers:
       '@monai-ragsdk/core':
         specifier: workspace:*
         version: link:../core
+      '@monai-ragsdk/indexing':
+        specifier: workspace:*
+        version: link:../indexing
       '@monai-ragsdk/observability':
         specifier: workspace:*
         version: link:../observability
@@ -2521,7 +2527,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.15.0(debug@4.4.3))
+      retry-axios: 2.6.0(axios@1.15.0)
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -2771,7 +2777,7 @@ snapshots:
 
   resolve-pkg-maps@1.0.0: {}
 
-  retry-axios@2.6.0(axios@1.15.0(debug@4.4.3)):
+  retry-axios@2.6.0(axios@1.15.0):
     dependencies:
       axios: 1.15.0(debug@4.4.3)
 

@@ -186,6 +186,8 @@ export function createContextCompressionStrategy(
 
         return {
           ...candidate,
+          compressed: true,
+          originalContent: candidate.chunk.content,
           chunk: {
             ...candidate.chunk,
             content: compressed,

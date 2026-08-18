@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { RAGResponseSchema } from "@monai-ragsdk/core";
+
 import {
   RuntimeError,
   createDefaultRuntime,
@@ -172,6 +174,49 @@ describe("runtime pipeline", () => {
         "query: Explain debug mode\n\nretrieved for: Explain debug mode site:runtime",
     });
     expect(result.debug?.timings.total).toBeTypeOf("number");
+    expect(result.streamed).toBe(false);
+    expect(result.requestId).toBeTypeOf("string");
+    expect(result.traceId).toBeTypeOf("string");
+    expect(result.startedAt).toBeTypeOf("number");
+    expect(result.endedAt).toBeTypeOf("number");
+    expect(result.counts).toEqual({
+      retrieved: 2,
+      selected: 1,
+      dropped: 1,
+      finalChunks: 1,
+    });
+    expect(result.filters).toMatchObject({
+      sourceIds: ["docs/runtime"],
+      hierarchyPaths: ["runtime/api"],
+    });
+    expect(result.budget).toEqual({
+      maxCandidates: 4,
+      maxChunks: 1,
+    });
+    expect(result.appliedBudget).toEqual({
+      maxCandidates: 4,
+      maxChunks: 1,
+    });
+    expect(result.rerank).toEqual({
+      strategy: "score-threshold",
+      minScore: 0.7,
+    });
+    expect(result.droppedChunkIds).toEqual(["chunk-2"]);
+    expect(result.retrievedCandidates).toEqual([
+      {
+        chunkId: "chunk-1",
+        score: 0.91,
+        sourceId: "docs/runtime",
+      },
+      {
+        chunkId: "chunk-2",
+        score: 0.5,
+        sourceId: "docs/runtime",
+      },
+    ]);
+
+    const { debug: _debug, ...snapshot } = result;
+    expect(RAGResponseSchema.parse(snapshot).counts).toEqual(result.counts);
   });
 
   it("wraps stage failures as RuntimeError", async () => {

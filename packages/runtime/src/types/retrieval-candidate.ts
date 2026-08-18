@@ -12,4 +12,8 @@ export type RetrievalCandidate = {
   hierarchyDepth?: number;
   matchedFilters?: string[];
   retrieverMetadata?: Record<string, JsonValue>;
+  /** 压缩是否改写了 chunk.content；原文在 originalContent。 */
+  compressed?: boolean;
+  /** 进入压缩前的正文；未压缩时不写。 */
+  originalContent?: string;
 };

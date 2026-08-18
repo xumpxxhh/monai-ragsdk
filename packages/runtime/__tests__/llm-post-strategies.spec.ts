@@ -94,6 +94,11 @@ describe("post-retrieval LLM strategies", () => {
       "compressed",
       "compressed",
     ]);
+    expect(result.selectedCandidates.map((c) => c.originalContent)).toEqual([
+      "long long long",
+      "more more more",
+    ]);
+    expect(result.selectedCandidates.every((c) => c.compressed)).toBe(true);
   });
 
   it("works in StrategyRetrievalPostprocessor chain (rerank + compression)", async () => {

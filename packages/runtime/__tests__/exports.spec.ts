@@ -70,6 +70,10 @@ describe("runtime export surface", () => {
     }>();
     expectTypeOf<RuntimeResult>().toHaveProperty("answer");
     expectTypeOf<RuntimeResult>().toHaveProperty("citations");
+    expectTypeOf<RuntimeResult>().toHaveProperty("counts");
+    expectTypeOf<RuntimeResult>().toHaveProperty("retrievedCandidates");
+    expectTypeOf<RuntimeResult>().toHaveProperty("requestId");
+    expectTypeOf<RuntimeResult>().toHaveProperty("traceId");
     expectTypeOf<RuntimeCitation>().toMatchObjectType<{
       index: number;
       chunkId: string;
@@ -77,6 +81,8 @@ describe("runtime export surface", () => {
       score?: number;
       title?: string;
       hierarchyPath?: string;
+      compressed?: boolean;
+      originalContent?: string;
     }>();
     expectTypeOf<Runtime>().toHaveProperty("run");
     expectTypeOf<Runtime>().toHaveProperty("runStream");

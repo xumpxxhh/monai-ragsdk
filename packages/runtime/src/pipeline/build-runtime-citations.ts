@@ -85,6 +85,17 @@ export function buildRuntimeCitations(
       citation.hierarchyPath = hierarchyPath;
     }
 
+    if (candidate?.compressed) {
+      citation.compressed = true;
+    }
+
+    if (
+      typeof candidate?.originalContent === "string" &&
+      candidate.originalContent.length > 0
+    ) {
+      citation.originalContent = candidate.originalContent;
+    }
+
     return citation;
   });
 }

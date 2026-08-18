@@ -41,6 +41,7 @@
 - 最小 demo 与 unit test
 - 流式输出：`runtime.runStream()`；无 `generateStream` 时回退为一次完整 `generate()`
 - citation / grounding：`RuntimeResult.citations` 按进入 generation 的 chunks 生成；`run()` 与 `runStream()` 同构
+- 全流程审计快照：`run()` / `runStream()` 始终写入 core `RAGResponse` 具名字段（counts / filters / budget / retrievedCandidates / timings / traceId 等）；`includeDebug` 仍只控制是否附带完整 `debug` 过程对象
 
 当前仍未覆盖：
 

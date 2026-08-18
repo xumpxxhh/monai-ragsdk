@@ -22,7 +22,7 @@ import type {
   RuntimeStreamEvent,
 } from "../types/index.js";
 import { toRuntimeError } from "../errors/index.js";
-import { buildRuntimeCitations } from "./build-runtime-citations.js";
+import { assembleRuntimeResult } from "./assemble-runtime-result.js";
 import { iterateRuntimeGeneratorStream } from "../stages/generation/iterate-generation-stream.js";
 
 /** 单次 run / runStream 的可观测状态；事件与错误先入本地缓冲，再安全通知 observer。 */
@@ -180,8 +180,8 @@ async function finalizeTrace(
     traceIdSource: trace.traceIdSource,
     requestId: trace.requestId,
     scope: "runtime",
-    startedAt: new Date(trace.startedAt).toISOString(),
-    endedAt: new Date(endedAt).toISOString(),
+    startedAt: trace.startedAt,
+    endedAt,
     durationMs: endedAt - trace.startedAt,
     status,
     tags: trace.tags,
@@ -209,29 +209,6 @@ function summarizeSelectionTrace(
 }
 
 /**
- * 组装对外 RuntimeResult；citations 始终由 postResult.chunks 派生，保证 run / runStream 同构。
- */
-function assembleRuntimeResult(input: {
-  generationResult: RuntimeGenerationResult;
-  postResult: PostRetrievalResult;
-  retrievalResult: RuntimeRetrievalResult;
-  request: RetrievalRequest;
-  debug?: RuntimeDebugInfo;
-}): RuntimeResult {
-  return {
-    answer: input.generationResult.answer,
-    chunks: input.postResult.chunks,
-    citations: buildRuntimeCitations(input.postResult),
-    originalQuery: input.request.originalQuery,
-    effectiveQuery: input.request.effectiveQuery,
-    retrievalMetadata: input.retrievalResult.retrievalMetadata,
-    postRetrievalMetadata: input.postResult.postRetrievalMetadata,
-    generationMetadata: input.generationResult.generationMetadata,
-    ...(input.debug ? { debug: input.debug } : {}),
-  };
-}
-
-/**
  * 执行 generation 之前的三阶段；run() 与 runStream() 共用，避免两套检索语义分叉。
  * 各阶段异常统一包装为带 stage 的 RuntimeError。
  */
@@ -252,7 +229,7 @@ async function runPreGenerationStages(
   await emitEvent(observer, trace, {
     stage: "query",
     name: "runtime.query.preprocess",
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     durationMs: timings["pre-retrieval"],
     attributes: {
       requestId: context.requestId,
@@ -270,7 +247,7 @@ async function runPreGenerationStages(
   await emitEvent(observer, trace, {
     stage: "retrieval",
     name: "runtime.retrieval.start",
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     attributes: {
       requestId: context.requestId,
       effectiveQuery: request.effectiveQuery.query,
@@ -293,7 +270,7 @@ async function runPreGenerationStages(
   await emitEvent(observer, trace, {
     stage: "retrieval",
     name: "runtime.retrieval.complete",
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     durationMs: timings.retrieval,
     attributes: {
       requestId: context.requestId,
@@ -306,7 +283,7 @@ async function runPreGenerationStages(
   await emitEvent(observer, trace, {
     stage: "post_retrieval",
     name: "runtime.post_retrieval.start",
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     attributes: {
       requestId: context.requestId,
       candidateCount: retrievalResult.candidates.length,
@@ -335,7 +312,7 @@ async function runPreGenerationStages(
   await emitEvent(observer, trace, {
     stage: "post_retrieval",
     name: "runtime.post_retrieval.select",
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     durationMs: timings["post-retrieval"],
     attributes: {
       requestId: context.requestId,
@@ -459,7 +436,7 @@ async function finalizeFailedRuntimeRun(
   await emitEvent(observer, trace, {
     stage: "run",
     name: "runtime.run.fail",
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     durationMs: timings.total,
     attributes: {
       requestId: context.requestId,
@@ -473,7 +450,7 @@ async function finalizeFailedRuntimeRun(
   await emitError(observer, trace, {
     stage,
     name: "runtime.run.fail",
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     error: {
       name: runtimeError.name,
       message: runtimeError.message,
@@ -502,7 +479,7 @@ export async function runRuntime(
   await emitEvent(observer, trace, {
     stage: "query",
     name: "runtime.query.receive",
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     attributes: {
       requestId: context.requestId,
       query: input.query,
@@ -517,7 +494,7 @@ export async function runRuntime(
     await emitEvent(observer, trace, {
       stage: "generation",
       name: "runtime.generation.start",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       attributes: {
         requestId: context.requestId,
         chunkCount: postResult.chunks.length,
@@ -551,7 +528,7 @@ export async function runRuntime(
     await emitEvent(observer, trace, {
       stage: "generation",
       name: "runtime.generation.complete",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       durationMs: timings.generation,
       attributes: {
         requestId: context.requestId,
@@ -566,7 +543,7 @@ export async function runRuntime(
     await emitEvent(observer, trace, {
       stage: "run",
       name: "runtime.run.complete",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       durationMs: timings.total,
       attributes: {
         requestId: context.requestId,
@@ -585,6 +562,11 @@ export async function runRuntime(
       postResult,
       retrievalResult,
       request,
+      requestId: context.requestId,
+      traceId: trace.traceId,
+      startedAt: context.startedAt,
+      timings,
+      streamed: false,
       debug,
     });
   } catch (error) {
@@ -608,7 +590,7 @@ export async function* runRuntimeStream(
   await emitEvent(observer, trace, {
     stage: "query",
     name: "runtime.query.receive",
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     attributes: {
       requestId: context.requestId,
       query: input.query,
@@ -623,7 +605,7 @@ export async function* runRuntimeStream(
     await emitEvent(observer, trace, {
       stage: "generation",
       name: "runtime.generation.start",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       attributes: {
         requestId: context.requestId,
         chunkCount: postResult.chunks.length,
@@ -695,7 +677,7 @@ export async function* runRuntimeStream(
     await emitEvent(observer, trace, {
       stage: "generation",
       name: "runtime.generation.complete",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       durationMs: timings.generation,
       attributes: {
         requestId: context.requestId,
@@ -711,7 +693,7 @@ export async function* runRuntimeStream(
     await emitEvent(observer, trace, {
       stage: "run",
       name: "runtime.run.complete",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
       durationMs: timings.total,
       attributes: {
         requestId: context.requestId,
@@ -732,6 +714,11 @@ export async function* runRuntimeStream(
         postResult,
         retrievalResult,
         request,
+        requestId: context.requestId,
+        traceId: trace.traceId,
+        startedAt: context.startedAt,
+        timings,
+        streamed: true,
         debug,
       }),
     };
