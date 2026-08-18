@@ -63,6 +63,15 @@ packages/core/
 - `ChunkSchema`
 - `DocumentSchema`
 - `VectorSchema`
+- `RAGCitationSchema`
+- `RAGSelectionTraceEntrySchema`
+- `RAGStageStrategiesSchema`
+- `RAGFiltersSchema`
+- `RAGBudgetSchema`
+- `RAGRerankSchema`
+- `RAGCountsSchema`
+- `RAGTimingsSchema`
+- `RAGRetrievedCandidateSchema`
 - `RAGResponseSchema`
 
 ### types
@@ -71,7 +80,20 @@ packages/core/
 - `Chunk`
 - `Document`
 - `Vector`
+- `RAGCitation`
+- `RAGSelectionTraceEntry`
+- `RAGStageStrategies`
+- `RAGFilters`
+- `RAGBudget`
+- `RAGRerank`
+- `RAGCounts`
+- `RAGTimings`
+- `RAGRetrievedCandidate`
 - `RAGResponse`
+
+`Query` 是可回放输入：必填 `query`，可选 `metadata`。
+
+`RAGResponse` 是一次查询的审计快照，不是 runtime 过程对象的拷贝。必填 `answer`、`chunks`、`citations`、`originalQuery`、`effectiveQuery`，用于溯源与原/有效查询对照。`citations` 与 `chunks` 等长同序、`index` 从 1 起编。可选字段覆盖关联（含 `traceId` 与 Unix 毫秒时间戳）、查询演变、回放意图（`filters` / `budget` / `rerank`）、实际结果（`appliedBudget` / `counts` / `timings`）、召回清单与选留决策；`debug` 只作溢出袋。`RAGSelectionTraceEntry` 与 `RAGRetrievedCandidate` 只用 `chunkId` 关联，不提升 runtime candidate。压缩改写正文时，生成看到的是 `chunks[].content`，库内原文放 `originalContent`。`strategies` 按阶段记录策略名；`rewriteReason` 与 `route` / `routeReason` 是独立具名字段。
 
 ### interfaces
 
@@ -122,11 +144,11 @@ packages/core/
 
 重点覆盖：
 
-- `QuerySchema` 的空字符串边界
-- `ChunkSchema` 的 metadata 对象边界
+- `QuerySchema` 的空字符串边界与可选 metadata
+- `ChunkSchema` 的 metadata 对象边界与空 id 拒绝
 - `DocumentSchema` 的基础结构边界
 - `VectorSchema` 的数值数组边界
-- `RAGResponseSchema` 的 answer 类型边界
+- `RAGResponseSchema` 的最小审计必填字段、citations 与 chunks 对齐、毫秒时间戳先后、有限分数、可选回放/决策字段、缺 citations 失败路径
 - `JsonValueSchema` / `JsonObjectSchema` 的递归与对象边界
 - 失败场景的错误路径断言
 

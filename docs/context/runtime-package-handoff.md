@@ -32,6 +32,7 @@
 - `runtime.run()` 的主流程编排
 - `runtime.runStream()` 的流式 generation
 - `RuntimeResult.citations` 的 grounding 引用
+- `RuntimeResult` 作为 core 审计快照的运行时载体（具名字段始终写入；`debug` 仍可选）
 - `RuntimeError` 与阶段错误包装
 - `NoopQueryPreprocessor`
 - `PassthroughRetrievalPostprocessor`

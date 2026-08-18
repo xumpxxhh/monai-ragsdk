@@ -342,27 +342,14 @@ type RuntimeRunOptions = {
 返回：
 
 ```ts
-type RuntimeResult = {
-  answer: string;
-  chunks: Chunk[];
-  citations: RuntimeCitation[];
-  originalQuery: Query;
-  effectiveQuery: Query;
-  retrievalMetadata?: Record<string, JsonValue>;
-  postRetrievalMetadata?: Record<string, JsonValue>;
-  generationMetadata?: Record<string, JsonValue>;
+type RuntimeResult = Omit<RAGResponse, "debug"> & {
   debug?: RuntimeDebugInfo;
 };
 
-type RuntimeCitation = {
-  index: number;
-  chunkId: string;
-  sourceId?: string;
-  score?: number;
-  title?: string;
-  hierarchyPath?: string;
-};
+type RuntimeCitation = RAGCitation;
 ```
+
+`RuntimeResult` 主体就是 core 的一次查询审计快照：溯源、决策留痕与回放参数始终写入，不依赖 `includeDebug`。`debug` 仍是 runtime 过程对象（含完整 candidate），不要把它当成落盘账本。
 
 `citations` 是 grounding 引用，不是答案解析结果：
 

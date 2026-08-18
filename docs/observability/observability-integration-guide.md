@@ -255,10 +255,10 @@ await observer.shutdown?.();
 
 其中通常包含：
 
-- trace 基本字段：`traceId`、`scope`、`startedAt`、`endedAt`、`durationMs`、`status`
+- trace 基本字段：`traceId`、`scope`、`startedAt`、`endedAt`、`durationMs`、`status`（`startedAt` / `endedAt` 为 Unix 毫秒时间戳）
 - trace 上下文：`serviceName`、`environment`、`dataset`、`version`、`tags`
-- 事件数组：`events`
-- 错误数组：`errors`，仅在失败或显式记录错误时出现
+- 事件数组：`events`（`timestamp` 为 Unix 毫秒时间戳）
+- 错误数组：`errors`，仅在失败或显式记录错误时出现（`timestamp` 同上）
 
 ### 3. 当前更适合什么场景
 
