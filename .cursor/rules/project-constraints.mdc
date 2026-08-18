@@ -5,14 +5,16 @@ alwaysApply: true
 
 # 工程约束
 
-命名空间为 `@monai-ragsdk/*`。当前以 `core`、`indexing`、`adapters` 为实现主路径；`runtime` 与 `observability` 已具备最小实现，勿无故继续扩散；`eval` 与 `utils` 保持未实现，除非明确要求。
+命名空间为 `@monai-ragsdk/*`。演进顺序与实现授权以 `docs/decisions/sdk-evolution-roadmap.md` 为准：先做稳 RAG 内核，知识库门面后置。阶段 1 已落地；不要自动进入阶段 2。阶段 1 重心是完善 SDK（`core` / `indexing` / `adapters`），先不管 CLI。
 
 - 保持 monorepo 改动最小化，不要新增无关目录或依赖。
 - 允许在 `core` 维护共享契约：schema、type、interface、error 与轻量 pipeline。
-- 允许在 `indexing` 继续离线索引实现：内部 type、interface、default component、pipeline、demo 与 unit test。
-- 允许在 `adapters` 继续外部适配：loader / chunker / embedder / store adapter、demo 与 unit test。
-- 不要在 `runtime`、`eval`、`utils` 中提前扩散实现，除非明确要求。
-- 扩展 `observability` 时优先保持协议与失败隔离稳定。
+- 允许在 `indexing` 继续离线索引与增量行为（fingerprint skip/replace、stale cleanup、`listSourceRecords`），并补 demo 与 unit test。
+- 允许在 `adapters` 继续外部适配；默认栈为 OpenAI 兼容 embedding / chat + pgvector，Ollama 仍可选，并补 demo 与 unit test。
+- 不要为了 CLI 体验回头改 SDK 边界；未明确要求时不要改 `app/cli`。
+- 不要新增一级 package，不要实现知识库门面。
+- 不要在 `runtime`、`eval`、`utils` 中提前扩散实现；`runtime` 解冻属于阶段 2，需另一次明确要求。
+- 扩展 `observability` 时优先保持协议与失败隔离稳定，不要提前对接 OTLP。
 - 除非明确要求，否则不要引入新依赖；已批准依赖按 `docs/decisions/package-installation-strategy.md` 安装。
 - `src/` 只保留 `.ts` 源码；构建产物必须输出到 `dist/`，禁止把 `.js`、`.d.ts`、`.map` 写回 `src/`。
 - 所有文档必须使用中文。

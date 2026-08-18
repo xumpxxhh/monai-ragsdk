@@ -1,0 +1,37 @@
+---
+description: 调整 TypeScript 源码时补充适当的中文注释（函数作用、关键步骤）
+globs: "**/*.{ts,tsx}"
+alwaysApply: true
+---
+
+# 中文注释
+
+调整或新增 `src/` 代码时，用简体中文注释说明意图，不要只写“做了什么”。
+
+必须注释：
+
+- 公开函数 / 类 / 方法的职责与边界
+- 关键控制流：skip / replace / 重试 / 删除顺序 / 失败隔离
+- 非显而易见的不变量、默认值或兼容行为
+
+不要：
+
+- 给 `i += 1`、简单 getter 等一目了然的语句加注释
+- 为了补注释而扫盘改未涉及的文件
+- 用注释复述类型名或英文标识符
+- 写过时注释；改行为时同步改注释
+
+```ts
+// ❌ 复述代码
+// 把 mode 设为 incremental
+options.mode = "incremental";
+
+// ✅ 说明为什么
+/** 按 sourceId 对比 fingerprint；未变化则跳过 embed / upsert。 */
+export function shouldSkipUnchanged(input: SkipInput): boolean {
+  // 缺少 sourceId 时无法跨运行定位旧向量，只能当新文档写入
+  if (!input.sourceId || !input.fingerprint) {
+    return false;
+  }
+}
+```

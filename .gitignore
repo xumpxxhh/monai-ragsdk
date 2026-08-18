@@ -11,3 +11,6 @@ packages/*/demo/.artifacts/
 
 # 系统文件
 .DS_Store
+
+# 本地 Claude Code 权限配置（含机器特定路径）
+.claude/settings.local.json
