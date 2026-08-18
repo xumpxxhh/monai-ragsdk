@@ -48,6 +48,18 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
 
+  app/example:
+    dependencies:
+      '@monai-ragsdk/adapters':
+        specifier: workspace:*
+        version: link:../../packages/adapters
+      '@monai-ragsdk/indexing':
+        specifier: workspace:*
+        version: link:../../packages/indexing
+      '@monai-ragsdk/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+
   app/web: {}
 
   packages/adapters:
@@ -2509,7 +2521,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.15.0)
+      retry-axios: 2.6.0(axios@1.15.0(debug@4.4.3))
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -2759,7 +2771,7 @@ snapshots:
 
   resolve-pkg-maps@1.0.0: {}
 
-  retry-axios@2.6.0(axios@1.15.0):
+  retry-axios@2.6.0(axios@1.15.0(debug@4.4.3)):
     dependencies:
       axios: 1.15.0(debug@4.4.3)
 

@@ -1,0 +1,15 @@
+{
+  "name": "@monai-ragsdk/example",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter @monai-ragsdk/adapters build && tsc -p tsconfig.json",
+    "start": "pnpm --filter @monai-ragsdk/adapters build && tsx src/index.ts"
+  },
+  "dependencies": {
+    "@monai-ragsdk/adapters": "workspace:*",
+    "@monai-ragsdk/indexing": "workspace:*",
+    "@monai-ragsdk/runtime": "workspace:*"
+  }
+}

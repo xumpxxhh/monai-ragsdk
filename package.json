@@ -8,6 +8,7 @@
     "build:app": "pnpm --filter @monai-ragsdk/web build",
     "build:cli": "pnpm --filter @monai-ragsdk/cli build",
     "cli": "pnpm --filter @monai-ragsdk/cli cli",
+    "example": "pnpm --filter @monai-ragsdk/example start",
     "dev:app": "pnpm --filter @monai-ragsdk/web dev",
     "start:app": "pnpm --filter @monai-ragsdk/web start",
     "typecheck": "pnpm exec tsc -b --pretty false",
