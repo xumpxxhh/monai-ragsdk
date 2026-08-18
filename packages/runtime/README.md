@@ -1,0 +1,116 @@
+# `@monai-ragsdk/runtime`
+
+## 定位
+
+在线 RAG 内核。把 pre-retrieval → retrieval → post-retrieval → generation 串成可组合 pipeline，并挂知识库门面 MVP `createCollection()`。
+
+策略件本体在本包；厂商 LLM 实现在 `adapters`。
+
+## 依赖
+
+- workspace：`core`、`observability`、`indexing`
+- 被谁用：`adapters`（实现 `RuntimeRetriever` / `RuntimeGenerator` / `RuntimeStrategyModel`）、`apps/cli`、`apps/example`
+
+依赖 `indexing` 的原因：`createCollection().ingest()` 调用 `runIndexing`；另外提供 indexing 查询协议（按 sourceId / fingerprint / hierarchy 过滤候选）。不是误引。
+
+## 运行入口
+
+`createRuntime()` / `createDefaultRuntime()` 得到 `Runtime`：
+
+| 方法 | 行为 |
+| --- | --- |
+| `run()` | 完整问答，走 `generator.generate()` |
+| `search()` | 只跑前三阶段，不调用 generator，没有 answer |
+| `runStream()` | 检索一次性完成，只对流式 generation；无 `generateStream` 时回退为单段完整答案 |
+
+`createDefaultRuntime()` 缺省 preprocessor 为 `NoopQueryPreprocessor`，postprocessor 为 `PassthroughRetrievalPostprocessor`。
+
+## 策略框架
+
+Pre-retrieval（`QueryStrategy`，经 `StrategyQueryPreprocessor` 串联）：
+
+- `createQueryRewriteStrategy`：改写 `effectiveQuery`，不改 `originalQuery`
+- `createQueryExpansionStrategy`：扩展相关查询到 `subQueries`
+- `createQueryDecompositionStrategy`：拆成可独立检索的子问题
+- `createMultiQueryStrategy`：同一意图多种措辞
+- `createQueryRoutingStrategy`：产出 route / topK / budget / filters
+
+多路召回用 `FanOutRetriever` 读 `subQueries`，默认 `fuseByReciprocalRankFusion`（RRF，k=60）。无 `subQueries` 时退化为单次检索。
+
+Post-retrieval（可交给 `createDefaultPostprocessor`，或用 `StrategyRetrievalPostprocessor` 自定义链）：
+
+- 分数阈值、predicate 过滤、近重复去除、budget trim、source coverage
+- `createLlmRerankStrategy`：真实 LLM 重排序
+- `createContextCompressionStrategy`：上下文压缩
+- `applyLostInTheMiddleStrategy`：高分居首尾，只重排不丢弃
+
+LLM 策略默认失败透传，避免检索被策略拖死；需要硬失败时设 `onError: 'throw'`。`RuntimeStrategyModel` 与 `RuntimeGenerator` 解耦，厂商实现放 adapters。
+
+结果带 grounding citations：按 post-retrieval 选出的 chunks 顺序编号；`run` / `runStream` / `search` 共用同一套规则。
+
+## 知识库门面 MVP
+
+`createCollection({ indexing, runtime })` 只做编排，不另开存储 / 查询路径：
+
+- `ingest(documents)`：临时 in-memory Loader → `runIndexing`
+- `search(query)`：retrieve-only
+- `ask(query)`：完整 `runtime.run()`
+- `listSources()` / `deleteByFilters()` / `close()`：store 未实现对应方法时返回空 / `false`，不当错误抛出
+
+不要新开 kb 包，也不要在这里扩展完整文档生命周期。
+
+## 使用方式
+
+```ts
+import {
+  createDefaultPostprocessor,
+  createDefaultRuntime,
+  createQueryRewriteStrategy,
+  FanOutRetriever,
+  StrategyQueryPreprocessor,
+  type RuntimeRetriever,
+} from '@monai-ragsdk/runtime';
+import { OpenAIRuntimeGenerator, OpenAIStrategyModel } from '@monai-ragsdk/adapters';
+
+const model = new OpenAIStrategyModel({
+  model: 'deepseek-chat',
+  baseUrl: process.env.OPENAI_BASE_URL!,
+});
+
+// retriever 由 adapters 提供，默认用 PgVectorRuntimeRetrieverAdapter
+declare const retriever: RuntimeRetriever;
+
+const runtime = createDefaultRuntime({
+  preprocessor: new StrategyQueryPreprocessor({
+    strategies: [createQueryRewriteStrategy({ model })],
+  }),
+  retriever: new FanOutRetriever({ retriever }),
+  postprocessor: createDefaultPostprocessor({
+    scoreThreshold: 0.2,
+    budget: { maxCandidates: 5 },
+  }),
+  generator: new OpenAIRuntimeGenerator({
+    model: 'deepseek-chat',
+    baseUrl: process.env.OPENAI_BASE_URL!,
+  }),
+});
+
+const result = await runtime.run({ query: '什么是 runtime？' });
+```
+
+## 脚本
+
+```bash
+pnpm --filter @monai-ragsdk/runtime test
+pnpm --filter @monai-ragsdk/runtime demo
+pnpm --filter @monai-ragsdk/runtime demo:custom
+```
+
+Collection 演示：`packages/runtime/demo/collection-demo.ts`。策略链演示：`packages/runtime/demo/strategy-pipeline.ts`。
+
+## 边界
+
+- Active RAG / 自纠错循环仍冻结。
+- 不做答案内标记解析。
+- 不补 Chroma 查询，不新增第二查询路径。
+- 不要为 CLI 体验回头改本包边界。
