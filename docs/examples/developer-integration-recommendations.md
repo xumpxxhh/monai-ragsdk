@@ -6,7 +6,8 @@
 
 - 什么情况下只需要最小接入
 - 什么情况下可以直接使用仓库默认提供的 LangChain loader / chunker
-- 什么情况下可以直接使用仓库默认提供的 Chroma store adapter
+- 什么情况下应该走默认栈：OpenAI 兼容 embedding / chat + pgvector
+- 什么情况下可以使用仓库提供的 Chroma 写入 adapter
 - 什么情况下应自行接入外部 embedding 与 vector store
 
 ## 先看职责边界
@@ -22,7 +23,7 @@
 - `indexing` 负责编排 `load -> transform -> filter -> chunk -> transform-chunk -> metadata -> extract-metadata -> filter-chunk -> embed -> store`
 - `indexing` 依赖的是抽象接口，而不是某个具体厂商实现
 - 开发者可以完全自行提供 `Loader`、`Chunker`、`Embedder`、`VectorStore`
-- 当前仓库默认提供的第三方策略主要在 `adapters` 中，当前已包含 LangChain 方向的 loader / chunker / metadata / chunk transformer / embedder 适配，以及 Chroma 写入侧 store adapter
+- 当前仓库默认提供的第三方策略主要在 `adapters` 中，当前已包含 LangChain 方向的 loader / chunker / metadata / chunk transformer / embedder 适配，OpenAI 兼容 embedding / chat，以及 pgvector 读写与 Chroma 写入侧 store adapter
 
 可以把当前设计理解为：
 
@@ -34,7 +35,9 @@
 
 如果你已经接受 LangChain 作为文档加载与切分层，优先选择“默认 LangChain loader / chunker 方案”。
 
-如果你已经决定把索引结果写入 Chroma，优先选择“默认 Chroma store 方案”。
+如果你要把索引结果写入真实向量库并问答，优先选择“默认 OpenAI 兼容 embedding / chat + pgvector 方案”。
+
+如果你只需要把向量写入 Chroma，再选择“可选 Chroma store 方案”。
 
 如果你已经有自己的模型服务、向量数据库或基础设施，优先选择“完全自定义外部 embedder / vector store 方案”。
 
@@ -195,15 +198,53 @@ console.log(result);
 - 如果你需要把 header 与 source location 写进 chunk metadata，可以组合 `LangChainHeaderAwareChunkTransformer` 与 `LangChainDocumentMetadataExtractor`
 - 如果你已经有 LangChain embeddings 实例，也可以通过 `LangChainEmbeddingsAdapter` 接到同一条索引流水线中
 
-## 方案三：使用默认 Chroma store 的方案
+## 方案三：默认 OpenAI 兼容 embedding / chat + pgvector
+
+### 适用场景
+
+- 你要把索引结果写入 PostgreSQL + pgvector，并接着做检索与生成
+- 你使用 OpenAI 兼容的 `/embeddings` 与 `/chat/completions`
+- 你希望走当前仓库的默认生产路径，而不是 Chroma 写入或内存 store
+
+### 当前默认能力
+
+当前 `@monai-ragsdk/adapters` 已提供：
+
+- `OpenAIEmbedder`
+- `OpenAIRuntimeGenerator`
+- `PgVectorStoreAdapter`
+- `PgVectorRuntimeRetrieverAdapter`
+
+`baseUrl` 与 chat `model` 必须由调用方显式传入，SDK 不内置厂商地址。经 `runIndexing` 时会把 chunk 原文写入 `Vector.metadata.content`，供 pgvector 的 `content` 列、关键词召回和生成使用。
+
+### 推荐组合
+
+- `Loader`：`LangChainMarkdownDirectoryLoader`
+- `Chunker`：`SimpleChunker` 或 `LangChainRecursiveCharacterTextSplitterAdapter`
+- `Embedder`：`OpenAIEmbedder`
+- `VectorStore`：`PgVectorStoreAdapter`
+- 查询：`PgVectorRuntimeRetrieverAdapter` + `OpenAIRuntimeGenerator` + `createDefaultRuntime()`
+
+仓库内可运行示例见 `app/example`（`pnpm example`）。
+
+### 说明
+
+- 这是当前阶段 1 的默认读写闭环。
+- `PgVectorStoreAdapter` 覆盖 `upsert`、`deleteByFilter()` 与 `listSourceRecords()`，可配合 `mode: "incremental"`。
+- 查询期走 `PgVectorRuntimeRetrieverAdapter`，不要把检索协议塞回 `VectorStore`。
+- 若自己创建了 `pg.Pool`，用完后调用 `store.close()` 与 `retriever.close()`。
+- 若绕过 `runIndexing` 直接 `store.upsert()`，必须自行带上 `metadata.content`。
+
+## 方案四：可选 Chroma store 写入方案
 
 ### 适用场景
 
 - 你已经决定把向量写入 Chroma
 - 你希望继续复用当前仓库推荐的 loader / chunker 路线
 - 你不想先手写一层 `VectorStore` 包装
+- 你接受当前 Chroma adapter 只覆盖写入、不覆盖查询
 
-### 当前默认能力
+### 当前能力
 
 当前 `@monai-ragsdk/adapters` 已提供 `ChromaVectorStoreAdapter`，用于把 `@monai-ragsdk/core` 的 `Vector` 批量写入指定 Chroma collection。
 
@@ -213,6 +254,7 @@ console.log(result);
 - 自动获取或创建 collection
 - 只覆盖写入侧 `upsert`
 - 不提前在 `adapters` 中封装查询侧抽象
+- 未实现 `deleteByFilter()` / `listSourceRecords()`，因此不能作为增量索引的默认存储
 
 ### 推荐组合
 
@@ -259,7 +301,7 @@ console.log(result);
 
 ### 说明
 
-- 这是当前最适合“默认文档处理链路 + 默认 Chroma 写入链路”的接入方式。
+- 这是可选写入路径，不是当前默认生产栈。
 - 该方案默认你已经启动本地 Chroma Server。
 - `ChromaVectorStoreAdapter` 会在首次写入时自动获取或创建 collection。
 - 如果 metadata 中包含 Chroma 不支持的嵌套 JSON 值，adapter 会尽量把它们序列化为字符串后再写入。
@@ -283,9 +325,9 @@ console.log(result);
 - `sourceIdResolver`
 - `fingerprintResolver`
 
-当前这些能力只负责把 canonical source metadata 贯穿到 chunk 上下文与 store 写入上下文，不会自动执行 stale cleanup。
+当前这些能力会把 canonical source metadata 贯穿到 chunk 上下文与 store 写入上下文；在 `mode: "incremental"` 且 store 实现了 `listSourceRecords()` / `deleteByFilter()` 时，`runIndexing` 会执行 fingerprint skip / replace 与 stale cleanup。
 
-## 方案四：完全自定义外部 embedder / vector store 的方案
+## 方案五：完全自定义外部 embedder / vector store 的方案
 
 ### 适用场景
 
@@ -385,8 +427,9 @@ async function upsertVectorsToYourDatabase(vectors: Vector[]): Promise<void> {
 
 1. 先用“最小接入方案”验证你的文档、切块和 metadata 结构。
 2. 再切到“默认 LangChain loader / chunker 方案”，验证真实文档源读取与切分效果。
-3. 如果你的目标存储是 Chroma，再切到“默认 Chroma store 方案”，验证真实向量写入链路。
-4. 最后再替换为你自己的 `Embedder` 与 `VectorStore`，接上生产环境的模型与数据库。
+3. 再切到“默认 OpenAI 兼容 embedding / chat + pgvector 方案”，验证增量索引、检索与生成闭环。
+4. 如果只需要 Chroma 写入，再使用“可选 Chroma store 方案”。
+5. 最后再替换为你自己的 `Embedder` 与 `VectorStore`，接上其他生产环境的模型与数据库。
 
 ## 当前结论
 
@@ -394,6 +437,7 @@ async function upsertVectorsToYourDatabase(vectors: Vector[]): Promise<void> {
 
 - `indexing` 是统一编排层
 - `adapters` 是默认第三方策略层
-- `Embedder` 当前既支持业务方自定义接入，也支持通过 `LangChainEmbeddingsAdapter` 复用 LangChain embeddings 实例
-- `VectorStore` 当前既支持业务方自定义接入，也支持通过 `ChromaVectorStoreAdapter` 直接接入 Chroma 写入链路
-- LangChain loader / chunker 与 Chroma store 是当前仓库默认提供的第一批推荐外部策略，但不是唯一方案
+- 当前默认生产栈是 OpenAI 兼容 embedding / chat + pgvector；Ollama 与 Chroma 写入仍可选
+- `Embedder` 当前既支持业务方自定义接入，也支持 `OpenAIEmbedder`、`OllamaEmbedder` 与 `LangChainEmbeddingsAdapter`
+- `VectorStore` 当前既支持业务方自定义接入，也支持 `PgVectorStoreAdapter` 与 `ChromaVectorStoreAdapter`
+- LangChain loader / chunker 是文档处理默认策略，但不是唯一方案

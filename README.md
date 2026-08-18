@@ -6,12 +6,13 @@ TypeScript monorepo，提供可替换实现的检索增强生成（RAG）SDK。�
 
 ## 能力概览
 
-- **索引**：文档加载、清洗、切分、chunk 增强、metadata 抽取、embedding、向量写入
+- **索引**：文档加载、清洗、切分、chunk 增强、metadata 抽取、embedding、向量写入；支持全量与增量（fingerprint skip / replace / stale cleanup）
 - **查询**：预处理 → 检索 → 后处理 → 生成
-- **适配**：LangChain loader / chunker / embedder / retriever / generator，以及 Chroma、pgvector 存储
+- **默认栈**：OpenAI 兼容 embedding / chat + pgvector 读写闭环；Ollama 与 Chroma 写入仍可选
+- **适配**：LangChain loader / chunker / embedder / retriever / generator，以及 pgvector、Chroma、Ollama、OpenAI 兼容接口
 - **观测**：trace / event / observer，以及 console、memory、JSONL exporter
 
-`eval` 与 `utils` 尚未实现。`app/web` 仍为占位；本地端到端请使用 `app/cli`。
+`eval` 与 `utils` 尚未实现。`app/web` 仍为占位。本地默认栈闭环请使用 `pnpm example`；`app/cli` 仍可作为目录级验证入口。
 
 ## 仓库结构
 
@@ -36,7 +37,7 @@ packages/
 - `@monai-ragsdk/core`：共享领域模型、契约、错误类型
 - `@monai-ragsdk/indexing`：离线索引编排与默认组件
 - `@monai-ragsdk/runtime`：在线四阶段查询编排
-- `@monai-ragsdk/adapters`：LangChain、Chroma、pgvector 等外部适配
+- `@monai-ragsdk/adapters`：LangChain、OpenAI 兼容 embedding / chat、pgvector、Chroma、Ollama 等外部适配
 - `@monai-ragsdk/observability`：tracing、observer、exporter
 - `@monai-ragsdk/eval`：评测（尚未实现）
 - `@monai-ragsdk/utils`：通用工具（尚未实现）
@@ -50,6 +51,7 @@ pnpm install
 pnpm build
 pnpm build:cli
 pnpm cli -- --dir ./docs --query "MonAI RAG SDK 的 runtime 是什么？"
+pnpm example
 pnpm test
 pnpm test:core
 pnpm test:indexing
@@ -61,7 +63,7 @@ pnpm smoke
 pnpm verify
 ```
 
-`app/cli` 用于本地资料目录的端到端验证，不纳入 SDK 主测试闭环。
+`app/example` 演示默认栈：markdown 增量索引写入 pgvector，再检索并生成答案。`app/cli` 用于本地资料目录的端到端验证，不纳入 SDK 主测试闭环。
 
 ## 文档入口
 
@@ -79,6 +81,7 @@ pnpm verify
 - `docs/observability/observability-integration-guide.md`：可观测性最小接入
 - `docs/architecture/monorepo-structure.md`：工程结构约定
 - `docs/decisions/README.md`：工程决策索引
+- `docs/decisions/sdk-evolution-roadmap.md`：RAG 内核到知识库 SDK 的四阶段路线图
 - `docs/decisions/package-installation-strategy.md`：依赖安装位置
 - `docs/decisions/verification-system-strategy.md`：验证体系落地策略
 

@@ -27,6 +27,11 @@
 - `createLangChainChatModelRuntimeGenerator`
 - `ChromaVectorStoreAdapter`
 - `PgVectorStoreAdapter`
+- `PgVectorRuntimeRetrieverAdapter`
+- `OllamaEmbedder`
+- `OllamaRuntimeGenerator`
+- `OpenAIEmbedder`
+- `OpenAIRuntimeGenerator`
 - LangChain `Document -> @monai-ragsdk/core Document` 映射
 - LangChain split result -> `@monai-ragsdk/core Chunk` 映射
 - LangChain embedding result -> `@monai-ragsdk/core Vector` 映射
@@ -37,8 +42,9 @@
 
 当前未实现：
 
-- OpenAI embeddings 预设 adapter
+- 流式 chat 输出
 - Pinecone adapter
+- Chroma 查询侧 adapter
 - 其他外部 loader / vector store adapter
 - 更完整的 integration / smoke 覆盖
 
@@ -77,6 +83,17 @@ packages/adapters/
       retrievers/
       generators/
       shared/
+    ollama/
+      embedders/
+      generators/
+      shared/
+    openai/
+      embedders/
+      generators/
+      shared/
+    pgvector/
+      stores/
+      retrievers/
   __tests__/
   demo/
 ```
@@ -92,6 +109,9 @@ packages/adapters/
 - `src/langchain/generators/`：LangChain 查询期 generator 适配实现
 - `src/langchain/shared/`：metadata / document / vector 映射辅助工具
 - `src/chroma/stores/`：Chroma 向量存储写入适配实现
+- `src/pgvector/`：pgvector 写入、删除、source 记录与查询期 retriever
+- `src/ollama/`：Ollama embedding / chat 适配实现
+- `src/openai/`：OpenAI 兼容 embedding / chat 适配实现
 
 ## 公开导出
 
@@ -114,6 +134,11 @@ packages/adapters/
 - `createLangChainChatModelRuntimeGenerator`
 - `ChromaVectorStoreAdapter`
 - `PgVectorStoreAdapter`
+- `PgVectorRuntimeRetrieverAdapter`
+- `OllamaEmbedder`
+- `OllamaRuntimeGenerator`
+- `OpenAIEmbedder`
+- `OpenAIRuntimeGenerator`
 
 如果后续继续扩展 LangChain 相关能力，应优先保持该导出面稳定，再新增更细分的包内目录导出。
 
@@ -136,19 +161,24 @@ packages/adapters/
 - `LangChainRuntimeRetrieverAdapter` 默认把 `RetrievalRequest.effectiveQuery.query` 映射给第三方 retriever，并在返回结果后复用 runtime 的 `filterRetrievalCandidatesByIndexingFilters()` 再执行一次统一过滤。
 - `LangChainRuntimeRetrieverAdapter` 默认把 LangChain 文档 metadata 归一化为 `Chunk.metadata`，再复用 runtime 的 `createIndexingRetrievalCandidate()` 提升 `sourceId`、`hierarchyPath` 等 Phase D canonical 字段。
 - `createLangChainBaseRetrieverRuntimeAdapter` 适合直接包裹 LangChain `BaseRetriever` 子类，允许单独注入 `mapQuery()` 与 `mapRunnableConfig()`，但不重复实现 runtime filter / candidate 语义。
+- `PgVectorRuntimeRetrieverAdapter` 并行做向量距离召回与 tsvector 关键词召回，按 RRF 融合；SQL 不表达 Phase D filter，融合后再复用 runtime 统一过滤。
 - `LangChainRuntimeGeneratorAdapter` 默认优先消费 runtime postprocessor 产出的 `promptContext`；如果没有，再回退到 `query + chunks` 的最小 prompt 拼装。
 - `LangChainRuntimeGeneratorAdapter` 默认支持字符串输出以及带 `content` 的 LangChain 风格输出，并会尽量归一化 `response_metadata` / `usage_metadata`。
 - `createLangChainChatModelRuntimeGenerator` 适合直接包裹 LangChain `BaseChatModel` 子类，默认输出 `SystemMessage + HumanMessage` 两段式消息，并允许通过 `buildMessages()` 或 `mapCallOptions()` 覆盖 provider 侧格式。
 - 当 embeddings 返回数量与 chunks 数量不一致时，`LangChainEmbeddingsAdapter` 会直接报错，避免静默写入错误向量。
+- `OpenAIEmbedder` 调用 OpenAI 兼容 `/embeddings`；`apiKey` 优先取构造参数，再回退 `EMBEDDING_API_KEY`，密钥不写进源码。`baseUrl` 必须由调用方显式传入。
+- `OpenAIEmbedder` 按返回 `index` 对齐 batch，并校验维度；数量或维度不一致时立即失败。
+- `OpenAIRuntimeGenerator` 调用 OpenAI 兼容 `/chat/completions`；`apiKey` 优先取构造参数，再回退 `OPENAI_API_KEY`。`baseUrl` 与 `model` 必须由调用方显式传入。当前 `stream: false`，一次返回完整答案。
 - `ChromaVectorStoreAdapter` 接收 Chroma 连接配置，并在首次写入时自动获取或创建目标 collection。
 - `ChromaVectorStoreAdapter` 已对齐 `VectorStoreWriteContext` 的签名，但当前不会消费该上下文，也不会主动实现 stale cleanup。
 - `ChromaVectorStoreAdapter` 会在单次 `upsert` 前检查向量维度是否一致，避免把明显错误的 batch 发送到 Chroma。
 - `ChromaVectorStoreAdapter` 会把不兼容 Chroma metadata 标量约束的嵌套 JSON 值序列化为字符串，以尽量保留信息。
 - `PgVectorStoreAdapter` 接收 PostgreSQL 连接配置，并把向量以 pgvector 字面量形式批量写入指定表。
-- `PgVectorStoreAdapter` 第一版只覆盖写入侧 `upsert` 与 `deleteByFilter()`，不提前扩散查询期语义。
+- `PgVectorStoreAdapter` 覆盖写入侧 `upsert`、`deleteByFilter()` 与 `listSourceRecords()`；查询期走独立的 `PgVectorRuntimeRetrieverAdapter`，不把检索协议塞进 `VectorStore`。
 - `PgVectorStoreAdapter` 会在单次 `upsert` 前检查向量维度是否一致；如果配置了固定 `dimension`，还会校验 batch 维度是否匹配。
-- `PgVectorStoreAdapter` 可选 `ensureTable` 模式会自动创建 `vector` 扩展、schema、table 与基础索引。
-- `PgVectorStoreAdapter` 第一版默认保留 `metadata`、`source_id`、`fingerprint` 字段；`content` 仅在 `Vector.metadata.content` 存在时做尽力写入，因为当前 `VectorStore` 接口本身不直接携带 chunk 原文。
+- `PgVectorStoreAdapter` 可选 `ensureTable` 模式会自动创建 `vector` 扩展、schema、table、source / fingerprint / GIN(tsv) 索引，以及 HNSW 余弦索引。
+- `PgVectorStoreAdapter` 第一版默认保留 `metadata`、`source_id`、`fingerprint` 字段；`content` 列读取 `Vector.metadata.content`。`runIndexing` 会在 upsert 前把 chunk 原文写入该字段（已有 content 则保留）。直接 `store.upsert()` 必须自行带上 `metadata.content`，否则 pgvector 的 `content` 列为空，关键词召回和生成都会空。
+- `VectorStore.close()` 为可选方法。`PgVectorStoreAdapter` 与 `PgVectorRuntimeRetrieverAdapter` 若自己创建了 `pg.Pool`，应通过 `close()` 释放；注入的 client 不会被关闭。
 - `Chunk.metadata` 会合并源文档 metadata、split 后文档 metadata 与 `sourceDocumentId` / `chunkIndex`。
 
 ## 验证现状
@@ -174,7 +204,11 @@ packages/adapters/
 - runtime retriever -> candidate 映射与 filter 复用
 - runtime generator -> prompt / answer 映射
 - Chroma store upsert 映射与错误路径
-- pgvector store upsert / deleteByFilter 映射与错误路径
+- pgvector store upsert / deleteByFilter / listSourceRecords 映射与错误路径
+- pgvector runtime retriever 的向量 / 关键词并行召回、RRF 融合与 runtime filter
+- Ollama embedding / chat HTTP 映射与重试
+- OpenAI 兼容 embedding HTTP 映射、鉴权、必填 `baseUrl`、重试与维度校验
+- OpenAI 兼容 chat HTTP 映射、鉴权、必填 `baseUrl` / `model` 与 grounded prompt
 - 空白 chunk 跳过与连续编号
 
 ## 后续建议
@@ -183,5 +217,5 @@ packages/adapters/
 2. 如果要继续扩展 chunker，优先补高频预设封装，而不是为每个 LangChain splitter 都新增一层等价 adapter。
 3. 如果要继续扩展 embedder，优先补少量高频 provider 预设，而不是把具体厂商 SDK 直接引入 `indexing`。
 4. 当需要继续补 Pinecone 等向量数据库时，继续保持“第三方能力放 adapters，核心契约放 core”的边界。
-5. PostgreSQL + pgvector 当前先保持写入侧 adapter；如果后续要补检索能力，优先单独设计 runtime 查询侧适配，而不是直接把查询协议塞进 `VectorStore`。
+5. PostgreSQL + pgvector 查询期继续走 `PgVectorRuntimeRetrieverAdapter`，不要把检索协议塞回 `VectorStore`。
 6. 当前已具备 `runtime + adapters` 的根级 integration / smoke 最小链路；后续优先在既有场景上扩展更多 adapter 组合，而不是另起一套跨包验证结构。

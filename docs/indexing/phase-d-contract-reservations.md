@@ -4,7 +4,7 @@
 
 本文档用于说明 `indexing` 在 Phase D 已经补齐了哪些公开契约，以及这些契约当前已经做了什么、还没有做什么。
 
-这里的重点不是“增量索引已经完成”，而是“未来要进入真正的 `Hierarchical Indexing` 与 `Incremental Indexing` 时，公开 API 已经有稳定落点”。
+这里的重点是：公开 API 已经有稳定落点。真正的增量索引行为（fingerprint skip/replace、stale cleanup、跨运行最小状态）已按阶段 1 落地；层级召回仍未实现。
 
 ## 当前已落地的保留契约
 
@@ -20,9 +20,8 @@
 
 当前不代表：
 
-- 已经具备真正的增量写入策略。
-- 已经具备 stale cleanup。
 - 已经具备局部回滚、版本切换或状态机。
+- 已经具备层级召回。
 
 ### 2. `sourceIdResolver`
 
@@ -39,7 +38,7 @@
 
 当前不代表：
 
-- pipeline 会基于 `sourceId` 自动删除旧向量。
+- pipeline 会在缺少 `sourceId` 时自动推断并删除。
 
 ### 3. `fingerprintResolver`
 
@@ -55,7 +54,8 @@
 
 当前不代表：
 
-- pipeline 已经具备“新旧 fingerprint 对比 -> 自动跳过 / 替换”的行为。
+- 缺少 `listSourceRecords()` 时仍能跨运行 skip。
+- 已经具备局部回滚。
 
 ### 4. `VectorStoreWriteContext`
 
@@ -105,8 +105,7 @@ deleteByFilter?(filter: {
 
 当前不代表：
 
-- `runIndexing` 会主动调用它。
-- 已经定义好了删除时机、删除顺序或失败恢复语义。
+- `runIndexing` 会在 store 未实现 `deleteByFilter()` 时静默跳过 replace / stale cleanup；此时会抛出 `IndexingError`。
 
 补充说明：
 
@@ -140,35 +139,35 @@ deleteByFilter?(filter: {
 3. 在 chunk metadata merge 之后重新回写 canonical 值，避免旧 metadata 漂移。
 4. 把这些值透传到 `VectorStoreWriteContext`。
 5. 在错误上下文里保留 `documentId`、`chunkId`、`mode` 以及必要时的 `sourceId` / `fingerprint`。
+6. 在 `incremental` 模式下，若 `listSourceRecords()` 显示 fingerprint 未变化，则 skip embed / upsert。
+7. 写入前按 `sourceId` 调用 `deleteByFilter()` 做 replace；运行结束时删除本轮未见过的 stale source。
 
 ## 当前明确没有做的事
 
 当前 Phase D 仍然没有实现：
 
-1. 自动 stale delete。
-2. 基于 fingerprint 的 skip / replace 策略。
-3. source 级版本管理。
-4. parent-child retrieval。
-5. 独立的层级索引结构。
-6. 跨批次或跨运行的增量状态存储。
+1. source 级版本管理。
+2. parent-child retrieval。
+3. 独立的层级索引结构。
+4. 删除失败后的自动回滚或补偿事务。
 
 这些行为后续如果要进入实现阶段，需要额外定义：
 
-- stale delete 的触发时机
-- delete 与 upsert 的先后顺序
-- fingerprint 的对比语义
-- 删除失败时的恢复策略
+- 删除失败后的恢复策略
 - 层级 metadata 与真实检索协议之间的映射关系
+
+真正的增量索引行为（fingerprint skip/replace、stale cleanup、跨运行最小状态）已按 `docs/decisions/sdk-evolution-roadmap.md` 的阶段 1 落地。层级召回仍不在阶段 1 范围。
 
 ## 对后续实现的约束建议
 
 1. 不要把真正的增量逻辑直接硬塞进 `BasicMetadataExtractor` 或 `MemoryVectorStore`。
 2. 不要让第三方 store adapter 反过来决定 `indexing` 的增量语义。
 3. 后续如果需要更复杂的删除语义，应优先扩展过滤契约，而不是破坏现有 `VectorStore.upsert()` 签名。
-4. 在真正实现 stale cleanup 前，先稳定 `sourceId` 与 `fingerprint` 的业务定义。
+4. stale cleanup 的触发时机与 delete / upsert 顺序以 `runIndexing` 当前实现为准，不要让 store adapter 自行发明另一套增量语义。
 
 ## 相关文档
 
 - `packages/indexing/README.md`
 - `docs/context/indexing-package-handoff.md`
 - `docs/indexing/indexing-extension-architecture-draft.md`
+- `docs/decisions/sdk-evolution-roadmap.md`

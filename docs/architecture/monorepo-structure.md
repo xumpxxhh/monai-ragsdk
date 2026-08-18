@@ -60,8 +60,9 @@
 - CI 配置。
 - 尚未进入实现阶段 package 的测试框架配置。
 - 更完整的 integration / smoke 级验证基础设施。
+- 知识库门面。
 
-以上内容都应按 package 实际进入实现阶段的节奏逐步补充。
+以上内容都应按 `docs/decisions/sdk-evolution-roadmap.md` 的阶段顺序逐步补充，而不是在本文档中视为永久排除项。
 
 ## 依赖安装约定
 
