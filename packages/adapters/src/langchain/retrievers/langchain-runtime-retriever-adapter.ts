@@ -2,7 +2,7 @@ import type { Chunk, JsonValue } from '@monai-ragsdk/core';
 import {
   createIndexingRetrievalCandidate,
   filterRetrievalCandidatesByIndexingFilters,
-} from '@monai-ragsdk/runtime';
+} from '@monai-ragsdk/runtime/contract';
 import type {
   RetrievalCandidate,
   RetrievalRequest,
@@ -55,6 +55,8 @@ export type LangChainRuntimeRetrieverOptions<
   TResult = LangChainRuntimeRetrieverDocumentLike[],
 > = {
   retriever: LangChainRuntimeRetrieverLike<TInput, TResult>;
+  /** 路由 targets 用的稳定键；缺省为 `langchain`。 */
+  id?: string;
   idPrefix?: string;
   mapRequest?: LangChainRuntimeRetrieverRequestMapper<TInput>;
   extractDocuments?: (
@@ -69,6 +71,10 @@ export type LangChainRuntimeRetrieverOptions<
   ) => MaybePromise<number | undefined>;
   mapCandidate?: LangChainRuntimeRetrieverCandidateMapper<TResult>;
   buildRetrievalMetadata?: LangChainRuntimeRetrieverMetadataBuilder<TResult>;
+  /**
+   * 仅控制 adapter 内部是否预过滤。runtime 编排层仍会强制应用 request.filters，
+   * 因此 false 不能再让租户隔离失效。
+   */
   filterByRequest?: boolean;
 };
 
@@ -110,6 +116,8 @@ export class LangChainRuntimeRetrieverAdapter<
   TInput = string,
   TResult = LangChainRuntimeRetrieverDocumentLike[],
 > implements RuntimeRetriever {
+  readonly id: string;
+  readonly name = 'langchain';
   readonly #retriever: LangChainRuntimeRetrieverLike<TInput, TResult>;
   readonly #idPrefix: string;
   readonly #options: LangChainRuntimeRetrieverOptions<TInput, TResult>;
@@ -118,6 +126,7 @@ export class LangChainRuntimeRetrieverAdapter<
     this.#retriever = options.retriever;
     this.#idPrefix = options.idPrefix ?? DEFAULT_ID_PREFIX;
     this.#options = options;
+    this.id = options.id ?? 'langchain';
   }
 
   async retrieve(
@@ -150,6 +159,7 @@ export class LangChainRuntimeRetrieverAdapter<
 
         return createIndexingRetrievalCandidate(toRagChunk(document, index, this.#idPrefix), {
           score,
+          scoreKind: score === undefined ? undefined : 'retriever',
           route: request.route,
           strategy: request.strategy,
         });

@@ -3,11 +3,14 @@ import {
   createIndexingRetrievalCandidate,
   filterRetrievalCandidatesByIndexingFilters,
   fuseByReciprocalRankFusion,
-  type RetrievalCandidate,
-  type RetrievalRequest,
-  type RuntimeContext,
-  type RuntimeRetrievalResult,
-  type RuntimeRetriever,
+} from '@monai-ragsdk/runtime/contract';
+import type {
+  RetrievalCandidate,
+  RetrievalRequest,
+  RuntimeContext,
+  RuntimeRetrievalResult,
+  RuntimeRetriever,
+  RuntimeRetrieverCapabilities,
 } from '@monai-ragsdk/runtime';
 import { Pool, type PoolConfig } from 'pg';
 
@@ -34,6 +37,8 @@ export type PgRuntimeRetrieverClientLike = {
 };
 
 export type PgVectorRuntimeRetrieverAdapterOptions = PgConnectionOptions & {
+  /** 路由 targets 用的稳定键；缺省为 `pgvector`。 */
+  id?: string;
   schema?: string;
   tableName: string;
   idColumn?: string;
@@ -66,6 +71,9 @@ const DEFAULT_RRF_K = 60;
  * SQL 不表达 Phase D filter；融合后再复用 runtime 统一过滤，避免和 LangChain 路径语义分叉。
  */
 export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
+  readonly id: string;
+  readonly name = 'pgvector';
+  readonly capabilities: RuntimeRetrieverCapabilities = { searchTypes: ['hybrid'] };
   readonly #client: PgRuntimeRetrieverClientLike;
   readonly #ownedPool: Pool | undefined;
   readonly #schema: string;
@@ -103,6 +111,7 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
     );
     this.#contentMetadataKey = options.contentMetadataKey ?? DEFAULT_CONTENT_METADATA_KEY;
     this.#embedQuery = options.embedQuery;
+    this.id = options.id ?? 'pgvector';
   }
 
   async retrieve(

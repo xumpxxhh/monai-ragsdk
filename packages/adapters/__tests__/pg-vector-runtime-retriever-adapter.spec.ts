@@ -78,6 +78,9 @@ describe('PgVectorRuntimeRetrieverAdapter', () => {
       embedQuery,
     });
 
+    expect(adapter.id).toBe('pgvector');
+    expect(adapter.capabilities).toEqual({ searchTypes: ['hybrid'] });
+
     const result = await adapter.retrieve(
       {
         originalQuery: { query: 'runtime 是什么' },
@@ -103,6 +106,7 @@ describe('PgVectorRuntimeRetrieverAdapter', () => {
     ]);
     expect(result.candidates[0]).toMatchObject({
       score: expect.any(Number),
+      scoreKind: 'rrf',
       route: 'docs',
       strategy: 'vector-search',
       sourceId: 'docs/faq',

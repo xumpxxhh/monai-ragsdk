@@ -22,6 +22,8 @@ export type CreateLangChainBaseRetrieverRuntimeAdapterOptions<
   Metadata extends LangChainDocumentMetadata = LangChainDocumentMetadata,
 > = {
   retriever: BaseRetriever<Metadata>;
+  /** 路由 targets 用的稳定键；缺省为 `langchain`。 */
+  id?: string;
   idPrefix?: string;
   mapQuery?: (request: RetrievalRequest, context: RuntimeContext) => MaybePromise<string>;
   mapRunnableConfig?: (
@@ -56,6 +58,7 @@ export function createLangChainBaseRetrieverRuntimeAdapter<
         return options.retriever.invoke(input.query, input.config);
       },
     },
+    id: options.id,
     idPrefix: options.idPrefix,
     async mapRequest(request, context) {
       return {

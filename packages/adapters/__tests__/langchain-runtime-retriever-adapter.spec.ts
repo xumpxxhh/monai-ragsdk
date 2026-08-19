@@ -28,6 +28,8 @@ describe('LangChainRuntimeRetrieverAdapter', () => {
       retriever: { invoke },
     });
 
+    expect(adapter.id).toBe('langchain');
+
     const result = await adapter.retrieve(
       {
         originalQuery: { query: 'Explain runtime' },
@@ -60,6 +62,7 @@ describe('LangChainRuntimeRetrieverAdapter', () => {
             },
           },
           score: 0.91,
+          scoreKind: 'retriever',
           route: 'docs',
           strategy: 'metadata-first',
           sourceId: 'docs/runtime',
