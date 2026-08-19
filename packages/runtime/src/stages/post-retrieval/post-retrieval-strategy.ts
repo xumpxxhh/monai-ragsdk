@@ -16,6 +16,8 @@ export type PostRetrievalStrategyResult = {
 };
 
 export interface PostRetrievalStrategy {
+  /** 稳定策略名，供 observer / appliedStrategies 对账；缺省时编排器用 post-retrieval-strategy-${index}。 */
+  readonly name?: string;
   apply(
     input: {
       request: RetrievalRequest;

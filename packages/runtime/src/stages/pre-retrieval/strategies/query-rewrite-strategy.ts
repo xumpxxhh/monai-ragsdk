@@ -29,6 +29,7 @@ function buildPrompt(query: string): string {
  */
 export function createQueryRewriteStrategy(options: QueryRewriteStrategyOptions): QueryStrategy {
   return {
+    name: 'query-rewrite',
     async apply(request: RetrievalRequest, context: RuntimeContext): Promise<RetrievalRequest> {
       const text = await completeQueryStrategyModel(
         options.model,

@@ -10,6 +10,7 @@ export function createNearDuplicateRemovalStrategy(
   config?: NearDuplicateRemovalConfig,
 ): PostRetrievalStrategy {
   return {
+    name: 'duplicate-removal',
     async apply({ candidates, request }, context: RuntimeContext) {
       const result = applyNearDuplicateRemovalStrategy(candidates, config, {
         request,

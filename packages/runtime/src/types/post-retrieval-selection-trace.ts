@@ -8,7 +8,9 @@ export type PostRetrievalSelectionStage =
   | 'duplicate-removal'
   | 'budget-trim'
   | 'source-coverage'
-  | 'context-ordering';
+  | 'context-ordering'
+  | 'llm-rerank'
+  | 'context-compression';
 
 export type PostRetrievalSelectionReason =
   | 'selected'

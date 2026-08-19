@@ -217,21 +217,36 @@ function toAuditTimings(
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
+function orderedStrategyNames(values?: string[]): string[] | undefined {
+  if (!values || values.length === 0) {
+    return undefined;
+  }
+
+  const next = values
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim());
+
+  return next.length > 0 ? next : undefined;
+}
+
 function toAuditStrategies(input: {
   request: RetrievalRequest;
   retrievalResult: RuntimeRetrievalResult;
   postResult: PostRetrievalResult;
 }): RAGStageStrategies | undefined {
   const retrievalProvider = readJsonString(input.retrievalResult.retrievalMetadata?.provider);
-  const postRetrieval = uniqueStrings([
-    input.request.rerank?.strategy,
-    ...(input.postResult.selectionTrace?.map((entry) => entry.stage) ?? []),
-  ]);
+  const preRetrieval =
+    orderedStrategyNames(input.request.appliedStrategies) ??
+    uniqueStrings([input.request.strategy]);
+  const postRetrieval =
+    orderedStrategyNames(input.postResult.appliedStrategies) ??
+    uniqueStrings([
+      input.request.rerank?.strategy,
+      ...(input.postResult.selectionTrace?.map((entry) => entry.stage) ?? []),
+    ]);
 
   const next: RAGStageStrategies = {
-    ...(uniqueStrings([input.request.strategy])
-      ? { preRetrieval: uniqueStrings([input.request.strategy]) }
-      : {}),
+    ...(preRetrieval ? { preRetrieval } : {}),
     ...(uniqueStrings([retrievalProvider])
       ? { retrieval: uniqueStrings([retrievalProvider]) }
       : {}),

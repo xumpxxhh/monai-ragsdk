@@ -63,6 +63,11 @@ describe('post-retrieval LLM strategies', () => {
     expect(result.selectedCandidates.map((c) => c.chunk.id)).toEqual(['c2', 'c1', 'c3']);
     const c2 = result.selectedCandidates.find((c) => c.chunk.id === 'c2')!;
     expect(c2.score).toBe(0.99);
+    expect(result.selectionTrace?.map((entry) => entry.stage)).toEqual([
+      'llm-rerank',
+      'llm-rerank',
+      'llm-rerank',
+    ]);
   });
 
   it('compresses each candidate chunk.content', async () => {
@@ -95,6 +100,10 @@ describe('post-retrieval LLM strategies', () => {
       'more more more',
     ]);
     expect(result.selectedCandidates.every((c) => c.compressed)).toBe(true);
+    expect(result.selectionTrace?.map((entry) => entry.stage)).toEqual([
+      'context-compression',
+      'context-compression',
+    ]);
   });
 
   it('works in StrategyRetrievalPostprocessor chain (rerank + compression)', async () => {

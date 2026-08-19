@@ -59,6 +59,7 @@ export function createQueryRoutingStrategy(options: QueryRoutingStrategyOptions)
   const alsoSetStrategy = options.alsoSetStrategy ?? true;
 
   return {
+    name: 'query-routing',
     async apply(request: RetrievalRequest, context: RuntimeContext): Promise<RetrievalRequest> {
       const text = await completeQueryStrategyModel(
         options.model,

@@ -121,6 +121,7 @@ export function createContextCompressionStrategy(
   const maxConcurrency = options.maxConcurrency ?? 4;
 
   return {
+    name: 'context-compression',
     async apply(
       input: {
         request: RetrievalRequest;
@@ -190,7 +191,8 @@ export function createContextCompressionStrategy(
           candidate,
           selected: true,
           reason: 'selected',
-          stage: 'context-ordering',
+          // 观测与 debug 共用真实策略名，不再误标成 context-ordering
+          stage: 'context-compression',
           metadata: { compressed: true },
         }),
       );

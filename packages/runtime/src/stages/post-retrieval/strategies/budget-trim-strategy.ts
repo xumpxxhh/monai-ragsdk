@@ -8,6 +8,7 @@ export function createBudgetTrimStrategy(input?: {
   applyRequestBudget?: boolean;
 }): PostRetrievalStrategy {
   return {
+    name: 'budget-trim',
     async apply({ candidates, request }) {
       const budget =
         input?.budget ?? (input?.applyRequestBudget === false ? undefined : request.budget);

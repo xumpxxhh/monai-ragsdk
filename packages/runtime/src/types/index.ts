@@ -14,6 +14,7 @@ export * from './runtime-generator-input.js';
 export * from './runtime-generation-stream-event.js';
 export * from './runtime-debug-info.js';
 export * from './runtime-run-options.js';
+export * from './runtime-observation.js';
 export * from './runtime-context.js';
 export * from './runtime-result.js';
 export * from './runtime-search-result.js';

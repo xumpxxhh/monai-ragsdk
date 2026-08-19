@@ -12,5 +12,7 @@ export type PostRetrievalResult = {
   selectionTrace?: PostRetrievalSelectionTraceEntry[];
   appliedBudget?: RetrievalBudget;
   appliedScoreThreshold?: number;
+  /** 实际跑过的 post-retrieval 策略名，按执行顺序。 */
+  appliedStrategies?: string[];
   postRetrievalMetadata?: Record<string, JsonValue>;
 };

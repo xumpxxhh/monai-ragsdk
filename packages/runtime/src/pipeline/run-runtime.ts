@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto';
+
 import type {
   RAGErrorRecord,
   RAGEvent,
+  RAGEventName,
   RAGObserver,
   RAGTrace,
   TraceIdSource,
@@ -14,6 +17,8 @@ import type {
   RuntimeContext,
   RuntimeDebugInfo,
   RuntimeGenerationResult,
+  RuntimeObservationErrorRecord,
+  RuntimeObservationRecord,
   RuntimeQueryInput,
   RuntimeResult,
   RuntimeRetrievalResult,
@@ -23,6 +28,11 @@ import type {
   RuntimeStreamEvent,
 } from '../types/index.js';
 import { toRuntimeError } from '../errors/index.js';
+import {
+  buildObservationAttributes,
+  queryCheckpointOutput,
+  summarizeCandidates,
+} from '../observation/index.js';
 import { assembleRuntimeResult, assembleRuntimeSearchResult } from './assemble-runtime-result.js';
 import { iterateRuntimeGeneratorStream } from '../stages/generation/iterate-generation-stream.js';
 
@@ -74,9 +84,25 @@ async function withStageTiming<T>(
   });
 }
 
-/** 优先用调用方传入的 requestId；缺省时用 query + 时间戳，保证同进程内可区分。 */
-function resolveRequestId(input: RuntimeQueryInput, options: RuntimeRunOptions): string {
-  return options.requestId ?? `runtime:${input.query}:${Date.now()}`;
+/** 优先用调用方传入的 requestId；缺省用不透明 UUID，避免把 query 嵌进关联键。 */
+function resolveRequestId(options: RuntimeRunOptions): string {
+  return options.requestId ?? randomUUID();
+}
+
+function resolveTraceId(
+  requestId: string,
+  options: RuntimeRunOptions,
+): { traceId: string; traceIdSource: TraceIdSource } {
+  if (options.trace?.traceId) {
+    return { traceId: options.trace.traceId, traceIdSource: 'provided' };
+  }
+
+  // 调用方只给了业务 requestId 时复用，便于和网关日志对上
+  if (options.requestId) {
+    return { traceId: requestId, traceIdSource: 'requestId' };
+  }
+
+  return { traceId: randomUUID(), traceIdSource: 'generated' };
 }
 
 function createTraceState(
@@ -84,12 +110,11 @@ function createTraceState(
   options: RuntimeRunOptions,
   startedAt: number,
 ): RuntimeTraceState {
-  const providedTraceId = options.trace?.traceId;
+  const { traceId, traceIdSource } = resolveTraceId(requestId, options);
 
   return {
-    // 未显式给 traceId 时复用 requestId，方便把一次查询串到下游日志
-    traceId: providedTraceId ?? requestId,
-    traceIdSource: providedTraceId ? 'provided' : 'requestId',
+    traceId,
+    traceIdSource,
     requestId,
     startedAt,
     tags: options.trace?.tags,
@@ -98,23 +123,34 @@ function createTraceState(
   };
 }
 
+/** 组装单次查询的 observer / context / trace；observe 闭包映射到 RAGEvent，失败隔离在 emit 内。 */
 function createRunSession(
   runtime: CreateRuntimeOptions,
   input: RuntimeQueryInput,
   options: RuntimeRunOptions,
 ): RuntimeRunSession {
   const startedAt = Date.now();
-  const requestId = resolveRequestId(input, options);
+  const requestId = resolveRequestId(options);
+  const observer = runtime.observer ?? defaultObserver;
+  const trace = createTraceState(requestId, options, startedAt);
 
   return {
-    observer: runtime.observer ?? defaultObserver,
+    observer,
     context: {
       requestId,
       input,
       options,
       startedAt,
+      observe: {
+        async emit(record) {
+          await emitMappedEvent(observer, trace, record);
+        },
+        async emitError(record) {
+          await emitMappedError(observer, trace, record);
+        },
+      },
     },
-    trace: createTraceState(requestId, options, startedAt),
+    trace,
     timings: {},
     originalQuery: { query: input.query },
   };
@@ -167,6 +203,42 @@ async function emitError(
   return resolvedError;
 }
 
+function toRuntimeEventName(
+  stage: string,
+  action: RuntimeObservationRecord['action'],
+): RAGEventName {
+  return `runtime.${stage}.${action}`;
+}
+
+/** 把 context.observe 的本地记录映射成 RAGEvent，策略编排器无需依赖 observability 协议。 */
+async function emitMappedEvent(
+  observer: RAGObserver,
+  trace: RuntimeTraceState,
+  record: RuntimeObservationRecord,
+): Promise<RAGEvent> {
+  return emitEvent(observer, trace, {
+    stage: record.stage,
+    name: toRuntimeEventName(record.stage, record.action),
+    timestamp: record.timestamp,
+    ...(record.durationMs !== undefined ? { durationMs: record.durationMs } : {}),
+    ...(record.attributes ? { attributes: record.attributes } : {}),
+  });
+}
+
+async function emitMappedError(
+  observer: RAGObserver,
+  trace: RuntimeTraceState,
+  record: RuntimeObservationErrorRecord,
+): Promise<RAGErrorRecord> {
+  return emitError(observer, trace, {
+    stage: record.stage,
+    name: toRuntimeEventName(record.stage, record.action),
+    timestamp: record.timestamp,
+    error: record.error,
+    ...(record.attributes ? { attributes: record.attributes } : {}),
+  });
+}
+
 async function finalizeTrace(
   observer: RAGObserver,
   trace: RuntimeTraceState,
@@ -190,20 +262,25 @@ async function finalizeTrace(
   await invokeObserverSafely(() => observer.onTraceEnd?.(payload));
 }
 
-function summarizeSelectionTrace(
-  selectionTrace: RuntimeDebugInfo['selectionTrace'],
-): { count: number; selected: number; dropped: number } | undefined {
-  if (!selectionTrace || selectionTrace.length === 0) {
-    return undefined;
-  }
+function readGenerationModel(
+  metadata: RuntimeGenerationResult['generationMetadata'],
+): string | undefined {
+  const model = metadata?.model;
+  return typeof model === 'string' && model.trim().length > 0 ? model.trim() : undefined;
+}
 
-  const selected = selectionTrace.filter((entry) => entry.selected).length;
+/** fan-out 融合后的分数是 RRF 口径；其它 retriever 仍是原始检索分。 */
+function retrievalScoreKind(
+  retrievalResult: RuntimeRetrievalResult,
+): 'retriever' | 'rrf' {
+  return retrievalResult.retrievalMetadata?.provider === 'fan-out' ? 'rrf' : 'retriever';
+}
 
-  return {
-    count: selectionTrace.length,
-    selected,
-    dropped: selectionTrace.length - selected,
-  };
+function citationRefs(chunks: Array<{ id: string }>): Array<{ index: number; chunkId: string }> {
+  return chunks.map((chunk, offset) => ({
+    index: offset + 1,
+    chunkId: chunk.id,
+  }));
 }
 
 /**
@@ -229,25 +306,18 @@ async function runPreGenerationStages(
     name: 'runtime.query.preprocess',
     timestamp: Date.now(),
     durationMs: timings['pre-retrieval'],
-    attributes: {
-      requestId: context.requestId,
-      originalQuery: request.originalQuery.query,
-      effectiveQuery: request.effectiveQuery.query,
-      ...(request.route ? { route: request.route } : {}),
-      ...(request.rewriteReason ? { rewriteReason: request.rewriteReason } : {}),
-      ...(request.strategy ? { strategy: request.strategy } : {}),
-      ...(request.filters ? { filters: request.filters } : {}),
-    },
+    attributes: buildObservationAttributes({
+      output: queryCheckpointOutput(request),
+    }),
   });
 
   await emitEvent(observer, trace, {
     stage: 'retrieval',
     name: 'runtime.retrieval.start',
     timestamp: Date.now(),
-    attributes: {
-      requestId: context.requestId,
-      effectiveQuery: request.effectiveQuery.query,
-    },
+    attributes: buildObservationAttributes({
+      output: { query: request.effectiveQuery.query },
+    }),
   });
 
   const retrievalResult = await withStageTiming(timings, 'retrieval', async () => {
@@ -258,27 +328,33 @@ async function runPreGenerationStages(
     }
   });
 
+  const retrievalProvider =
+    typeof retrievalResult.retrievalMetadata?.provider === 'string'
+      ? retrievalResult.retrievalMetadata.provider
+      : undefined;
+
   await emitEvent(observer, trace, {
     stage: 'retrieval',
     name: 'runtime.retrieval.complete',
     timestamp: Date.now(),
     durationMs: timings.retrieval,
-    attributes: {
-      requestId: context.requestId,
-      candidateCount: retrievalResult.candidates.length,
-      emptyRetrieval: retrievalResult.candidates.length === 0,
-      ...(request.filters ? { filters: request.filters } : {}),
-    },
+    attributes: buildObservationAttributes({
+      counts: { candidates: retrievalResult.candidates.length },
+      candidates: summarizeCandidates(
+        retrievalResult.candidates,
+        retrievalScoreKind(retrievalResult),
+      ),
+      ...(retrievalProvider ? { output: { provider: retrievalProvider } } : {}),
+    }),
   });
 
   await emitEvent(observer, trace, {
     stage: 'post_retrieval',
     name: 'runtime.post_retrieval.start',
     timestamp: Date.now(),
-    attributes: {
-      requestId: context.requestId,
-      candidateCount: retrievalResult.candidates.length,
-    },
+    attributes: buildObservationAttributes({
+      counts: { candidates: retrievalResult.candidates.length },
+    }),
   });
 
   const postResult = await withStageTiming(timings, 'post-retrieval', async () => {
@@ -295,34 +371,30 @@ async function runPreGenerationStages(
     }
   });
 
+  const selectedCount = postResult.selectedCandidates?.length ?? postResult.chunks.length;
+  const droppedCount =
+    postResult.droppedCandidates?.length ??
+    Math.max(retrievalResult.candidates.length - postResult.chunks.length, 0);
+
   await emitEvent(observer, trace, {
     stage: 'post_retrieval',
     name: 'runtime.post_retrieval.select',
     timestamp: Date.now(),
     durationMs: timings['post-retrieval'],
-    attributes: {
-      requestId: context.requestId,
-      inputCandidateCount: retrievalResult.candidates.length,
-      selected: postResult.selectedCandidates?.length ?? postResult.chunks.length,
-      dropped:
-        postResult.droppedCandidates?.length ??
-        Math.max(retrievalResult.candidates.length - postResult.chunks.length, 0),
-      selectedChunkIds: postResult.chunks.map((chunk) => chunk.id),
-      ...(postResult.droppedCandidates
-        ? {
-            droppedChunkIds: postResult.droppedCandidates.map((candidate) => candidate.chunk.id),
-          }
-        : {}),
-      ...(postResult.appliedScoreThreshold !== undefined
-        ? { appliedScoreThreshold: postResult.appliedScoreThreshold }
-        : {}),
-      ...(postResult.appliedBudget ? { appliedBudget: postResult.appliedBudget } : {}),
-      ...(summarizeSelectionTrace(postResult.selectionTrace)
-        ? {
-            selectionTraceSummary: summarizeSelectionTrace(postResult.selectionTrace),
-          }
-        : {}),
-    },
+    attributes: buildObservationAttributes({
+      counts: {
+        input: retrievalResult.candidates.length,
+        selected: selectedCount,
+        dropped: droppedCount,
+        chunks: postResult.chunks.length,
+      },
+      output: {
+        chunkIds: postResult.chunks.map((chunk) => chunk.id),
+        ...(postResult.appliedStrategies && postResult.appliedStrategies.length > 0
+          ? { appliedStrategies: postResult.appliedStrategies }
+          : {}),
+      },
+    }),
   });
 
   return {
@@ -409,13 +481,15 @@ async function finalizeFailedRuntimeRun(
     name: eventName,
     timestamp: Date.now(),
     durationMs: timings.total,
-    attributes: {
-      requestId: context.requestId,
-      stage,
-      errorName: runtimeError.name,
-      errorMessage: runtimeError.message,
-      ...(code ? { errorCode: code } : {}),
-    },
+    attributes: buildObservationAttributes({
+      outcome: 'failed',
+      output: { stage },
+      error: {
+        name: runtimeError.name,
+        message: runtimeError.message,
+        ...(code ? { code } : {}),
+      },
+    }),
   });
 
   await emitError(observer, trace, {
@@ -427,9 +501,13 @@ async function finalizeFailedRuntimeRun(
       message: runtimeError.message,
       ...(code ? { code } : {}),
     },
-    attributes: {
-      requestId: context.requestId,
-    },
+    attributes: buildObservationAttributes({
+      error: {
+        name: runtimeError.name,
+        message: runtimeError.message,
+        ...(code ? { code } : {}),
+      },
+    }),
   });
 
   await finalizeTrace(observer, trace, 'error');
@@ -451,11 +529,9 @@ export async function runRuntime(
     stage: 'query',
     name: 'runtime.query.receive',
     timestamp: Date.now(),
-    attributes: {
-      requestId: context.requestId,
-      query: input.query,
-      ...(options.trace?.tags ? { tags: options.trace.tags } : {}),
-    },
+    attributes: buildObservationAttributes({
+      output: { query: input.query },
+    }),
   });
 
   try {
@@ -465,10 +541,9 @@ export async function runRuntime(
       stage: 'generation',
       name: 'runtime.generation.start',
       timestamp: Date.now(),
-      attributes: {
-        requestId: context.requestId,
-        chunkCount: postResult.chunks.length,
-      },
+      attributes: buildObservationAttributes({
+        counts: { chunks: postResult.chunks.length },
+      }),
     });
 
     const generationResult = await withStageTiming(timings, 'generation', async () => {
@@ -486,17 +561,25 @@ export async function runRuntime(
       }
     });
 
+    const generationModel = readGenerationModel(generationResult.generationMetadata);
+    const citations = citationRefs(postResult.chunks);
+
     await emitEvent(observer, trace, {
       stage: 'generation',
       name: 'runtime.generation.complete',
       timestamp: Date.now(),
       durationMs: timings.generation,
-      attributes: {
-        requestId: context.requestId,
-        contextChunkIds: postResult.chunks.map((chunk) => chunk.id),
-        contextLength: postResult.promptContext?.length ?? 0,
-        answerPreview: generationResult.answer.slice(0, 200),
-      },
+      attributes: buildObservationAttributes({
+        counts: {
+          chunks: postResult.chunks.length,
+          citations: citations.length,
+        },
+        output: {
+          ...(generationModel ? { model: generationModel } : {}),
+          citations,
+          answerPreview: generationResult.answer.slice(0, 200),
+        },
+      }),
     });
 
     timings.total = Date.now() - context.startedAt;
@@ -506,10 +589,9 @@ export async function runRuntime(
       name: 'runtime.run.complete',
       timestamp: Date.now(),
       durationMs: timings.total,
-      attributes: {
-        requestId: context.requestId,
-        finalChunkCount: postResult.chunks.length,
-      },
+      attributes: buildObservationAttributes({
+        counts: { chunks: postResult.chunks.length },
+      }),
     });
 
     const debug: RuntimeDebugInfo | undefined = options.includeDebug
@@ -552,11 +634,9 @@ export async function* runRuntimeStream(
     stage: 'query',
     name: 'runtime.query.receive',
     timestamp: Date.now(),
-    attributes: {
-      requestId: context.requestId,
-      query: input.query,
-      ...(options.trace?.tags ? { tags: options.trace.tags } : {}),
-    },
+    attributes: buildObservationAttributes({
+      output: { query: input.query },
+    }),
   });
 
   try {
@@ -566,10 +646,9 @@ export async function* runRuntimeStream(
       stage: 'generation',
       name: 'runtime.generation.start',
       timestamp: Date.now(),
-      attributes: {
-        requestId: context.requestId,
-        chunkCount: postResult.chunks.length,
-      },
+      attributes: buildObservationAttributes({
+        counts: { chunks: postResult.chunks.length },
+      }),
     });
 
     const generationStartedAt = Date.now();
@@ -626,18 +705,26 @@ export async function* runRuntimeStream(
       };
     }
 
+    const generationModel = readGenerationModel(generationResult.generationMetadata);
+    const citations = citationRefs(postResult.chunks);
+
     await emitEvent(observer, trace, {
       stage: 'generation',
       name: 'runtime.generation.complete',
       timestamp: Date.now(),
       durationMs: timings.generation,
-      attributes: {
-        requestId: context.requestId,
-        contextChunkIds: postResult.chunks.map((chunk) => chunk.id),
-        contextLength: postResult.promptContext?.length ?? 0,
-        answerPreview: generationResult.answer.slice(0, 200),
-        streamed: true,
-      },
+      attributes: buildObservationAttributes({
+        counts: {
+          chunks: postResult.chunks.length,
+          citations: citations.length,
+        },
+        output: {
+          ...(generationModel ? { model: generationModel } : {}),
+          streamed: true,
+          citations,
+          answerPreview: generationResult.answer.slice(0, 200),
+        },
+      }),
     });
 
     timings.total = Date.now() - context.startedAt;
@@ -647,10 +734,9 @@ export async function* runRuntimeStream(
       name: 'runtime.run.complete',
       timestamp: Date.now(),
       durationMs: timings.total,
-      attributes: {
-        requestId: context.requestId,
-        finalChunkCount: postResult.chunks.length,
-      },
+      attributes: buildObservationAttributes({
+        counts: { chunks: postResult.chunks.length },
+      }),
     });
 
     const debug: RuntimeDebugInfo | undefined = options.includeDebug
@@ -696,11 +782,9 @@ export async function runRuntimeSearch(
     stage: 'query',
     name: 'runtime.query.receive',
     timestamp: Date.now(),
-    attributes: {
-      requestId: context.requestId,
-      query: input.query,
-      ...(options.trace?.tags ? { tags: options.trace.tags } : {}),
-    },
+    attributes: buildObservationAttributes({
+      output: { query: input.query },
+    }),
   });
 
   try {
@@ -713,11 +797,9 @@ export async function runRuntimeSearch(
       name: 'runtime.search.complete',
       timestamp: Date.now(),
       durationMs: timings.total,
-      attributes: {
-        requestId: context.requestId,
-        finalChunkCount: postResult.chunks.length,
-        retrieveOnly: true,
-      },
+      attributes: buildObservationAttributes({
+        counts: { chunks: postResult.chunks.length },
+      }),
     });
 
     const debug: RuntimeDebugInfo | undefined = options.includeDebug

@@ -17,5 +17,7 @@ export type RetrievalRequest = {
   indexingMode?: 'full' | 'incremental';
   budget?: RetrievalBudget;
   rerank?: RetrievalRerankPolicy;
+  /** 实际跑过的 pre-retrieval 策略名，按执行顺序；透传也会记，便于对照 observer。 */
+  appliedStrategies?: string[];
   metadata?: Record<string, JsonValue>;
 };

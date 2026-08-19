@@ -48,6 +48,40 @@ LLM 策略默认失败透传，避免检索被策略拖死；需要硬失败时�
 
 结果带 grounding citations：按 post-retrieval 选出的 chunks 顺序编号；`run` / `runStream` / `search` 共用同一套规则。
 
+## 可观测打点
+
+把 `observer` 交给 `createRuntime` / `createDefaultRuntime` 后，主流程打阶段检查点；下列编排器额外打策略步进，写入同一条 trace。字段约定见 [`@monai-ragsdk/observability` README](../observability/README.md)。
+
+- `StrategyQueryPreprocessor`：`runtime.query_strategy.complete`（未改检索意图时 `outcome: passthrough`）
+- `FanOutRetriever`：真正多路时 `runtime.retrieval_fanout.*` 与 `runtime.retrieval_fuse.complete`
+- `StrategyRetrievalPostprocessor`（含默认 `PassthroughRetrievalPostprocessor`）：`runtime.post_retrieval_strategy.complete`
+
+自定义实现可走 `context.observe?.emit(...)`；`adapters` 忽略即可。观测失败不会打断检索。
+
+`RetrievalRequest.appliedStrategies` 与 `PostRetrievalResult.appliedStrategies` 记录实际跑过的策略名，结果快照 `strategies` 优先用这两份有序列表。
+
+### 关联键
+
+`run()` / `runStream()` / `search()` 共用同一套解析。ID 是不透明关联键，query 只出现在事件 attributes。
+
+| 调用方传入 | `requestId` | `traceId` | `traceIdSource` |
+| --- | --- | --- | --- |
+| 都不传 | 内核 UUID | 另一个 UUID | `generated` |
+| 只传 `requestId` | 用传入值 | 复用该值 | `requestId` |
+| 传了 `trace.traceId` | 缺省则新 UUID | 用传入值 | `provided` |
+
+生产环境应由网关传入 `requestId` 与 `trace.traceId`；内核兜底是为了 demo / 单测 / `createCollection().ask()` 在没有请求上下文时仍能成条 trace。
+
+```ts
+await runtime.run(
+  { query: 'pgvector 是什么？' },
+  {
+    requestId: 'req-from-gateway',
+    trace: { traceId: 'trace-from-parent', tags: { app: 'kb' } },
+  },
+);
+```
+
 ## 知识库门面 MVP
 
 `createCollection({ indexing, runtime })` 只做编排，不另开存储 / 查询路径：
@@ -95,7 +129,11 @@ const runtime = createDefaultRuntime({
   }),
 });
 
-const result = await runtime.run({ query: '什么是 runtime？' });
+const result = await runtime.run(
+  { query: '什么是 runtime？' },
+  // 可选；不传时 requestId / traceId 由内核生成 UUID
+  { requestId: 'req-1', trace: { traceId: 'trace-1' } },
+);
 ```
 
 ## 脚本

@@ -7,6 +7,7 @@ import {
 
 export function createSourceCoverageStrategy(config?: SourceCoverageConfig): PostRetrievalStrategy {
   return {
+    name: 'source-coverage',
     async apply({ candidates }) {
       const result = applySourceCoverageStrategy(candidates, config);
 

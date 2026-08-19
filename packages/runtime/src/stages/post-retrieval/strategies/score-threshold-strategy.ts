@@ -7,6 +7,7 @@ export function createScoreThresholdStrategy(input?: {
   applyRequestScoreThreshold?: boolean;
 }): PostRetrievalStrategy {
   return {
+    name: 'score-threshold',
     async apply({ candidates, request }) {
       const scoreThreshold =
         input?.scoreThreshold ??

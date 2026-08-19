@@ -10,6 +10,7 @@ export function createPredicateFilterStrategy(
   predicate?: CandidatePredicate,
 ): PostRetrievalStrategy {
   return {
+    name: 'predicate-filter',
     async apply({ candidates, request }, context: RuntimeContext) {
       const result = await applyCandidatePredicateStrategy(candidates, predicate, {
         request,

@@ -38,6 +38,7 @@ export function createQueryExpansionStrategy(
   const maxQueries = includeOriginal ? count + 1 : count;
 
   return {
+    name: 'query-expansion',
     async apply(request: RetrievalRequest, context: RuntimeContext): Promise<RetrievalRequest> {
       const text = await completeQueryStrategyModel(
         options.model,

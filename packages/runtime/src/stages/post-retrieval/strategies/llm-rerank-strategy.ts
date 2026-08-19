@@ -133,7 +133,8 @@ function buildSelectionTrace(
       candidate,
       selected: true,
       reason: 'selected',
-      stage: 'context-ordering',
+      // 观测与 debug 共用真实策略名，不再误标成 context-ordering
+      stage: 'llm-rerank',
       score,
       order,
       metadata: {
@@ -157,6 +158,7 @@ export function createLlmRerankStrategy(options: LlmRerankStrategyOptions): Post
   const maxCandidatesForPrompt = options.maxCandidatesForPrompt ?? 12;
 
   return {
+    name: 'llm-rerank',
     async apply(
       input: { request: RetrievalRequest; candidates: RetrievalCandidate[] },
       context: RuntimeContext,

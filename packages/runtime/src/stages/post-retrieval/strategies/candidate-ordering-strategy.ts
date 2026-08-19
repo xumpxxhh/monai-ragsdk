@@ -10,6 +10,7 @@ export function createCandidateOrderingStrategy(
   comparator?: CandidateComparator,
 ): PostRetrievalStrategy {
   return {
+    name: 'context-ordering',
     async apply({ candidates, request }, context: RuntimeContext) {
       const result = applyCandidateOrderingStrategy(candidates, comparator, {
         request,

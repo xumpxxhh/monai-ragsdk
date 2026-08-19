@@ -5,6 +5,7 @@ import { applyLostInTheMiddleStrategy } from './post-retrieval-strategies.js';
 /** Lost in the Middle 首尾重排；默认不启用，需显式加入策略数组。 */
 export function createLostInTheMiddleStrategy(): PostRetrievalStrategy {
   return {
+    name: 'lost-in-the-middle',
     async apply({ candidates }) {
       const result = applyLostInTheMiddleStrategy(candidates);
 

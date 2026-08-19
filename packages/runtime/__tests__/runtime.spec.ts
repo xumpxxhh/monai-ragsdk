@@ -63,6 +63,39 @@ describe('runtime pipeline', () => {
     });
   });
 
+  it('generates opaque UUID ids and only reuses an explicit requestId as traceId', async () => {
+    const runtime = createDefaultRuntime({
+      retriever: {
+        async retrieve() {
+          return {
+            candidates: [{ chunk: { id: 'chunk-1', content: 'c' }, score: 1 }],
+          };
+        },
+      },
+      generator: {
+        async generate() {
+          return { answer: 'ok' };
+        },
+      },
+    });
+
+    const generated = await runtime.run({ query: 'hello?' });
+    expect(generated.requestId).not.toContain('hello');
+    expect(generated.traceId).not.toContain('hello');
+    expect(generated.requestId).not.toBe(generated.traceId);
+
+    const reused = await runtime.run({ query: 'hello?' }, { requestId: 'req-from-gateway' });
+    expect(reused.requestId).toBe('req-from-gateway');
+    expect(reused.traceId).toBe('req-from-gateway');
+
+    const provided = await runtime.run(
+      { query: 'hello?' },
+      { requestId: 'req-from-gateway', trace: { traceId: 'trace-from-parent' } },
+    );
+    expect(provided.requestId).toBe('req-from-gateway');
+    expect(provided.traceId).toBe('trace-from-parent');
+  });
+
   it('search runs retrieve-only and never calls the generator', async () => {
     let generateCalls = 0;
     const observerEvents: string[] = [];
@@ -239,8 +272,15 @@ describe('runtime pipeline', () => {
     });
     expect(result.debug?.timings.total).toBeTypeOf('number');
     expect(result.streamed).toBe(false);
-    expect(result.requestId).toBeTypeOf('string');
-    expect(result.traceId).toBeTypeOf('string');
+    expect(result.requestId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(result.traceId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(result.requestId).not.toContain('Explain debug mode');
+    expect(result.traceId).not.toContain('Explain debug mode');
+    expect(result.requestId).not.toBe(result.traceId);
     expect(result.startedAt).toBeTypeOf('number');
     expect(result.endedAt).toBeTypeOf('number');
     expect(result.counts).toEqual({

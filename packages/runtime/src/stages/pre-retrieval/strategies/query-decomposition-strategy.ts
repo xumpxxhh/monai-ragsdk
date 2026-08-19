@@ -39,6 +39,7 @@ export function createQueryDecompositionStrategy(
   const maxQueries = includeOriginal ? count + 1 : count;
 
   return {
+    name: 'query-decomposition',
     async apply(request: RetrievalRequest, context: RuntimeContext): Promise<RetrievalRequest> {
       const text = await completeQueryStrategyModel(
         options.model,

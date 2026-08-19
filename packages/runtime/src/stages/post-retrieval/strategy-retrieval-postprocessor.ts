@@ -8,6 +8,13 @@ import type {
 } from '../../types/index.js';
 
 import { mergeSelectionTrace } from './strategies/post-retrieval-strategies.js';
+import {
+  buildObservationAttributes,
+  compactSelectionDecisions,
+  emitRuntimeObservation,
+  emitRuntimeObservationError,
+  toObservationError,
+} from '../../observation/index.js';
 
 export type StrategyRetrievalPostprocessorOptions = {
   strategies: PostRetrievalStrategy[];
@@ -32,9 +39,29 @@ function defaultPromptContext(
   ].join('\n\n');
 }
 
+function isPostStrategyPassthrough(
+  inputCandidates: RetrievalCandidate[],
+  selected: RetrievalCandidate[],
+  droppedCount: number,
+  compressedCount: number,
+): boolean {
+  if (droppedCount > 0 || compressedCount > 0) {
+    return false;
+  }
+
+  if (selected.length !== inputCandidates.length) {
+    return false;
+  }
+
+  return selected.every(
+    (candidate, index) => candidate.chunk.id === inputCandidates[index]?.chunk.id,
+  );
+}
+
 /**
  * 按 strategies 数组顺序依次执行 post-retrieval 策略；
  * 统一合并 dropped、trace 与 promptContext，供自定义策略链复用。
+ * 每条策略打 post_retrieval_strategy.complete / fail，正文不进 observer。
  */
 export class StrategyRetrievalPostprocessor implements RetrievalPostprocessor {
   readonly #strategies: PostRetrievalStrategy[];
@@ -57,24 +84,80 @@ export class StrategyRetrievalPostprocessor implements RetrievalPostprocessor {
     let candidates = input.candidates;
     const droppedCandidates: RetrievalCandidate[] = [];
     const selectionTraces: Array<PostRetrievalResult['selectionTrace']> = [];
+    const appliedStrategies: string[] = [];
     let appliedBudget: PostRetrievalResult['appliedBudget'];
     let appliedScoreThreshold: PostRetrievalResult['appliedScoreThreshold'];
 
-    for (const strategy of this.#strategies) {
-      const result = await strategy.apply({ request: input.request, candidates }, context);
-      candidates = result.selectedCandidates;
-      droppedCandidates.push(...result.droppedCandidates);
+    for (let index = 0; index < this.#strategies.length; index += 1) {
+      const strategy = this.#strategies[index]!;
+      const strategyName = strategy.name ?? `post-retrieval-strategy-${index}`;
+      const startedAt = Date.now();
+      const inputCandidates = candidates;
+      const strategyRef = { name: strategyName, index };
 
-      if (result.selectionTrace) {
-        selectionTraces.push(result.selectionTrace);
-      }
+      try {
+        const result = await strategy.apply({ request: input.request, candidates }, context);
+        candidates = result.selectedCandidates;
+        droppedCandidates.push(...result.droppedCandidates);
+        appliedStrategies.push(strategyName);
 
-      if (result.appliedBudget !== undefined) {
-        appliedBudget = result.appliedBudget;
-      }
+        if (result.selectionTrace) {
+          selectionTraces.push(result.selectionTrace);
+        }
 
-      if (result.appliedScoreThreshold !== undefined) {
-        appliedScoreThreshold = result.appliedScoreThreshold;
+        if (result.appliedBudget !== undefined) {
+          appliedBudget = result.appliedBudget;
+        }
+
+        if (result.appliedScoreThreshold !== undefined) {
+          appliedScoreThreshold = result.appliedScoreThreshold;
+        }
+
+        const compressedCount = result.selectedCandidates.filter(
+          (candidate) => candidate.compressed,
+        ).length;
+        const passthrough = isPostStrategyPassthrough(
+          inputCandidates,
+          result.selectedCandidates,
+          result.droppedCandidates.length,
+          compressedCount,
+        );
+
+        await emitRuntimeObservation(context, {
+          stage: 'post_retrieval_strategy',
+          action: 'complete',
+          timestamp: Date.now(),
+          durationMs: Date.now() - startedAt,
+          attributes: buildObservationAttributes({
+            strategy: strategyRef,
+            outcome: passthrough ? 'passthrough' : 'applied',
+            counts: {
+              input: inputCandidates.length,
+              selected: result.selectedCandidates.length,
+              dropped: result.droppedCandidates.length,
+              ...(compressedCount > 0 ? { compressed: compressedCount } : {}),
+            },
+            decisions: compactSelectionDecisions(result.selectionTrace, strategyName),
+          }),
+        });
+      } catch (error) {
+        const observationError = toObservationError(error);
+        const failRecord = {
+          stage: 'post_retrieval_strategy',
+          action: 'fail' as const,
+          timestamp: Date.now(),
+          durationMs: Date.now() - startedAt,
+          attributes: buildObservationAttributes({
+            strategy: strategyRef,
+            outcome: 'failed',
+            error: observationError,
+          }),
+          error: observationError,
+        };
+
+        await emitRuntimeObservation(context, failRecord);
+        await emitRuntimeObservationError(context, failRecord);
+        throw error;
       }
     }
 
@@ -82,6 +165,7 @@ export class StrategyRetrievalPostprocessor implements RetrievalPostprocessor {
       chunks: candidates.map((candidate) => candidate.chunk),
       selectedCandidates: candidates,
       droppedCandidates,
+      appliedStrategies,
       ...(this.#includeSelectionTrace
         ? { selectionTrace: mergeSelectionTrace(...selectionTraces) }
         : {}),

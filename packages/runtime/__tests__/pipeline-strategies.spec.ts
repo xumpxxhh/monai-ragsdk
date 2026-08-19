@@ -47,6 +47,7 @@ describe('pipeline strategy framework', () => {
 
     expect(request.effectiveQuery.query).toBe('hello v1 v2');
     expect(request.route).toBe('rewritten');
+    expect(request.appliedStrategies).toEqual(['query-strategy-0', 'query-strategy-1']);
   });
 
   it('fans out subQueries and fuses retrieval results', async () => {
