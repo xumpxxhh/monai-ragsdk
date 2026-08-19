@@ -1,0 +1,38 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "PORT",
+        "CORS_ORIGIN",
+        "PGVECTOR_CONNECTION_STRING",
+        "EMBEDDING_API_KEY",
+        "EMBEDDING_BASE_URL",
+        "EMBEDDING_MODEL",
+        "EMBEDDING_DIMENSION",
+        "OPENAI_API_KEY",
+        "OPENAI_BASE_URL",
+        "OPENAI_CHAT_MODEL"
+      ]
+    },
+    "start": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "PORT",
+        "CORS_ORIGIN",
+        "PGVECTOR_CONNECTION_STRING",
+        "EMBEDDING_API_KEY",
+        "EMBEDDING_BASE_URL",
+        "EMBEDDING_MODEL",
+        "EMBEDDING_DIMENSION",
+        "OPENAI_API_KEY",
+        "OPENAI_BASE_URL",
+        "OPENAI_CHAT_MODEL"
+      ]
+    }
+  }
+}

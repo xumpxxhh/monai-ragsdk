@@ -7,12 +7,21 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# 本地环境变量（密钥）；保留各包 .env.example
+.env
+.env.*
+!.env.example
+!**/.env.example
+
 # Demo 运行产物
 packages/*/demo/.artifacts/
 
 # Example 运行产物（输出与观测 trace）
 apps/example/src/*.tmp.json
 apps/example/src/*.jsonl
+
+# Server 知识库元数据（向量在 pgvector）
+apps/server/data/
 
 # 系统文件
 .DS_Store

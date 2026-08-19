@@ -2,6 +2,19 @@
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
   "globalDependencies": ["tsconfig.json"],
+  "globalPassThroughEnv": [
+    "PORT",
+    "CORS_ORIGIN",
+    "PGVECTOR_CONNECTION_STRING",
+    "PGVECTOR_TABLE_NAME",
+    "EMBEDDING_API_KEY",
+    "EMBEDDING_BASE_URL",
+    "EMBEDDING_MODEL",
+    "EMBEDDING_DIMENSION",
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",
+    "OPENAI_CHAT_MODEL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
