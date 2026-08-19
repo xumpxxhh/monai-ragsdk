@@ -217,7 +217,7 @@ describe('runtime pipeline', () => {
                 },
                 score: 0.5,
                 sourceId: 'docs/runtime',
-                hierarchyPath: 'runtime/faq',
+                hierarchyPath: 'runtime/api',
               },
             ],
           };

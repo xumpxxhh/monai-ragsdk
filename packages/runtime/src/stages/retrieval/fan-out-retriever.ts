@@ -1,6 +1,6 @@
 import type { Query } from '@monai-ragsdk/core';
 
-import type { RuntimeRetriever } from './runtime-retriever.js';
+import type { RuntimeRetriever, RuntimeRetrieverCapabilities } from './runtime-retriever.js';
 import type {
   RetrievalCandidate,
   RetrievalRequest,
@@ -21,6 +21,10 @@ import {
 } from './fuse-by-rrf.js';
 
 export type FanOutRetrieverOptions = {
+  /** 路由 targets 用的稳定键；缺省无法被点名选中。 */
+  id?: string;
+  name?: string;
+  capabilities?: RuntimeRetrieverCapabilities;
   retriever: RuntimeRetriever;
   retrievers?: RuntimeRetriever[];
   fuse?: (rankedLists: RetrievalCandidate[][], request: RetrievalRequest) => RetrievalCandidate[];
@@ -67,6 +71,9 @@ async function mapWithConcurrency<T, R>(
  * 真正多路时按 index 顺序打 retrieval_fanout / retrieval_fuse，避免 JSONL 被并发打乱。
  */
 export class FanOutRetriever implements RuntimeRetriever {
+  readonly id?: string;
+  readonly name?: string;
+  readonly capabilities?: RuntimeRetrieverCapabilities;
   readonly #retrievers: RuntimeRetriever[];
   readonly #fuse: FanOutRetrieverOptions['fuse'];
   readonly #maxConcurrency: number;
@@ -77,6 +84,13 @@ export class FanOutRetriever implements RuntimeRetriever {
     this.#fuse = options.fuse;
     this.#maxConcurrency = options.maxConcurrency ?? 4;
     this.#rrf = options.rrf;
+    this.id = options.id;
+    this.name = options.name ?? 'fan-out';
+    this.capabilities = options.capabilities ?? mergeRetrieverCapabilities(this.#retrievers);
+  }
+
+  async close(): Promise<void> {
+    await Promise.all(this.#retrievers.map((retriever) => retriever.close?.()));
   }
 
   async retrieve(
@@ -145,7 +159,7 @@ export class FanOutRetriever implements RuntimeRetriever {
             query: subQueries[subQueryIndex]!.query,
           },
           counts: { candidates: ranked.candidates.length },
-          candidates: summarizeCandidates(ranked.candidates, 'retriever'),
+          candidates: summarizeCandidates(ranked.candidates),
         }),
       });
     }
@@ -164,7 +178,7 @@ export class FanOutRetriever implements RuntimeRetriever {
           subQueries: subQueries.length,
           fused: fusedCandidates.length,
         },
-        candidates: summarizeCandidates(fusedCandidates, 'rrf'),
+        candidates: summarizeCandidates(fusedCandidates),
       }),
     });
 
@@ -178,4 +192,13 @@ export class FanOutRetriever implements RuntimeRetriever {
       },
     };
   }
+}
+
+function mergeRetrieverCapabilities(
+  retrievers: RuntimeRetriever[],
+): RuntimeRetrieverCapabilities | undefined {
+  const searchTypes = [
+    ...new Set(retrievers.flatMap((retriever) => retriever.capabilities?.searchTypes ?? [])),
+  ];
+  return searchTypes.length > 0 ? { searchTypes } : undefined;
 }

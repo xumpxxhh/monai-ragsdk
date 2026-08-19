@@ -6,7 +6,7 @@ import {
   createIndexingRetrievalRequest,
   filterRetrievalCandidatesByIndexingFilters,
   matchRetrievalCandidateFilters,
-} from '../src/index.ts';
+} from '../src/contract/index.ts';
 
 describe('indexing query protocol helpers', () => {
   it('normalizes indexing filter input into runtime retrieval filters', () => {
@@ -64,12 +64,14 @@ describe('indexing query protocol helpers', () => {
         },
         {
           score: 0.93,
+          scoreKind: 'retriever',
           route: 'docs',
           strategy: 'metadata-first',
         },
       ),
     ).toMatchObject({
       score: 0.93,
+      scoreKind: 'retriever',
       route: 'docs',
       strategy: 'metadata-first',
       sourceId: 'docs/runtime',

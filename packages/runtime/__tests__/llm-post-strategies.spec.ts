@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { RuntimeContext, RuntimeStrategyModel } from '../src/index.ts';
 
@@ -63,6 +63,7 @@ describe('post-retrieval LLM strategies', () => {
     expect(result.selectedCandidates.map((c) => c.chunk.id)).toEqual(['c2', 'c1', 'c3']);
     const c2 = result.selectedCandidates.find((c) => c.chunk.id === 'c2')!;
     expect(c2.score).toBe(0.99);
+    expect(c2.scoreKind).toBe('llm');
     expect(result.selectionTrace?.map((entry) => entry.stage)).toEqual([
       'llm-rerank',
       'llm-rerank',
@@ -140,5 +141,47 @@ describe('post-retrieval LLM strategies', () => {
 
     expect(result.chunks.map((c) => c.id)).toEqual(['c2', 'c1']);
     expect(result.chunks.map((c) => c.content)).toEqual(['sum', 'sum']);
+  });
+
+  it('skips the model when there are no candidates', async () => {
+    const complete = vi.fn(async () => JSON.stringify({ ranked: [] }));
+    const strategy = createLlmRerankStrategy({
+      model: { complete },
+    });
+    const request = {
+      originalQuery: { query: 'pgvector' },
+      effectiveQuery: { query: 'pgvector' },
+    };
+
+    const result = await strategy.apply({ request, candidates: [] }, context);
+
+    expect(complete).not.toHaveBeenCalled();
+    expect(request).not.toHaveProperty('rerank');
+    expect(result.selectedCandidates).toEqual([]);
+  });
+
+  it('does not mark request.rerank when the model fails and passthroughs', async () => {
+    const strategy = createLlmRerankStrategy({
+      model: {
+        async complete() {
+          throw new Error('llm down');
+        },
+      },
+    });
+    const request = {
+      originalQuery: { query: 'pgvector' },
+      effectiveQuery: { query: 'pgvector' },
+    };
+
+    const result = await strategy.apply(
+      {
+        request,
+        candidates: [{ chunk: { id: 'c1', content: 'c1' }, score: 0.2, scoreKind: 'retriever' }],
+      },
+      context,
+    );
+
+    expect(request).not.toHaveProperty('rerank');
+    expect(result.selectedCandidates.map((candidate) => candidate.chunk.id)).toEqual(['c1']);
   });
 });

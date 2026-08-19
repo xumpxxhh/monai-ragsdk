@@ -20,7 +20,8 @@ export type StrategyQueryPreprocessorOptions = {
 /**
  * 先用 base 产出初始 RetrievalRequest，再按顺序跑 query 策略链；
  * 对外仍是一个 QueryPreprocessor，run() / runStream() 主流程无需改动。
- * 每条策略打 query_strategy.complete / fail，并把 appliedStrategies 写回 request。
+ * 每条策略打 query_strategy.complete / fail。
+ * appliedStrategies 只记真正改了检索意图的策略；失败/透传只出现在 observer，避免审计假装改写过。
  */
 export class StrategyQueryPreprocessor implements QueryPreprocessor {
   readonly #base: QueryPreprocessor;
@@ -45,7 +46,10 @@ export class StrategyQueryPreprocessor implements QueryPreprocessor {
       try {
         const next = await strategy.apply(request, context);
         const passthrough = isQueryStrategyPassthrough(before, next);
-        appliedStrategies.push(strategyName);
+        // 透传表示检索意图没变；写进清单会让审计显示「跑过 rewrite」而 query 未动。
+        if (!passthrough) {
+          appliedStrategies.push(strategyName);
+        }
         request = {
           ...next,
           appliedStrategies: [...appliedStrategies],

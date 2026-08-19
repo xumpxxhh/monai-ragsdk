@@ -21,10 +21,12 @@ import type {
   RuntimeObservationRecord,
   RuntimeQueryInput,
   RuntimeResult,
+  RetrievalScoreKind,
   RuntimeRetrievalResult,
   RuntimeRunOptions,
   RuntimeSearchResult,
   RuntimeStage,
+  RuntimeGeneratorInput,
   RuntimeStreamEvent,
 } from '../types/index.js';
 import { toRuntimeError } from '../errors/index.js';
@@ -35,6 +37,9 @@ import {
 } from '../observation/index.js';
 import { assembleRuntimeResult, assembleRuntimeSearchResult } from './assemble-runtime-result.js';
 import { iterateRuntimeGeneratorStream } from '../stages/generation/iterate-generation-stream.js';
+import { resolveGenerationGrounding } from '../stages/generation/resolve-generation-grounding.js';
+import { enforceRetrievalRequestFilters } from '../indexing/query-protocol.js';
+import { applyRetrievalTopKAlias } from '../stages/retrieval/apply-retrieval-top-k-alias.js';
 
 /** 单次 run / runStream 的可观测状态；事件与错误先入本地缓冲，再安全通知 observer。 */
 type RuntimeTraceState = {
@@ -269,11 +274,28 @@ function readGenerationModel(
   return typeof model === 'string' && model.trim().length > 0 ? model.trim() : undefined;
 }
 
-/** fan-out 融合后的分数是 RRF 口径；其它 retriever 仍是原始检索分。 */
-function retrievalScoreKind(
+/**
+ * 仅当整批有分却都缺口径时，才用 metadata 兜底推断。
+ * pgvector 内部也做 RRF，不能再因 provider !== fan-out 就标成 retriever。
+ */
+function inferMissingScoreKind(
   retrievalResult: RuntimeRetrievalResult,
-): 'retriever' | 'rrf' {
-  return retrievalResult.retrievalMetadata?.provider === 'fan-out' ? 'rrf' : 'retriever';
+): RetrievalScoreKind | undefined {
+  const scored = retrievalResult.candidates.filter((candidate) => candidate.score !== undefined);
+  if (scored.length === 0 || scored.some((candidate) => candidate.scoreKind !== undefined)) {
+    return undefined;
+  }
+
+  const metadata = retrievalResult.retrievalMetadata;
+  const provider = typeof metadata?.provider === 'string' ? metadata.provider : undefined;
+  if (provider === 'fan-out') {
+    return 'rrf';
+  }
+  if (provider === 'pgvector' && typeof metadata?.fusedCandidateCount === 'number') {
+    return 'rrf';
+  }
+
+  return undefined;
 }
 
 function citationRefs(chunks: Array<{ id: string }>): Array<{ index: number; chunkId: string }> {
@@ -295,7 +317,8 @@ async function runPreGenerationStages(
 
   const request = await withStageTiming(timings, 'pre-retrieval', async () => {
     try {
-      return await runtime.preprocessor.preprocess(context.input, context);
+      // 自定义 preprocessor 可能只写 topK；retrieve 前补齐权威条数，避免 adapter 落到硬编码兜底。
+      return applyRetrievalTopKAlias(await runtime.preprocessor.preprocess(context.input, context));
     } catch (error) {
       throw toRuntimeError(error, 'pre-retrieval', originalQuery);
     }
@@ -322,7 +345,9 @@ async function runPreGenerationStages(
 
   const retrievalResult = await withStageTiming(timings, 'retrieval', async () => {
     try {
-      return await runtime.retriever.retrieve(request, context);
+      const rawResult = await runtime.retriever.retrieve(request, context);
+      // filters 常用于租户隔离；不能只靠 adapter 自愿调用 helper。
+      return enforceRetrievalRequestFilters(rawResult, request.filters);
     } catch (error) {
       throw toRuntimeError(error, 'retrieval', request.originalQuery, request.effectiveQuery);
     }
@@ -342,7 +367,7 @@ async function runPreGenerationStages(
       counts: { candidates: retrievalResult.candidates.length },
       candidates: summarizeCandidates(
         retrievalResult.candidates,
-        retrievalScoreKind(retrievalResult),
+        inferMissingScoreKind(retrievalResult),
       ),
       ...(retrievalProvider ? { output: { provider: retrievalProvider } } : {}),
     }),
@@ -401,6 +426,28 @@ async function runPreGenerationStages(
     request,
     retrievalResult,
     postResult,
+  };
+}
+
+/**
+ * run / runStream 共用 generator 输入。空 chunks 时附带成因，让拒答与「用模型知识」可区分。
+ * 本切片不实现 routing skip，因此不会写出 `skipped`。
+ */
+function buildRuntimeGeneratorInput(
+  request: RetrievalRequest,
+  retrievalResult: RuntimeRetrievalResult,
+  postResult: PostRetrievalResult,
+): RuntimeGeneratorInput {
+  const grounding = resolveGenerationGrounding({
+    retrievedCount: retrievalResult.candidates.length,
+    chunkCount: postResult.chunks.length,
+  });
+
+  return {
+    request,
+    chunks: postResult.chunks,
+    promptContext: postResult.promptContext,
+    ...(grounding ? { grounding } : {}),
   };
 }
 
@@ -537,25 +584,23 @@ export async function runRuntime(
   try {
     const { request, retrievalResult, postResult } = await runPreGenerationStages(runtime, session);
 
+    const generatorInput = buildRuntimeGeneratorInput(request, retrievalResult, postResult);
+
     await emitEvent(observer, trace, {
       stage: 'generation',
       name: 'runtime.generation.start',
       timestamp: Date.now(),
       attributes: buildObservationAttributes({
         counts: { chunks: postResult.chunks.length },
+        ...(generatorInput.grounding
+          ? { output: { chunksEmptyReason: generatorInput.grounding.chunksEmptyReason } }
+          : {}),
       }),
     });
 
     const generationResult = await withStageTiming(timings, 'generation', async () => {
       try {
-        return await runtime.generator.generate(
-          {
-            request,
-            chunks: postResult.chunks,
-            promptContext: postResult.promptContext,
-          },
-          context,
-        );
+        return await runtime.generator.generate(generatorInput, context);
       } catch (error) {
         throw toRuntimeError(error, 'generation', request.originalQuery, request.effectiveQuery);
       }
@@ -642,12 +687,17 @@ export async function* runRuntimeStream(
   try {
     const { request, retrievalResult, postResult } = await runPreGenerationStages(runtime, session);
 
+    const generatorInput = buildRuntimeGeneratorInput(request, retrievalResult, postResult);
+
     await emitEvent(observer, trace, {
       stage: 'generation',
       name: 'runtime.generation.start',
       timestamp: Date.now(),
       attributes: buildObservationAttributes({
         counts: { chunks: postResult.chunks.length },
+        ...(generatorInput.grounding
+          ? { output: { chunksEmptyReason: generatorInput.grounding.chunksEmptyReason } }
+          : {}),
       }),
     });
 
@@ -659,11 +709,7 @@ export async function* runRuntimeStream(
     try {
       for await (const event of iterateRuntimeGeneratorStream(
         runtime.generator,
-        {
-          request,
-          chunks: postResult.chunks,
-          promptContext: postResult.promptContext,
-        },
+        generatorInput,
         context,
       )) {
         if (event.type === 'delta' && event.text) {
@@ -837,6 +883,9 @@ export function createRunnableRuntime(runtime: CreateRuntimeOptions): Runtime {
     },
     runStream(input, options) {
       return runRuntimeStream(runtime, input, options);
+    },
+    async close() {
+      await runtime.retriever.close?.();
     },
   };
 }

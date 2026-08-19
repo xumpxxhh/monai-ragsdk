@@ -92,6 +92,8 @@ describe('runtime observer integration', () => {
                   content: request.effectiveQuery.query,
                 },
                 score: 0.91,
+                scoreKind: 'retriever',
+                sourceId: 'docs/runtime',
               },
               {
                 chunk: {
@@ -99,6 +101,8 @@ describe('runtime observer integration', () => {
                   content: 'dropped',
                 },
                 score: 0.4,
+                scoreKind: 'retriever',
+                sourceId: 'docs/runtime',
               },
             ],
           };

@@ -2,6 +2,7 @@ import type {
   PostRetrievalSelectionTraceEntry,
   RetrievalCandidate,
   RetrievalRequest,
+  RetrievalScoreKind,
   RuntimeContext,
   RuntimeObservationErrorRecord,
   RuntimeObservationRecord,
@@ -11,7 +12,6 @@ import {
   subQueryTexts,
   type ObservationCandidateRef,
   type ObservationDecisionRef,
-  type ObservationScoreKind,
 } from './build-observation-attributes.js';
 
 /**
@@ -49,8 +49,15 @@ export function toObservationError(error: unknown): RuntimeObservationErrorRecor
 /** 观测 candidates 只用 id / score / 分数口径，避免把 chunk 正文带进 trace。 */
 export function summarizeCandidates(
   candidates: RetrievalCandidate[],
-  scoreKind?: ObservationScoreKind,
+  fallbackScoreKind?: RetrievalScoreKind,
 ): ObservationCandidateRef[] {
+  const scored = candidates.filter((candidate) => candidate.score !== undefined);
+  // 只有整批都缺口径时才用推断；部分有 kind 时不要用 batch 猜测盖掉未知项。
+  const batchKind =
+    scored.length > 0 && scored.every((candidate) => candidate.scoreKind === undefined)
+      ? fallbackScoreKind
+      : undefined;
+
   return candidates.map((candidate) => {
     const item: ObservationCandidateRef = {
       chunkId: candidate.chunk.id,
@@ -60,6 +67,7 @@ export function summarizeCandidates(
       item.score = candidate.score;
     }
 
+    const scoreKind = candidate.scoreKind ?? batchKind;
     if (scoreKind) {
       item.scoreKind = scoreKind;
     }
@@ -106,6 +114,7 @@ export function compactSelectionDecisions(
 
 /**
  * 引用相同视为透传；否则只比检索意图字段，忽略 appliedStrategies 等编排器后写字段。
+ * strategy / rerank / indexingMode 也会改后续行为或审计，漏比会把「只改了这些」误标成 passthrough。
  */
 export function isQueryStrategyPassthrough(
   before: RetrievalRequest,
@@ -120,8 +129,12 @@ export function isQueryStrategyPassthrough(
     sameStringList(subQueryTexts(before.subQueries), subQueryTexts(after.subQueries)) &&
     before.route === after.route &&
     before.rewriteReason === after.rewriteReason &&
+    before.strategy === after.strategy &&
+    before.indexingMode === after.indexingMode &&
     stableJson(before.filters) === stableJson(after.filters) &&
     stableJson(before.budget) === stableJson(after.budget) &&
+    stableJson(before.rerank) === stableJson(after.rerank) &&
+    stableJson(before.metadata) === stableJson(after.metadata) &&
     before.topK === after.topK
   );
 }

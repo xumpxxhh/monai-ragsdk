@@ -3,14 +3,16 @@ import { describe, expect, it } from 'vitest';
 import {
   NoopQueryPreprocessor,
   PassthroughRetrievalPostprocessor,
+  createDefaultPostprocessor,
+} from '../src/index.ts';
+import {
+  applyBudgetTrimStrategy,
   applyCandidateOrderingStrategy,
   applyCandidatePredicateStrategy,
-  applyBudgetTrimStrategy,
   applyNearDuplicateRemovalStrategy,
   applyScoreThresholdStrategy,
   applySourceCoverageStrategy,
-  createDefaultPostprocessor,
-} from '../src/index.ts';
+} from '../src/stages/post-retrieval/strategies/post-retrieval-strategies.ts';
 
 describe('runtime defaults', () => {
   it('normalizes RuntimeQueryInput into a RetrievalRequest', async () => {
@@ -71,6 +73,49 @@ describe('runtime defaults', () => {
     });
   });
 
+  it('copies topK into budget.maxChunks when the authoritative limit is missing', async () => {
+    const preprocessor = new NoopQueryPreprocessor({
+      topK: 4,
+    });
+
+    await expect(
+      preprocessor.preprocess(
+        { query: 'only topK' },
+        {
+          requestId: 'test',
+          input: { query: 'only topK' },
+          options: {},
+          startedAt: Date.now(),
+        },
+      ),
+    ).resolves.toMatchObject({
+      topK: 4,
+      budget: { maxChunks: 4 },
+    });
+  });
+
+  it('keeps budget.maxChunks when it disagrees with topK', async () => {
+    const preprocessor = new NoopQueryPreprocessor({
+      topK: 8,
+      budget: { maxChunks: 2 },
+    });
+
+    await expect(
+      preprocessor.preprocess(
+        { query: 'conflicting limits' },
+        {
+          requestId: 'test',
+          input: { query: 'conflicting limits' },
+          options: {},
+          startedAt: Date.now(),
+        },
+      ),
+    ).resolves.toMatchObject({
+      topK: 8,
+      budget: { maxChunks: 2 },
+    });
+  });
+
   it('passes candidates through as final chunks', async () => {
     const postprocessor = new PassthroughRetrievalPostprocessor();
 
@@ -94,6 +139,7 @@ describe('runtime defaults', () => {
                 content: 'chunk content',
               },
               score: 0.9,
+              scoreKind: 'retriever',
             },
             {
               chunk: {
@@ -101,6 +147,7 @@ describe('runtime defaults', () => {
                 content: 'extra chunk',
               },
               score: 0.3,
+              scoreKind: 'retriever',
             },
           ],
         },
@@ -164,6 +211,7 @@ describe('runtime defaults', () => {
               content: 'selected',
             },
             score: 0.8,
+            scoreKind: 'retriever',
           },
           {
             chunk: {
@@ -171,6 +219,7 @@ describe('runtime defaults', () => {
               content: 'dropped',
             },
             score: 0.2,
+            scoreKind: 'retriever',
           },
         ],
         0.5,

@@ -12,9 +12,11 @@ import {
 import {
   createCollection,
   createDefaultRuntime,
+} from '../src/index.ts';
+import {
   createIndexingRetrievalCandidate,
   filterRetrievalCandidatesByIndexingFilters,
-} from '../src/index.ts';
+} from '../src/contract/index.ts';
 
 import type { RuntimeRunOptions } from '../src/types/index.js';
 import type { CollectionSearchResult } from '../src/collection/create-collection.js';

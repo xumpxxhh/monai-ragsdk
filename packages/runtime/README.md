@@ -13,6 +13,8 @@
 
 依赖 `indexing` 的原因：`createCollection().ingest()` 调用 `runIndexing`；另外提供 indexing 查询协议（按 sourceId / fingerprint / hierarchy 过滤候选）。不是误引。
 
+实现 `RuntimeRetriever` 时请从 `@monai-ragsdk/runtime/contract` 引用 `createIndexingRetrievalCandidate`、`filterRetrievalCandidatesByIndexingFilters`、`fuseByReciprocalRankFusion` 等契约工具；这些符号已从包根撤出，避免内部 `apply*` / 解析函数被锁成公开 API。
+
 ## 运行入口
 
 `createRuntime()` / `createDefaultRuntime()` 得到 `Runtime`：
@@ -24,6 +26,8 @@
 | `runStream()` | 检索一次性完成，只对流式 generation；无 `generateStream` 时回退为单段完整答案 |
 
 `createDefaultRuntime()` 缺省 preprocessor 为 `NoopQueryPreprocessor`，postprocessor 为 `PassthroughRetrievalPostprocessor`。
+
+按配置编译（策略数组 + FanOut + 官方 post 顺序）用 `createRuntimeFromConfig()`：显式传入的 `postRetrieval.rerank` 会插在 `score-threshold` 之前，默认链不含 llm-rerank。
 
 ## 策略框架
 
@@ -50,7 +54,7 @@ LLM 策略默认失败透传，避免检索被策略拖死；需要硬失败时�
 
 ## 可观测打点
 
-把 `observer` 交给 `createRuntime` / `createDefaultRuntime` 后，主流程打阶段检查点；下列编排器额外打策略步进，写入同一条 trace。字段约定见 [`@monai-ragsdk/observability` README](../observability/README.md)。
+把 `observer` 交给 `createRuntime` / `createDefaultRuntime` / `createRuntimeFromConfig` 后，主流程打阶段检查点；下列编排器额外打策略步进，写入同一条 trace。字段约定见 [`@monai-ragsdk/observability` README](../observability/README.md)。
 
 - `StrategyQueryPreprocessor`：`runtime.query_strategy.complete`（未改检索意图时 `outcome: passthrough`）
 - `FanOutRetriever`：真正多路时 `runtime.retrieval_fanout.*` 与 `runtime.retrieval_fuse.complete`
@@ -58,7 +62,7 @@ LLM 策略默认失败透传，避免检索被策略拖死；需要硬失败时�
 
 自定义实现可走 `context.observe?.emit(...)`；`adapters` 忽略即可。观测失败不会打断检索。
 
-`RetrievalRequest.appliedStrategies` 与 `PostRetrievalResult.appliedStrategies` 记录实际跑过的策略名，结果快照 `strategies` 优先用这两份有序列表。
+`RetrievalRequest.appliedStrategies` 与 `PostRetrievalResult.appliedStrategies` 只记真正改变了意图/候选的策略名；透传只出现在 observer 的 `outcome: passthrough`。结果快照 `strategies` 优先用这两份有序列表。
 
 ### 关联键
 
@@ -97,11 +101,8 @@ await runtime.run(
 
 ```ts
 import {
-  createDefaultPostprocessor,
-  createDefaultRuntime,
   createQueryRewriteStrategy,
-  FanOutRetriever,
-  StrategyQueryPreprocessor,
+  createRuntimeFromConfig,
   type RuntimeRetriever,
 } from '@monai-ragsdk/runtime';
 import { OpenAIRuntimeGenerator, OpenAIStrategyModel } from '@monai-ragsdk/adapters';
@@ -114,15 +115,15 @@ const model = new OpenAIStrategyModel({
 // retriever 由 adapters 提供，默认用 PgVectorRuntimeRetrieverAdapter
 declare const retriever: RuntimeRetriever;
 
-const runtime = createDefaultRuntime({
-  preprocessor: new StrategyQueryPreprocessor({
+const runtime = createRuntimeFromConfig({
+  retriever,
+  query: {
     strategies: [createQueryRewriteStrategy({ model })],
-  }),
-  retriever: new FanOutRetriever({ retriever }),
-  postprocessor: createDefaultPostprocessor({
+  },
+  postRetrieval: {
     scoreThreshold: 0.2,
     budget: { maxCandidates: 5 },
-  }),
+  },
   generator: new OpenAIRuntimeGenerator({
     model: 'deepseek-chat',
     baseUrl: process.env.OPENAI_BASE_URL!,

@@ -102,15 +102,8 @@ export function createCollection(options: {
      * - 如果 store 不实现 `listSourceRecords()`，直接返回空数组。
      */
     async listSources(): Promise<VectorStoreSourceRecord[]> {
-      const store = indexingBase.store as unknown as {
-        listSourceRecords?: () => Promise<VectorStoreSourceRecord[]>;
-      };
-
-      if (typeof store.listSourceRecords !== 'function') {
-        return [];
-      }
-
-      return store.listSourceRecords();
+      // VectorStore 已声明可选方法；不要再用 as unknown as 探测，以免盖住签名变更。
+      return (await indexingBase.store.listSourceRecords?.()) ?? [];
     },
 
     /**
@@ -119,15 +112,12 @@ export function createCollection(options: {
      * 返回值用于让调用方知道“是否真正执行删除”，而不是把能力缺失当作错误。
      */
     async deleteByFilters(filter: VectorStoreDeleteFilter): Promise<boolean> {
-      const store = indexingBase.store as unknown as {
-        deleteByFilter?: (filter: VectorStoreDeleteFilter) => Promise<void>;
-      };
-
-      if (typeof store.deleteByFilter !== 'function') {
+      const deleteByFilter = indexingBase.store.deleteByFilter;
+      if (!deleteByFilter) {
         return false;
       }
 
-      await store.deleteByFilter(filter);
+      await deleteByFilter.call(indexingBase.store, filter);
       return true;
     },
 
@@ -137,13 +127,12 @@ export function createCollection(options: {
      * Memory store 之类的进程内实现通常不需要 close，因此能力缺失不作为错误抛出。
      */
     async close(): Promise<boolean> {
-      const store = indexingBase.store as unknown as { close?: () => Promise<void> };
-
-      if (typeof store.close !== 'function') {
+      const close = indexingBase.store.close;
+      if (!close) {
         return false;
       }
 
-      await store.close();
+      await close.call(indexingBase.store);
       return true;
     },
   };

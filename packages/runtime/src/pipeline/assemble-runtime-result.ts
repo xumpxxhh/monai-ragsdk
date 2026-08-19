@@ -337,7 +337,12 @@ export function assembleRuntimeSearchResult(
     ...(isNonEmptyString(input.request.route) ? { route: input.request.route } : {}),
     ...(routeReason ? { routeReason } : {}),
     ...(strategies ? { strategies } : {}),
-    ...(isPositiveInt(input.request.topK) ? { topK: input.request.topK } : {}),
+    // 审计 topK 与执行条数同源：优先 budget.maxChunks，避免 request.topK=8 / maxChunks=2 对不上。
+    ...(isPositiveInt(input.request.budget?.maxChunks)
+      ? { topK: input.request.budget.maxChunks }
+      : isPositiveInt(input.request.topK)
+        ? { topK: input.request.topK }
+        : {}),
     ...(filters ? { filters } : {}),
     ...(budget ? { budget } : {}),
     ...(appliedBudget ? { appliedBudget } : {}),

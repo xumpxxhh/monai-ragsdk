@@ -28,3 +28,8 @@ export async function completeQueryStrategyModel(
     return undefined;
   }
 }
+
+/** 空字符串没有检索意图，调用 LLM 只会增加费用；策略应直接透传。 */
+export function isBlankEffectiveQuery(query: string): boolean {
+  return query.trim().length === 0;
+}

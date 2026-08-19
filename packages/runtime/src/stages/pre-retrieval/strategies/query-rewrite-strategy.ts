@@ -1,7 +1,7 @@
 import type { QueryStrategy } from '../query-strategy.js';
 import type { RetrievalRequest, RuntimeContext } from '../../../types/index.js';
 
-import { completeQueryStrategyModel } from './complete-query-strategy.js';
+import { completeQueryStrategyModel, isBlankEffectiveQuery } from './complete-query-strategy.js';
 import type { LlmQueryStrategyOptions } from './llm-query-strategy-options.js';
 import { parseRewrittenQuery } from './parse-strategy-model-text.js';
 
@@ -31,6 +31,10 @@ export function createQueryRewriteStrategy(options: QueryRewriteStrategyOptions)
   return {
     name: 'query-rewrite',
     async apply(request: RetrievalRequest, context: RuntimeContext): Promise<RetrievalRequest> {
+      if (isBlankEffectiveQuery(request.effectiveQuery.query)) {
+        return request;
+      }
+
       const text = await completeQueryStrategyModel(
         options.model,
         {

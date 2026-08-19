@@ -2,9 +2,9 @@ import {
   createIndexingRetrievalCandidate,
   createIndexingRetrievalFilters,
   createIndexingRetrievalRequest,
-  createRuntime,
   filterRetrievalCandidatesByIndexingFilters,
-} from '../dist/index.js';
+} from '../dist/contract/index.js';
+import { createRuntime } from '../dist/index.js';
 
 const runtime = createRuntime({
   preprocessor: {

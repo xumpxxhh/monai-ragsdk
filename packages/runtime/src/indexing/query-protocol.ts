@@ -1,6 +1,12 @@
 import type { Chunk, JsonValue } from '@monai-ragsdk/core';
 
-import type { RetrievalCandidate, RetrievalFilters, RetrievalRequest } from '../types/index.js';
+import type {
+  RetrievalCandidate,
+  RetrievalFilters,
+  RetrievalRequest,
+  RetrievalScoreKind,
+  RuntimeRetrievalResult,
+} from '../types/index.js';
 
 export type IndexingRetrievalFilterInput = {
   sourceIds?: string[];
@@ -20,6 +26,7 @@ export type CreateIndexingRetrievalRequestOptions = Omit<RetrievalRequest, 'filt
 
 export type CreateIndexingRetrievalCandidateOptions = {
   score?: number;
+  scoreKind?: RetrievalScoreKind;
   route?: string;
   strategy?: string;
   retrieverMetadata?: Record<string, JsonValue>;
@@ -185,6 +192,7 @@ export function createIndexingRetrievalCandidate(
   const candidate: RetrievalCandidate = {
     chunk,
     score: options.score,
+    scoreKind: options.scoreKind,
     route: options.route,
     strategy: options.strategy,
     sourceId: readString(metadata?.sourceId),
@@ -310,3 +318,38 @@ export function filterRetrievalCandidatesByIndexingFilters(
     ];
   });
 }
+
+/**
+ * runtime 编排层强制点：adapter 可以预过滤，但不能关掉租户/来源隔离。
+ * 已符合 filters 的结果再跑一遍是幂等的；只有真正丢候选时才改 metadata，避免污染未过滤请求的审计。
+ */
+export function enforceRetrievalRequestFilters(
+  result: RuntimeRetrievalResult,
+  filters: RetrievalFilters | undefined,
+): RuntimeRetrievalResult {
+  if (!filters) {
+    return result;
+  }
+
+  const candidates = filterRetrievalCandidatesByIndexingFilters(result.candidates, filters);
+  const unchanged =
+    candidates.length === result.candidates.length &&
+    candidates.every((candidate, index) => candidate.chunk.id === result.candidates[index]?.chunk.id);
+
+  if (unchanged) {
+    return {
+      ...result,
+      candidates,
+    };
+  }
+
+  return {
+    candidates,
+    retrievalMetadata: {
+      ...result.retrievalMetadata,
+      requestFiltersEnforced: true,
+      candidateCountBeforeRequestFilters: result.candidates.length,
+    },
+  };
+}
+

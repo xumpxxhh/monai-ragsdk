@@ -5,6 +5,7 @@ import type {
   RetrievalBudget,
   RetrievalCandidate,
   RetrievalRequest,
+  RetrievalScoreKind,
   RuntimeContext,
 } from '../../../types/index.js';
 
@@ -209,12 +210,49 @@ function buildSelectedAndDropped(decisions: CandidateDecision[]): {
   };
 }
 
+/**
+ * 有分数却缺口径、或一批里混了多种口径时，绝对值阈值没有可移植含义。
+ * 此时整批透传并留下 reason，避免 RRF 分被当成余弦分滤光（或反过来全留）。
+ */
+function resolveScoreThresholdSkipReason(
+  candidates: RetrievalCandidate[],
+  expectedScoreKind: RetrievalScoreKind | undefined,
+): PostRetrievalSelectionReason | undefined {
+  const scored = candidates.filter((candidate) => candidate.score !== undefined);
+  if (scored.length === 0) {
+    return undefined;
+  }
+
+  if (scored.some((candidate) => candidate.scoreKind === undefined)) {
+    return 'score-kind-unknown';
+  }
+
+  const kinds = new Set(scored.map((candidate) => candidate.scoreKind));
+  if (kinds.size > 1) {
+    return 'score-kind-mismatch';
+  }
+
+  const actualKind = scored[0]?.scoreKind;
+  if (expectedScoreKind !== undefined && actualKind !== expectedScoreKind) {
+    return 'score-kind-unexpected';
+  }
+
+  return undefined;
+}
+
 export function applyScoreThresholdStrategy(
   candidates: RetrievalCandidate[],
   scoreThreshold?: number,
+  options?: { expectedScoreKind?: RetrievalScoreKind },
 ): ScoreThresholdStrategyResult {
+  const skipReason =
+    scoreThreshold === undefined
+      ? undefined
+      : resolveScoreThresholdSkipReason(candidates, options?.expectedScoreKind);
+
   const decisions = candidates.map((candidate) => {
     const belowThreshold =
+      skipReason === undefined &&
       scoreThreshold !== undefined &&
       candidate.score !== undefined &&
       candidate.score < scoreThreshold;
@@ -222,9 +260,14 @@ export function applyScoreThresholdStrategy(
     return {
       candidate,
       selected: !belowThreshold,
-      reason: belowThreshold ? 'score-threshold' : 'selected',
+      reason: belowThreshold ? 'score-threshold' : (skipReason ?? 'selected'),
       stage: 'score-threshold',
-      metadata: scoreThreshold === undefined ? undefined : { scoreThreshold },
+      metadata:
+        scoreThreshold === undefined
+          ? undefined
+          : skipReason === undefined
+            ? { scoreThreshold }
+            : { scoreThreshold, compared: false, skipReason },
     } satisfies CandidateDecision;
   });
 

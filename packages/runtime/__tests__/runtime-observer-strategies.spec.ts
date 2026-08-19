@@ -56,6 +56,7 @@ describe('runtime observer strategy events', () => {
                     content: isAlt ? 'dropped body' : 'kept body',
                   },
                   score: isAlt ? 0.4 : 0.91,
+                  scoreKind: 'retriever',
                 },
               ],
             };
@@ -146,8 +147,8 @@ describe('runtime observer strategy events', () => {
         attributes: expect.objectContaining({
           counts: { subQueries: 2, fused: 2 },
           candidates: [
-            { chunkId: 'chunk-1', score: 0.91, scoreKind: 'rrf' },
-            { chunkId: 'chunk-2', score: 0.4, scoreKind: 'rrf' },
+            { chunkId: 'chunk-1', score: 0.91, scoreKind: 'retriever' },
+            { chunkId: 'chunk-2', score: 0.4, scoreKind: 'retriever' },
           ],
         }),
       }),
@@ -157,7 +158,7 @@ describe('runtime observer strategy events', () => {
         name: 'runtime.retrieval.complete',
         attributes: expect.objectContaining({
           candidates: expect.arrayContaining([
-            expect.objectContaining({ chunkId: 'chunk-1', scoreKind: 'rrf' }),
+            expect.objectContaining({ chunkId: 'chunk-1', scoreKind: 'retriever' }),
           ]),
           output: expect.objectContaining({ provider: 'fan-out' }),
         }),
@@ -194,7 +195,7 @@ describe('runtime observer strategy events', () => {
       }),
     );
 
-    expect(result.strategies?.preRetrieval).toEqual(['query-rewrite', 'query-expansion']);
+    expect(result.strategies?.preRetrieval).toEqual(['query-rewrite']);
     expect(result.strategies?.postRetrieval).toEqual(['score-threshold']);
     expect(onTraceEnd).toHaveBeenCalledWith(expect.objectContaining({ status: 'ok' }));
   });
@@ -283,6 +284,7 @@ describe('runtime observer strategy events', () => {
               {
                 chunk: { id: 'chunk-1', content: 'kept' },
                 score: 0.9,
+                scoreKind: 'retriever',
               },
             ],
           };

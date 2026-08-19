@@ -8,9 +8,8 @@ import {
   createQueryRewriteStrategy,
   createMultiQueryStrategy,
   createQueryRoutingStrategy,
-  parseQueryList,
-  parseRewrittenQuery,
 } from '../src/index.ts';
+import { parseQueryList, parseRewrittenQuery } from '../src/stages/pre-retrieval/strategies/parse-strategy-model-text.ts';
 
 const context: RuntimeContext = {
   requestId: 'req-1',

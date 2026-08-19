@@ -1,9 +1,8 @@
 import {
-  createCollection,
-  createDefaultRuntime,
   createIndexingRetrievalCandidate,
   filterRetrievalCandidatesByIndexingFilters,
-} from '../dist/index.js';
+} from '../dist/contract/index.js';
+import { createCollection, createDefaultRuntime } from '../dist/index.js';
 
 import type { Chunk } from '@monai-ragsdk/core';
 import {

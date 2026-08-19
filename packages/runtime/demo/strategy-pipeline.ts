@@ -1,11 +1,8 @@
 import {
-  FanOutRetriever,
-  StrategyQueryPreprocessor,
-  StrategyRetrievalPostprocessor,
-  createDefaultRuntime,
   createLostInTheMiddleStrategy,
   createMultiQueryStrategy,
   createQueryRewriteStrategy,
+  createRuntimeFromConfig,
   type RuntimeStrategyModel,
 } from '../dist/index.js';
 
@@ -22,33 +19,32 @@ const demoModel: RuntimeStrategyModel = {
   },
 };
 
-const runtime = createDefaultRuntime({
-  preprocessor: new StrategyQueryPreprocessor({
+const runtime = createRuntimeFromConfig({
+  query: {
     strategies: [
       createQueryRewriteStrategy({ model: demoModel }),
       createMultiQueryStrategy({ model: demoModel, count: 2 }),
     ],
-  }),
-  retriever: new FanOutRetriever({
-    retriever: {
-      async retrieve(request) {
-        return {
-          candidates: [
-            {
-              chunk: {
-                id: `chunk-${request.effectiveQuery.query}`,
-                content: request.effectiveQuery.query,
-              },
-              score: request.effectiveQuery.query.includes('关系') ? 0.4 : 0.9,
+  },
+  retriever: {
+    async retrieve(request) {
+      return {
+        candidates: [
+          {
+            chunk: {
+              id: `chunk-${request.effectiveQuery.query}`,
+              content: request.effectiveQuery.query,
             },
-          ],
-        };
-      },
+            score: request.effectiveQuery.query.includes('关系') ? 0.4 : 0.9,
+            scoreKind: 'retriever',
+          },
+        ],
+      };
     },
-  }),
-  postprocessor: new StrategyRetrievalPostprocessor({
+  },
+  postRetrieval: {
     strategies: [createLostInTheMiddleStrategy()],
-  }),
+  },
   generator: {
     async generate({ request, chunks }) {
       return {

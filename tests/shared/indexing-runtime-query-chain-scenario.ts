@@ -27,12 +27,12 @@ export type IndexingRuntimeQueryScenarioResult = {
 export async function runIndexingRuntimeQueryScenario(): Promise<IndexingRuntimeQueryScenarioResult> {
   const { BasicMetadataExtractor, MemoryVectorStore, MockEmbedder, SimpleChunker, runIndexing } =
     await import('../../packages/indexing/dist/index.js');
+  const { createDefaultRuntime } = await import('../../packages/runtime/dist/index.js');
   const {
-    createDefaultRuntime,
     createIndexingRetrievalCandidate,
     createIndexingRetrievalRequest,
     filterRetrievalCandidatesByIndexingFilters,
-  } = await import('../../packages/runtime/dist/index.js');
+  } = await import('../../packages/runtime/dist/contract/index.js');
 
   const indexedChunks: IndexedChunkMap = new Map();
   const store = new MemoryVectorStore();
@@ -127,6 +127,7 @@ export async function runIndexingRuntimeQueryScenario(): Promise<IndexingRuntime
             },
             {
               score: vector.id === 'doc-runtime-api#0' ? 0.93 : 0.31,
+              scoreKind: 'retriever',
               route: request.route,
               strategy: request.strategy,
               filters: request.filters,

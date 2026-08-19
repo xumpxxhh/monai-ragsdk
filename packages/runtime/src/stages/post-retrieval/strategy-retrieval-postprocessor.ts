@@ -99,7 +99,6 @@ export class StrategyRetrievalPostprocessor implements RetrievalPostprocessor {
         const result = await strategy.apply({ request: input.request, candidates }, context);
         candidates = result.selectedCandidates;
         droppedCandidates.push(...result.droppedCandidates);
-        appliedStrategies.push(strategyName);
 
         if (result.selectionTrace) {
           selectionTraces.push(result.selectionTrace);
@@ -122,6 +121,10 @@ export class StrategyRetrievalPostprocessor implements RetrievalPostprocessor {
           result.droppedCandidates.length,
           compressedCount,
         );
+        // 与 pre-retrieval 对齐：没改候选顺序/集合就不进审计清单。
+        if (!passthrough) {
+          appliedStrategies.push(strategyName);
+        }
 
         await emitRuntimeObservation(context, {
           stage: 'post_retrieval_strategy',

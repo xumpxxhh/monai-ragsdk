@@ -7,9 +7,18 @@ export type FuseByReciprocalRankFusionOptions = {
 
 const DEFAULT_RRF_K = 60;
 
+/** 融合分是 RRF 口径；覆盖 enrich 里可能残留的 retriever 分，避免阈值拿错量纲。 */
+function withRrfScore(candidate: RetrievalCandidate, score: number): RetrievalCandidate {
+  return {
+    ...candidate,
+    score,
+    scoreKind: 'rrf',
+  };
+}
+
 /**
  * 对多路有序候选列表做 RRF 融合；score = Σ 1/(k+rank+1)。
- * enrichCandidate 可选，用于写入融合分或补 retrieverMetadata。
+ * enrichCandidate 可选，用于写入融合分或补 retrieverMetadata；返回值一律标 `scoreKind: 'rrf'`。
  */
 export function fuseByReciprocalRankFusion(
   rankedLists: RetrievalCandidate[][],
@@ -42,7 +51,7 @@ export function fuseByReciprocalRankFusion(
         return [];
       }
 
-      return [enrichCandidate(candidate, score)];
+      return [withRrfScore(enrichCandidate(candidate, score), score)];
     });
 }
 

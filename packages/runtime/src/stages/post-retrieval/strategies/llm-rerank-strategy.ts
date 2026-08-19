@@ -150,7 +150,8 @@ function buildSelectionTrace(
  * 设计选择：
  * - 不做丢弃（drop）让后续 budget / 去重策略保持语义一致；
  * - 如 LLM 失败或 JSON 解析失败：默认透传（不改变候选顺序）。
- * - 若 LLM 返回 score：写回 candidate.score，便于后续 score-threshold 策略消费。
+ * - 若 LLM 返回 score：写回 candidate.score 且标 scoreKind=llm，便于后续 score-threshold 按口径消费。
+ * - 仅重排成功后才写 request.rerank；失败透传不得让 audit 显示「已 rerank」。
  */
 export function createLlmRerankStrategy(options: LlmRerankStrategyOptions): PostRetrievalStrategy {
   const onError = options.onError ?? 'passthrough';
@@ -166,11 +167,21 @@ export function createLlmRerankStrategy(options: LlmRerankStrategyOptions): Post
       const request = input.request;
       const candidates = input.candidates;
 
-      // 给 runtime debug 的可观测字段；mutation 是可控副作用，仅用于诊断。
-      request.rerank = request.rerank ?? { strategy: 'llm-rerank' };
-      request.rerank.strategy = 'llm-rerank';
+      // 空列表仍打 LLM 只会烧钱且模型行为不可预测；对照 context-compression 的短路。
+      if (candidates.length === 0) {
+        return {
+          selectedCandidates: candidates,
+          droppedCandidates: [],
+        };
+      }
 
       const subset = candidates.slice(0, maxCandidatesForPrompt);
+      if (subset.length === 0) {
+        return {
+          selectedCandidates: candidates,
+          droppedCandidates: [],
+        };
+      }
 
       let modelText: string | undefined;
       try {
@@ -241,10 +252,14 @@ export function createLlmRerankStrategy(options: LlmRerankStrategyOptions): Post
 
       const reordered = [...orderedTop, ...remaining];
 
-      // 写回 score（只写入 LLM 返回的那些候选；其余保持原 score）
+      // 失败透传时 debug 仍会读 request.rerank；只有真正重排成功才标记已生效。
+      request.rerank = request.rerank ?? { strategy: 'llm-rerank' };
+      request.rerank.strategy = 'llm-rerank';
+
+      // 写回 score（只写入 LLM 返回的那些候选；其余保持原 score / scoreKind）
       const finalCandidates = reordered.map((c) => {
-        const nextScore = scoreById.has(c.chunk.id) ? scoreById.get(c.chunk.id) : c.score;
-        return nextScore !== undefined ? { ...c, score: nextScore } : c;
+        const nextScore = scoreById.has(c.chunk.id) ? scoreById.get(c.chunk.id) : undefined;
+        return nextScore !== undefined ? { ...c, score: nextScore, scoreKind: 'llm' as const } : c;
       });
 
       const selectionTrace = buildSelectionTrace(

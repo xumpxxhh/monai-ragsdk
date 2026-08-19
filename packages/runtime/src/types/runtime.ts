@@ -16,4 +16,6 @@ export type Runtime = {
     input: RuntimeQueryInput,
     options?: RuntimeRunOptions,
   ): AsyncIterable<RuntimeStreamEvent>;
+  /** 释放 retriever 持有的连接等资源；retriever 无 close 时为空操作。 */
+  close(): Promise<void>;
 };

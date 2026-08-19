@@ -1,8 +1,8 @@
 import type { JsonValue } from '@monai-ragsdk/core';
 
-import type { RetrievalRequest } from '../types/index.js';
+import type { RetrievalRequest, RetrievalScoreKind } from '../types/index.js';
 
-export type ObservationScoreKind = 'retriever' | 'rrf' | 'llm';
+export type ObservationScoreKind = RetrievalScoreKind;
 
 export type ObservationOutcome = 'applied' | 'passthrough' | 'failed';
 

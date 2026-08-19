@@ -2,7 +2,7 @@ import type { QueryStrategy } from '../query-strategy.js';
 import type { RetrievalRequest, RuntimeContext } from '../../../types/index.js';
 
 import { buildSubQueries, withSubQueries } from './build-sub-queries.js';
-import { completeQueryStrategyModel } from './complete-query-strategy.js';
+import { completeQueryStrategyModel, isBlankEffectiveQuery } from './complete-query-strategy.js';
 import type { LlmQueryStrategyOptions } from './llm-query-strategy-options.js';
 import { parseQueryList } from './parse-strategy-model-text.js';
 
@@ -40,6 +40,10 @@ export function createQueryExpansionStrategy(
   return {
     name: 'query-expansion',
     async apply(request: RetrievalRequest, context: RuntimeContext): Promise<RetrievalRequest> {
+      if (isBlankEffectiveQuery(request.effectiveQuery.query)) {
+        return request;
+      }
+
       const text = await completeQueryStrategyModel(
         options.model,
         {

@@ -4,12 +4,12 @@ import {
   FanOutRetriever,
   StrategyQueryPreprocessor,
   StrategyRetrievalPostprocessor,
-  applyLostInTheMiddleStrategy,
-  buildPassthroughStrategies,
   createDefaultRuntime,
   createLostInTheMiddleStrategy,
-  fuseByReciprocalRankFusion,
 } from '../src/index.ts';
+import { fuseByReciprocalRankFusion } from '../src/contract/index.ts';
+import { applyLostInTheMiddleStrategy } from '../src/stages/post-retrieval/strategies/post-retrieval-strategies.ts';
+import { buildPassthroughStrategies } from '../src/stages/post-retrieval/passthrough-retrieval-postprocessor.ts';
 
 describe('pipeline strategy framework', () => {
   it('runs query strategies in order', async () => {
@@ -116,6 +116,7 @@ describe('pipeline strategy framework', () => {
 
     expect(fused[0]?.chunk.id).toBe('shared');
     expect(fused.map((candidate) => candidate.chunk.id)).toEqual(['shared', 'only-a', 'only-b']);
+    expect(fused.every((candidate) => candidate.scoreKind === 'rrf')).toBe(true);
   });
 
   it('reorders candidates with lost in the middle', () => {
@@ -151,10 +152,12 @@ describe('pipeline strategy framework', () => {
           {
             chunk: { id: 'keep', content: 'keep' },
             score: 0.9,
+            scoreKind: 'retriever',
           },
           {
             chunk: { id: 'drop', content: 'drop' },
             score: 0.2,
+            scoreKind: 'retriever',
           },
         ],
       },

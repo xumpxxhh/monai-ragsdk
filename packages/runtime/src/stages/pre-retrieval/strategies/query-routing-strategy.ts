@@ -5,7 +5,7 @@ import type { RetrievalRequest, RuntimeContext } from '../../../types/index.js';
 import type { JsonValue } from '@monai-ragsdk/core';
 
 import type { LlmQueryStrategyOptions } from './llm-query-strategy-options.js';
-import { completeQueryStrategyModel } from './complete-query-strategy.js';
+import { completeQueryStrategyModel, isBlankEffectiveQuery } from './complete-query-strategy.js';
 
 function extractJson(text: string): unknown | undefined {
   const trimmed = text.trim();
@@ -51,7 +51,9 @@ function buildPrompt(query: string): string {
 }
 
 /**
- * Query Routing：用 LLM 生成 `request.route`（以及可选 budget/topK/filters）。
+ * Query Routing：用 LLM 生成 `request.route`（以及可选 budget/filters）。
+ * LLM 的 topK 直接写入 `budget.maxChunks`（权威条数），不写 `request.topK`。
+ * 若 JSON 同时带 budget.maxChunks，以 budget 覆盖先前由 topK 写入的值。
  * - 路由写入能被 runtime debug 与后续适配（retriever/postprocessor）消费
  * - LLM 失败或输出无法解析：默认透传 request（避免策略链把检索拖死）
  */
@@ -61,6 +63,10 @@ export function createQueryRoutingStrategy(options: QueryRoutingStrategyOptions)
   return {
     name: 'query-routing',
     async apply(request: RetrievalRequest, context: RuntimeContext): Promise<RetrievalRequest> {
+      if (isBlankEffectiveQuery(request.effectiveQuery.query)) {
+        return request;
+      }
+
       const text = await completeQueryStrategyModel(
         options.model,
         {
@@ -96,14 +102,18 @@ export function createQueryRoutingStrategy(options: QueryRoutingStrategyOptions)
       const budget = (json as { budget?: unknown }).budget;
       const filters = (json as { filters?: unknown }).filters;
 
-      if (!route && options.onError === 'passthrough') {
+      // 没有可用 route 时不算路由成功；若仍写 rewriteReason，审计会看起来像已经路由过。
+      if (!route) {
+        if (options.onError === 'throw') {
+          throw new Error('query routing strategy could not determine route');
+        }
         return request;
       }
 
       const next: RetrievalRequest = {
         ...request,
         rewriteReason: 'query-routing',
-        route: route ?? request.route,
+        route,
         strategy: alsoSetStrategy ? (request.strategy ?? route) : request.strategy,
       };
 
