@@ -18,7 +18,12 @@ import { Card, ComingSoonModal } from '@/shared/ui';
 import { Input, SelectNative } from '@/shared/ui/form';
 import { toast } from '@/shared/ui/Toast';
 import { formatDateTime } from '@/shared/utils';
-import type { CollectionDetail, DocumentSource, IngestProgressEvent, LastIngestSummary } from '@/shared/types';
+import type {
+  CollectionDetail,
+  DocumentSource,
+  IngestProgressEvent,
+  LastIngestSummary,
+} from '@/shared/types';
 
 export default function DocumentsPage() {
   const { id = '' } = useParams();
@@ -54,15 +59,23 @@ export default function DocumentsPage() {
 
   useEffect(() => subscribeDocumentsChanged(load), [load]);
 
-  const handleIngest = async () => {
+  const handlePickFiles = () => {
+    fileRef.current?.click();
+  };
+
+  const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    if (files.length === 0) return;
+
     setIngestOpen(true);
     setIngestProgress(null);
-    const stream = await startIngest(id);
-    for await (const event of stream) {
-      setIngestProgress(event);
-      if (event.done) {
+    const stream = await startIngest(id, files);
+    for await (const progress of stream) {
+      setIngestProgress(progress);
+      if (progress.done) {
         toast.success(
-          `入库完成：新增 ${event.stats.added} / 跳过 ${event.stats.skipped} / 失败 ${event.stats.failed}`,
+          `入库完成：新增 ${progress.stats.added} / 跳过 ${progress.stats.skipped} / 失败 ${progress.stats.failed}`,
         );
         void load();
       }
@@ -122,8 +135,15 @@ export default function DocumentsPage() {
 
       <div className="mb-5 flex flex-col gap-4 lg:flex-row">
         <div className="w-full shrink-0 space-y-2 lg:w-48">
-          <input ref={fileRef} type="file" multiple className="hidden" />
-          <Button className="w-full" onClick={() => void handleIngest()}>
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept=".md,.txt,.markdown,.json,.csv,.html"
+            className="hidden"
+            onChange={(event) => void handleFilesSelected(event)}
+          />
+          <Button className="w-full" onClick={handlePickFiles}>
             <Upload className="h-4 w-4" /> 上传入库
           </Button>
           <Button
@@ -142,7 +162,12 @@ export default function DocumentsPage() {
               <span className="font-medium">
                 {lastIngest ? formatDateTime(lastIngest.finishedAt) : '暂无'}
               </span>
-              {lastIngest ? <span className="text-muted"> · {lastIngest.mode === 'incremental' ? '增量' : '全量'}</span> : null}
+              {lastIngest ? (
+                <span className="text-muted">
+                  {' '}
+                  · {lastIngest.mode === 'incremental' ? '增量' : '全量'}
+                </span>
+              ) : null}
             </p>
           </div>
           {lastIngest ? <IngestStatsChips stats={lastIngest.stats} /> : null}
@@ -231,7 +256,11 @@ export default function DocumentsPage() {
           <div className="absolute inset-0 bg-black/40" onClick={() => setIngestOpen(false)} />
           <div className="relative mx-auto mt-28 w-[420px] max-w-[92vw] rounded-card bg-surface p-5 shadow-soft">
             <h3 className="mb-3 font-medium">入库进行中</h3>
-            <p className="text-sm">{ingestProgress ? `正在处理 ${ingestProgress.current} / ${ingestProgress.total}` : '准备中…'}</p>
+            <p className="text-sm">
+              {ingestProgress
+                ? `正在处理 ${ingestProgress.current} / ${ingestProgress.total}`
+                : '准备中…'}
+            </p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-canvas">
               <div className="h-full bg-brand transition-all" style={{ width: `${pct}%` }} />
             </div>

@@ -1,14 +1,21 @@
-import { useMockApi } from '@/config/env';
 import { apiGet, apiPut } from '@/shared/api/http';
-import {
-  mockStrategies,
-  presetDescriptions,
-  presetLabels,
-} from '@/shared/api/mock/data';
 import type { StrategyConfig, StrategyPreset } from '@/shared/types';
-import { delay } from '@/shared/utils';
 
-export { presetDescriptions, presetLabels };
+/** 策略预设中文标签（仅 UI，不经服务端）。 */
+export const presetLabels: Record<StrategyPreset, string> = {
+  balanced: '均衡',
+  high_recall: '高召回',
+  low_cost: '低成本',
+  strict_cite: '严谨引用',
+};
+
+/** 策略预设说明文案（仅 UI）。 */
+export const presetDescriptions: Record<StrategyPreset, string> = {
+  balanced: '改写开 + 多路查询关 + 轻量重排 + 压缩开（适合日常）',
+  high_recall: '扩展开 + 多路查询开 + 高 topK（适合召回优先）',
+  low_cost: '改写关 + 重排关 + 压缩关（适合低成本场景）',
+  strict_cite: '高阈值 + 引用常开 + 无依据明确告知',
+};
 
 const presetTemplates: Record<StrategyPreset, Partial<StrategyConfig>> = {
   balanced: {
@@ -73,49 +80,10 @@ const presetTemplates: Record<StrategyPreset, Partial<StrategyConfig>> = {
 };
 
 export async function getStrategy(collectionId: string): Promise<StrategyConfig> {
-  if (useMockApi) {
-    await delay(120);
-    if (!mockStrategies[collectionId]) {
-      mockStrategies[collectionId] = {
-        collectionId,
-        preset: 'balanced',
-        preRetrieval: {
-          rewrite: true,
-          expansion: false,
-          decomposition: false,
-          multiQuery: false,
-          routing: false,
-        },
-        retrieval: { topK: 8 },
-        postRetrieval: {
-          scoreThreshold: true,
-          scoreThresholdValue: 0.2,
-          dedupe: true,
-          contextBudget: true,
-          contextBudgetMax: 5,
-          sourceCoverage: false,
-          rerank: true,
-          compression: true,
-          lostInMiddle: false,
-        },
-        generation: {
-          citations: true,
-          activeRag: false,
-          noGroundingPolicy: 'explicit',
-        },
-      };
-    }
-    return structuredClone(mockStrategies[collectionId]);
-  }
   return apiGet<StrategyConfig>(`/collections/${collectionId}/strategy`);
 }
 
 export async function saveStrategy(config: StrategyConfig): Promise<StrategyConfig> {
-  if (useMockApi) {
-    await delay(250);
-    mockStrategies[config.collectionId] = structuredClone(config);
-    return config;
-  }
   return apiPut<StrategyConfig>(`/collections/${config.collectionId}/strategy`, config);
 }
 

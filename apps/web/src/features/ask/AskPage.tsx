@@ -9,7 +9,11 @@ import { Input } from '@/shared/ui/form';
 import { cn } from '@/shared/utils';
 import type { AskMessage, Citation } from '@/shared/types';
 
-function renderAnswerWithCitations(content: string, activeCite: number | null, onCiteClick: (n: number) => void) {
+function renderAnswerWithCitations(
+  content: string,
+  activeCite: number | null,
+  onCiteClick: (n: number) => void,
+) {
   const parts = content.split(/(\[\d+\])/g);
   return parts.map((part, i) => {
     const match = part.match(/^\[(\d+)\]$/);
@@ -69,39 +73,44 @@ export default function AskPage() {
 
     abortRef.current = new AbortController();
     try {
-      const { stream, effectiveQuery: eq, citations } = await askStream(
-        currentCollectionId,
-        question,
-        abortRef.current.signal,
-      );
-      if (eq) setEffectiveQuery(eq);
+      const result = await askStream(currentCollectionId, question, abortRef.current.signal);
 
       let content = '';
-      for await (const chunk of stream) {
+      for await (const chunk of result.stream) {
         if (chunk === '__NO_GROUNDING__') {
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId
-                ? { ...m, content: '', noGrounding: true }
-                : m,
-            ),
+            prev.map((m) => (m.id === assistantId ? { ...m, content: '', noGrounding: true } : m)),
           );
           break;
         }
         content = chunk;
         setMessages((prev) =>
-          prev.map((m) => (m.id === assistantId ? { ...m, content, citations } : m)),
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content, citations: result.citations } : m,
+          ),
         );
+      }
+      if (result.effectiveQuery) {
+        setEffectiveQuery(result.effectiveQuery);
       }
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === assistantId ? { ...m, content, citations, effectiveQuery: eq } : m,
+          m.id === assistantId
+            ? {
+                ...m,
+                content,
+                citations: result.citations,
+                effectiveQuery: result.effectiveQuery,
+              }
+            : m,
         ),
       );
     } catch {
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === assistantId ? { ...m, content: m.content || '（请求失败）', interrupted: true } : m,
+          m.id === assistantId
+            ? { ...m, content: m.content || '（请求失败）', interrupted: true }
+            : m,
         ),
       );
     } finally {
@@ -145,9 +154,7 @@ export default function AskPage() {
   return (
     <div className="flex h-[calc(100vh-7rem)] flex-col">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h1 className="text-sm font-medium">
-          问答 · {currentCollection?.name}
-        </h1>
+        <h1 className="text-sm font-medium">问答 · {currentCollection?.name}</h1>
         {isAdmin ? (
           <div className="hidden items-center gap-3 rounded-ctrl border border-line px-3 py-1.5 text-sm sm:flex">
             <label className="flex cursor-pointer items-center gap-1.5">
@@ -210,7 +217,12 @@ export default function AskPage() {
 
           <div className="shrink-0 border-t border-line bg-surface p-4">
             <div className="flex items-end gap-2">
-              <Button variant="secondary" size="lg" className="w-10 shrink-0 px-0" title="附件（后续）">
+              <Button
+                variant="secondary"
+                size="lg"
+                className="w-10 shrink-0 px-0"
+                title="附件（后续）"
+              >
                 <Plus className="h-4 w-4" />
               </Button>
               <Input
@@ -225,10 +237,7 @@ export default function AskPage() {
                   }
                 }}
               />
-              <Button
-                className="shrink-0"
-                onClick={() => (streaming ? stop() : void send())}
-              >
+              <Button className="shrink-0" onClick={() => (streaming ? stop() : void send())}>
                 {streaming ? '停止' : '发送'}
               </Button>
             </div>
@@ -274,7 +283,9 @@ export default function AskPage() {
                 有效提问（改写后{showEffectiveQuery ? '，点击收起' : '，点击展开'}）
               </button>
               {showEffectiveQuery ? (
-                <p className="mt-2 text-sm">「{effectiveQuery ?? lastAssistant?.effectiveQuery}」</p>
+                <p className="mt-2 text-sm">
+                  「{effectiveQuery ?? lastAssistant?.effectiveQuery}」
+                </p>
               ) : null}
             </div>
           )}

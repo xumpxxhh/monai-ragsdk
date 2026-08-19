@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { listCollections } from '@/shared/api/collections';
+import { listCollections, subscribeCollectionsChanged } from '@/shared/api/collections';
 import {
   readPreferences,
   readStoredCollectionId,
@@ -52,6 +52,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void refreshCollections();
   }, [refreshCollections]);
+
+  // 创建 / 更新 / 删除知识库后同步侧栏列表，避免只刷新当前页
+  useEffect(() => subscribeCollectionsChanged(() => void refreshCollections()), [refreshCollections]);
 
   const setCurrentCollectionId = useCallback((id: string) => {
     setCurrentCollectionIdState(id);
