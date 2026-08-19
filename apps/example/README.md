@@ -23,6 +23,8 @@
 | `full-pipeline` | Routing + Rewrite + Multi-Query + FanOut + Rerank + Compression |
 | `observability` | 对照前后策略 + FanOut，重点看 trace 事件 |
 
+各示例会把 observer 接到 runtime：不传 `requestId` / `trace.traceId` 时内核用 UUID 生成关联键。完整策略链的事件形状可对照 `src/observability-trace.full-pipeline.json`。字段约定见 `packages/observability/README.md`。
+
 ## 使用方式
 
 需要本机 pgvector，以及 embedding / chat 的 API Key。embedding 设 `EMBEDDING_API_KEY`，ask 设 `OPENAI_API_KEY`。连接与模型可用环境变量覆盖，见 `src/shared/example-config.ts`。

@@ -6,6 +6,8 @@ import {
   createDefaultRuntime,
   createLlmRerankStrategy,
   createMultiQueryStrategy,
+  createQueryRewriteStrategy,
+  createQueryRoutingStrategy,
 } from '@monai-ragsdk/runtime';
 
 import { createExampleObserver } from '../shared/create-example-observer.js';
@@ -34,11 +36,11 @@ export async function runFullPipelineExample(): Promise<void> {
     const runtime = createDefaultRuntime({
       preprocessor: new StrategyQueryPreprocessor({
         strategies: [
-          // createQueryRoutingStrategy({
-          //   model: stack.strategyModel,
-          //   defaultRoute: "vector",
-          // }),
-          // createQueryRewriteStrategy({ model: stack.strategyModel }),
+          createQueryRoutingStrategy({
+            model: stack.strategyModel,
+            defaultRoute: 'vector',
+          }),
+          createQueryRewriteStrategy({ model: stack.strategyModel }),
           createMultiQueryStrategy({
             model: stack.strategyModel,
             count: 2,

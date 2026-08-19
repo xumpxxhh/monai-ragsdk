@@ -1,0 +1,323 @@
+{
+  "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+  "traceIdSource": "requestId",
+  "requestId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+  "scope": "runtime",
+  "startedAt": 1787109106292,
+  "endedAt": 1787109124783,
+  "durationMs": 18491,
+  "status": "ok",
+  "tags": { "exampleId": "full-pipeline" },
+  "events": [
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "query",
+      "name": "runtime.query.receive",
+      "timestamp": 1787109106292,
+      "attributes": { "output": { "query": "pgvector 是什么？它和 PostgreSQL 是什么关系？" } }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "query_strategy",
+      "name": "runtime.query_strategy.complete",
+      "timestamp": 1787109110440,
+      "durationMs": 4147,
+      "attributes": {
+        "strategy": { "name": "query-routing", "index": 0 },
+        "outcome": "applied",
+        "input": { "query": "pgvector 是什么？它和 PostgreSQL 是什么关系？" },
+        "output": {
+          "query": "pgvector 是什么？它和 PostgreSQL 是什么关系？",
+          "route": "conceptual"
+        }
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "query_strategy",
+      "name": "runtime.query_strategy.complete",
+      "timestamp": 1787109112308,
+      "durationMs": 1867,
+      "attributes": {
+        "strategy": { "name": "query-rewrite", "index": 1 },
+        "outcome": "applied",
+        "input": {
+          "query": "pgvector 是什么？它和 PostgreSQL 是什么关系？",
+          "route": "conceptual"
+        },
+        "output": { "query": "pgvector 与 PostgreSQL 的关系是什么？", "route": "conceptual" }
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "query_strategy",
+      "name": "runtime.query_strategy.complete",
+      "timestamp": 1787109114988,
+      "durationMs": 2677,
+      "attributes": {
+        "strategy": { "name": "multi-query", "index": 2 },
+        "outcome": "applied",
+        "input": { "query": "pgvector 与 PostgreSQL 的关系是什么？", "route": "conceptual" },
+        "output": {
+          "query": "pgvector 与 PostgreSQL 的关系是什么？",
+          "subQueries": [
+            "pgvector 与 PostgreSQL 的关系是什么？",
+            "pgvector 是如何集成到 PostgreSQL 中的？",
+            "PostgreSQL 与 pgvector 之间属于什么关系？"
+          ],
+          "route": "conceptual"
+        }
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "query",
+      "name": "runtime.query.preprocess",
+      "timestamp": 1787109114989,
+      "durationMs": 8696,
+      "attributes": {
+        "output": {
+          "query": "pgvector 与 PostgreSQL 的关系是什么？",
+          "subQueries": [
+            "pgvector 与 PostgreSQL 的关系是什么？",
+            "pgvector 是如何集成到 PostgreSQL 中的？",
+            "PostgreSQL 与 pgvector 之间属于什么关系？"
+          ],
+          "route": "conceptual",
+          "appliedStrategies": ["query-routing", "query-rewrite", "multi-query"]
+        }
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "retrieval",
+      "name": "runtime.retrieval.start",
+      "timestamp": 1787109114989,
+      "attributes": { "output": { "query": "pgvector 与 PostgreSQL 的关系是什么？" } }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "retrieval_fanout",
+      "name": "runtime.retrieval_fanout.complete",
+      "timestamp": 1787109116205,
+      "durationMs": 1098,
+      "attributes": {
+        "input": { "index": 0, "query": "pgvector 与 PostgreSQL 的关系是什么？" },
+        "counts": { "candidates": 3 },
+        "candidates": [
+          { "chunkId": "asset-0#0", "score": 0.01639344262295082, "scoreKind": "retriever" },
+          { "chunkId": "asset-0#35", "score": 0.016129032258064516, "scoreKind": "retriever" },
+          { "chunkId": "asset-0#3", "score": 0.015873015873015872, "scoreKind": "retriever" }
+        ]
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "retrieval_fanout",
+      "name": "runtime.retrieval_fanout.complete",
+      "timestamp": 1787109116205,
+      "durationMs": 1024,
+      "attributes": {
+        "input": { "index": 1, "query": "pgvector 是如何集成到 PostgreSQL 中的？" },
+        "counts": { "candidates": 3 },
+        "candidates": [
+          { "chunkId": "asset-0#35", "score": 0.01639344262295082, "scoreKind": "retriever" },
+          { "chunkId": "asset-0#0", "score": 0.016129032258064516, "scoreKind": "retriever" },
+          { "chunkId": "asset-0#3", "score": 0.015873015873015872, "scoreKind": "retriever" }
+        ]
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "retrieval_fanout",
+      "name": "runtime.retrieval_fanout.complete",
+      "timestamp": 1787109116206,
+      "durationMs": 1213,
+      "attributes": {
+        "input": { "index": 2, "query": "PostgreSQL 与 pgvector 之间属于什么关系？" },
+        "counts": { "candidates": 3 },
+        "candidates": [
+          { "chunkId": "asset-0#0", "score": 0.01639344262295082, "scoreKind": "retriever" },
+          { "chunkId": "asset-0#35", "score": 0.016129032258064516, "scoreKind": "retriever" },
+          { "chunkId": "asset-0#3", "score": 0.015873015873015872, "scoreKind": "retriever" }
+        ]
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "retrieval_fuse",
+      "name": "runtime.retrieval_fuse.complete",
+      "timestamp": 1787109116206,
+      "attributes": {
+        "counts": { "subQueries": 3, "fused": 3 },
+        "candidates": [
+          { "chunkId": "asset-0#0", "score": 0.048915917503966164, "scoreKind": "rrf" },
+          { "chunkId": "asset-0#35", "score": 0.048651507139079855, "scoreKind": "rrf" },
+          { "chunkId": "asset-0#3", "score": 0.047619047619047616, "scoreKind": "rrf" }
+        ]
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "retrieval",
+      "name": "runtime.retrieval.complete",
+      "timestamp": 1787109116207,
+      "durationMs": 1218,
+      "attributes": {
+        "output": { "provider": "fan-out" },
+        "counts": { "candidates": 3 },
+        "candidates": [
+          { "chunkId": "asset-0#0", "score": 0.048915917503966164, "scoreKind": "rrf" },
+          { "chunkId": "asset-0#35", "score": 0.048651507139079855, "scoreKind": "rrf" },
+          { "chunkId": "asset-0#3", "score": 0.047619047619047616, "scoreKind": "rrf" }
+        ]
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "post_retrieval",
+      "name": "runtime.post_retrieval.start",
+      "timestamp": 1787109116207,
+      "attributes": { "counts": { "candidates": 3 } }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "post_retrieval_strategy",
+      "name": "runtime.post_retrieval_strategy.complete",
+      "timestamp": 1787109118761,
+      "durationMs": 2554,
+      "attributes": {
+        "strategy": { "name": "llm-rerank", "index": 0 },
+        "outcome": "passthrough",
+        "counts": { "input": 3, "selected": 3, "dropped": 0 },
+        "decisions": [
+          {
+            "chunkId": "asset-0#0",
+            "selected": true,
+            "reason": "selected",
+            "stage": "llm-rerank",
+            "score": 0.95,
+            "order": 0
+          },
+          {
+            "chunkId": "asset-0#35",
+            "selected": true,
+            "reason": "selected",
+            "stage": "llm-rerank",
+            "score": 0.7,
+            "order": 1
+          },
+          {
+            "chunkId": "asset-0#3",
+            "selected": true,
+            "reason": "selected",
+            "stage": "llm-rerank",
+            "score": 0.5,
+            "order": 2
+          }
+        ]
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "post_retrieval_strategy",
+      "name": "runtime.post_retrieval_strategy.complete",
+      "timestamp": 1787109122810,
+      "durationMs": 4047,
+      "attributes": {
+        "strategy": { "name": "context-compression", "index": 1 },
+        "outcome": "applied",
+        "counts": { "input": 3, "selected": 3, "dropped": 0, "compressed": 3 },
+        "decisions": [
+          {
+            "chunkId": "asset-0#0",
+            "selected": true,
+            "reason": "selected",
+            "stage": "context-compression"
+          },
+          {
+            "chunkId": "asset-0#35",
+            "selected": true,
+            "reason": "selected",
+            "stage": "context-compression"
+          },
+          {
+            "chunkId": "asset-0#3",
+            "selected": true,
+            "reason": "selected",
+            "stage": "context-compression"
+          }
+        ]
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "post_retrieval",
+      "name": "runtime.post_retrieval.select",
+      "timestamp": 1787109122811,
+      "durationMs": 6604,
+      "attributes": {
+        "output": {
+          "chunkIds": ["asset-0#0", "asset-0#35", "asset-0#3"],
+          "appliedStrategies": ["llm-rerank", "context-compression"]
+        },
+        "counts": { "input": 3, "selected": 3, "dropped": 0, "chunks": 3 }
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "generation",
+      "name": "runtime.generation.start",
+      "timestamp": 1787109122811,
+      "attributes": { "counts": { "chunks": 3 } }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "generation",
+      "name": "runtime.generation.complete",
+      "timestamp": 1787109124782,
+      "durationMs": 1971,
+      "attributes": {
+        "output": {
+          "model": "deepseek-v4-flash",
+          "streamed": true,
+          "citations": [
+            { "index": 1, "chunkId": "asset-0#0" },
+            { "index": 2, "chunkId": "asset-0#35" },
+            { "index": 3, "chunkId": "asset-0#3" }
+          ],
+          "answerPreview": "pgvector 是 PostgreSQL 的扩展（Extension），不是独立数据库。它在 PostgreSQL 基础上增加向量存储和向量检索能力，提供 Vector 数据类型、向量相似度计算、HNSW 和 IVFFlat 索引等。可将 pgvector 视为让 PostgreSQL 获得向量检索能力的组件，与 PostgreSQL 是扩展与被扩展的关系。"
+        },
+        "counts": { "chunks": 3, "citations": 3 }
+      }
+    },
+    {
+      "traceId": "runtime:pgvector 是什么？它和 PostgreSQL 是什么关系？:1787109106292",
+      "scope": "runtime",
+      "stage": "run",
+      "name": "runtime.run.complete",
+      "timestamp": 1787109124783,
+      "durationMs": 18491,
+      "attributes": { "counts": { "chunks": 3 } }
+    }
+  ],
+  "serviceName": "monai-ragsdk-example",
+  "environment": "local-example"
+}

@@ -76,6 +76,8 @@ const result = await runIndexing({
 
 `IndexingResult` 含 `documentsIndexed`、`unchangedDocuments`、`replacedDocuments`、`staleSourcesDeleted`、`failedDocuments` 等计数。单文档失败时：有 `onError` 则隔离后继续，否则抛 `IndexingError`。
 
+把 `observer` 交给 `runIndexing` 后打 indexing 阶段事件。未传 `trace.traceId` 时内核生成为 `indexing:${mode}:${startedAt}`，`traceIdSource` 为 `generated`。runtime 的 UUID 兜底见 [`@monai-ragsdk/runtime` README](../runtime/README.md)。
+
 ## 脚本
 
 ```bash
