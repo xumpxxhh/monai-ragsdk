@@ -202,6 +202,8 @@ auto-install-peers=true
 
 运行时需要、且不应进入缓存键的密钥，用 `globalPassThroughEnv` 列出变量名即可。没有这类变量就不要加该字段。
 
+本仓已为 server / example / adapters 共用的 OpenAI 兼容与 pgvector 变量配置了根级 `globalPassThroughEnv`；`apps/server` 的 `dev` / `start` 在包级 `turbo.json` 再声明一遍 `passThroughEnv`。本地仍可用各包 `.env` 文件（由应用自行读取），但 **Shell / CI 注入必须先出现在上述名单中**，否则 Strict 模式下任务进程看不到。
+
 按仓库增删任务名即可：`format`、`lint:fix` 都只是「各包 `package.json` 里有同名 script，Turbo 才会调度」。
 
 ### 5.5 `.gitignore`
@@ -379,7 +381,8 @@ pnpm turbo run lint --filter=./packages/*
 - [ ] 每个被引用的库有 `build` + `exports`/`main`/`types` 指向产物
 - [ ] `turbo.json` 的 `build.outputs` 与真实产物目录一致
 - [ ] `dev` 为 `cache: false` + `persistent: true`；若应用吃库的 dist，则 `dependsOn: ["^build"]`
-- [ ] `.gitignore` 含 `node_modules`、`.turbo`、`dist`
+- [ ] `.gitignore` 含 `node_modules`、`.turbo`、`dist`、`.env`（保留 `!.env.example`）
+- [ ] 运行时密钥已进 `globalPassThroughEnv`（或任务级 `passThroughEnv`），**未**误写入 `globalEnv` / `env`
 - [ ] 根脚本均为 `turbo run ...`；本地验证：
   - `pnpm install`
   - `pnpm build`
