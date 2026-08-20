@@ -4,7 +4,6 @@ export type ThemeId = 'mint';
 
 const THEME_KEY = 'monai-rag-theme';
 const PREFS_KEY = 'monai-rag-prefs';
-const COLLECTION_KEY = 'monai-rag-collection';
 
 export interface StoredPreferences {
   density: UiDensity;
@@ -41,12 +40,4 @@ export function readPreferences(): StoredPreferences {
 
 export function savePreferences(prefs: StoredPreferences): void {
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-}
-
-export function readStoredCollectionId(): string | null {
-  return localStorage.getItem(COLLECTION_KEY);
-}
-
-export function saveStoredCollectionId(id: string): void {
-  localStorage.setItem(COLLECTION_KEY, id);
 }

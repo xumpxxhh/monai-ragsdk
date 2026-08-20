@@ -1,8 +1,13 @@
 import { apiDelete, apiGet, apiPost, apiPostSse } from '@/shared/api/http';
 import type {
   AskMessage,
+  ChunkingConfig,
   DocumentSource,
+  GlobalAskRequest,
+  GlobalSearchRequest,
+  IngestDocumentInput,
   IngestProgressEvent,
+  IngestRecommendation,
   LastIngestSummary,
   Paginated,
   SearchResult,
@@ -32,20 +37,62 @@ export async function getLastIngest(collectionId: string): Promise<LastIngestSum
   return apiGet<LastIngestSummary | null>(`/collections/${collectionId}/ingest/latest`);
 }
 
+/** 根据待入库文档 metadata 获取推荐的 chunk / loader 配置。 */
+export async function recommendIngest(
+  collectionId: string,
+  documents: Array<{ id?: string; metadata?: { title?: string; mimeType?: string } }>,
+): Promise<IngestRecommendation> {
+  return apiPost<IngestRecommendation>(`/collections/${collectionId}/ingest/recommend`, {
+    documents,
+  });
+}
+
+export interface StartIngestOptions {
+  files: File[];
+  chunking?: ChunkingConfig;
+  loaderHint?: string;
+}
+
+function inferMimeType(file: File, loaderHint?: string): string | undefined {
+  if (loaderHint?.trim()) {
+    return loaderHint.trim();
+  }
+  if (file.type?.trim()) {
+    return file.type.trim();
+  }
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
+    return 'text/markdown';
+  }
+  if (lower.endsWith('.pdf')) {
+    return 'application/pdf';
+  }
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) {
+    return 'text/html';
+  }
+  return 'text/plain';
+}
+
 /** 启动异步入库，并以约 500ms 间隔轮询进度直到 done。 */
 export async function startIngest(
   collectionId: string,
-  files?: File[],
+  options: StartIngestOptions,
 ): Promise<AsyncGenerator<IngestProgressEvent>> {
-  const documents = await Promise.all(
-    (files ?? []).map(async (file, index) => ({
+  const { files, chunking, loaderHint } = options;
+  const documents: IngestDocumentInput[] = await Promise.all(
+    files.map(async (file, index) => ({
       id: `${file.name}-${index}`,
       content: await file.text(),
-      metadata: { title: file.name, sourceId: file.name },
+      metadata: {
+        title: file.name,
+        sourceId: file.name,
+        mimeType: inferMimeType(file, loaderHint),
+      },
     })),
   );
   const response = await apiPost<{ taskId: string }>(`/collections/${collectionId}/ingest`, {
     documents,
+    chunking,
   });
   return pollIngestProgress(collectionId, response.taskId);
 }
@@ -74,12 +121,16 @@ export async function removeDocument(collectionId: string, documentId: string): 
   notifyDocumentsChanged();
 }
 
-export async function searchDocuments(
-  collectionId: string,
-  query: string,
-  topK = 10,
-): Promise<SearchResult> {
-  return apiPost<SearchResult>(`/collections/${collectionId}/search`, { query, topK });
+export async function searchDocuments(input: {
+  query: string;
+  topK?: number;
+  collectionIds?: string[];
+}): Promise<SearchResult> {
+  const body: GlobalSearchRequest = { query: input.query, topK: input.topK };
+  if (input.collectionIds && input.collectionIds.length > 0) {
+    body.collectionIds = input.collectionIds;
+  }
+  return apiPost<SearchResult>('/search', body);
 }
 
 export interface AskStreamResult {
@@ -89,18 +140,23 @@ export interface AskStreamResult {
 }
 
 /** 消费服务端 ask SSE：token 为 delta，前端累加后再 yield。 */
-export async function askStream(
-  collectionId: string,
-  question: string,
-  signal?: AbortSignal,
-): Promise<AskStreamResult> {
+export async function askStream(input: {
+  question: string;
+  collectionIds?: string[];
+  signal?: AbortSignal;
+}): Promise<AskStreamResult> {
+  const body: GlobalAskRequest = { question: input.question };
+  if (input.collectionIds && input.collectionIds.length > 0) {
+    body.collectionIds = input.collectionIds;
+  }
+
   const events = apiPostSse<{
     type: string;
     content?: string;
     effectiveQuery?: string;
     citations?: AskMessage['citations'];
     noGrounding?: boolean;
-  }>(`/collections/${collectionId}/ask`, { question }, signal);
+  }>('/ask', body, input.signal);
 
   const holder: { effectiveQuery?: string; citations?: AskMessage['citations'] } = {};
 

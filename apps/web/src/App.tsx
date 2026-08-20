@@ -22,7 +22,8 @@ export default function App() {
         <Route index element={<HomePage />} />
         <Route path="knowledge-bases" element={<KnowledgeBasesPage />} />
         <Route path="knowledge-bases/:id/documents" element={<DocumentsPage />} />
-        <Route path="knowledge-bases/:id/strategy" element={<StrategyPage />} />
+        <Route path="strategy" element={<StrategyPage />} />
+        <Route path="knowledge-bases/:id/strategy" element={<Navigate to="/strategy" replace />} />
         <Route path="ask" element={<AskPage />} />
         <Route path="search-debug" element={<SearchDebugPage />} />
         <Route path="observe" element={<ObservePage />} />

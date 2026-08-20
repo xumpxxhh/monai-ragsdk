@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { searchDocuments } from '@/shared/api/documents';
-import { useAppContext } from '@/shared/hooks/useAppContext';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui';
 import { Input, SelectNative } from '@/shared/ui/form';
@@ -9,17 +8,16 @@ import type { SearchResult } from '@/shared/types';
 
 export default function SearchDebugPage() {
   const navigate = useNavigate();
-  const { currentCollection, currentCollectionId } = useAppContext();
   const [query, setQuery] = useState('退货时效');
   const [topK, setTopK] = useState(10);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SearchResult | null>(null);
 
   const handleSearch = async () => {
-    if (!currentCollectionId || !query.trim()) return;
+    if (!query.trim()) return;
     setLoading(true);
     try {
-      const data = await searchDocuments(currentCollectionId, query.trim(), topK);
+      const data = await searchDocuments({ query: query.trim(), topK });
       setResult(data);
     } finally {
       setLoading(false);
@@ -29,7 +27,7 @@ export default function SearchDebugPage() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-sm font-medium">仅检索调试 · {currentCollection?.name}</h1>
+        <h1 className="text-sm font-medium">仅检索调试</h1>
         <Link to="/ask">
           <Button variant="secondary" size="sm">
             切回完整问答
@@ -58,7 +56,7 @@ export default function SearchDebugPage() {
             {loading ? '检索中…' : '检索'}
           </Button>
         </div>
-        <p className="mt-2 text-xs text-muted">过滤：来源 ▾ · 元数据标签 ▾（后续）</p>
+        <p className="mt-2 text-xs text-muted">检索全部已注册知识库</p>
       </Card>
 
       {result ? (

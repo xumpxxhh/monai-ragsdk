@@ -1,28 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, CheckCircle, FileText, MessageCircle, TriangleAlert } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { listActivities, getDashboard } from '@/shared/api/observe';
+import { listActivities } from '@/shared/api/observe';
 import { useAppContext } from '@/shared/hooks/useAppContext';
 import { Button } from '@/shared/ui/Button';
 import { Card, PageHeader } from '@/shared/ui';
 import { IngestStatsChips } from '@/shared/ui/Badge';
 import { Input } from '@/shared/ui/form';
 import { formatDateTime, formatRelativeTime } from '@/shared/utils';
-import type { ActivityItem, DashboardStats } from '@/shared/types';
+import type { ActivityItem } from '@/shared/types';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { currentCollection, currentCollectionId, isAdmin, preferences, updatePreferences } =
-    useAppContext();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const { collections, isAdmin, preferences, updatePreferences } = useAppContext();
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [question, setQuestion] = useState('');
 
+  const stats = useMemo(() => {
+    const documentCount = collections.reduce((sum, item) => sum + item.documentCount, 0);
+    const failedIngestCount = collections.reduce((sum, item) => sum + item.failedIngestCount, 0);
+    const lastIngestAt = collections.reduce<string | null>((latest, item) => {
+      if (!item.lastIngestAt) return latest;
+      if (!latest || item.lastIngestAt > latest) return item.lastIngestAt;
+      return latest;
+    }, null);
+    return {
+      documentCount,
+      failedIngestCount,
+      lastIngestAt,
+      lastIngestSuccess: failedIngestCount === 0,
+      askCount7d: 0,
+      avgCitations: 0,
+    };
+  }, [collections]);
+
   useEffect(() => {
-    if (!currentCollectionId) return;
-    void getDashboard(currentCollectionId).then(setStats);
-    void listActivities(currentCollectionId).then(setActivities);
-  }, [currentCollectionId]);
+    void listActivities().then(setActivities);
+  }, []);
 
   const handleAsk = () => {
     const q = question.trim();
@@ -50,10 +64,7 @@ export default function HomePage() {
 
       <section className="relative mb-5 overflow-hidden rounded-card border border-line bg-surface p-5 shadow-card">
         <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 translate-x-1/3 -translate-y-1/2 rounded-full bg-brand-soft/60" />
-        <p className="relative mb-2 text-sm text-muted">
-          有问题？直接问当前知识库 ·{' '}
-          <span className="font-medium text-brand">{currentCollection?.name ?? '—'}</span>
-        </p>
+        <p className="relative mb-2 text-sm text-muted">有问题？直接问</p>
         <div className="relative flex flex-col gap-3 sm:flex-row">
           <Input
             value={question}
@@ -68,7 +79,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {isAdmin && preferences.showHealthCards && stats ? (
+      {isAdmin && preferences.showHealthCards ? (
         <div className="mb-6 grid gap-4 md:grid-cols-3">
           <Card className="p-5">
             <div className="mb-2 flex items-center justify-between text-sm text-muted">
@@ -100,14 +111,12 @@ export default function HomePage() {
             <p className="text-3xl font-semibold tracking-tight text-warning">
               {stats.failedIngestCount}
             </p>
-            {currentCollectionId ? (
-              <Link
-                to={`/knowledge-bases/${currentCollectionId}/documents`}
-                className="mt-2 inline-flex text-xs font-medium text-brand hover:underline"
-              >
-                去处理 →
-              </Link>
-            ) : null}
+            <Link
+              to="/knowledge-bases"
+              className="mt-2 inline-flex text-xs font-medium text-brand hover:underline"
+            >
+              去知识库查看 →
+            </Link>
           </Card>
         </div>
       ) : null}

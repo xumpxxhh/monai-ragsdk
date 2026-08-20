@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getConnectionInfo } from '@/shared/api/observe';
+import { getStrategy, presetLabels } from '@/shared/api/strategy';
 import { useAppContext } from '@/shared/hooks/useAppContext';
 import { Card, PageHeader } from '@/shared/ui';
 import { SelectNative } from '@/shared/ui/form';
@@ -21,12 +23,16 @@ function ConnectionBadge({ status }: { status: 'connected' | 'unconfigured' }) {
 }
 
 export default function SettingsPage() {
-  const { preferences, updatePreferences } = useAppContext();
+  const { preferences, updatePreferences, isAdmin } = useAppContext();
   const [connection, setConnection] = useState<ConnectionInfo | null>(null);
+  const [globalPresetLabel, setGlobalPresetLabel] = useState<string | null>(null);
 
   useEffect(() => {
     void getConnectionInfo().then(setConnection);
-  }, []);
+    if (isAdmin) {
+      void getStrategy().then((strategy) => setGlobalPresetLabel(presetLabels[strategy.preset]));
+    }
+  }, [isAdmin]);
 
   const handleRoleChange = (role: 'admin' | 'user') => {
     updatePreferences({ role });
@@ -104,6 +110,18 @@ export default function SettingsPage() {
           <option value="user">终端用户</option>
         </SelectNative>
       </Card>
+
+      {isAdmin ? (
+        <Card className="p-5">
+          <h2 className="mb-1 font-medium">全局检索策略</h2>
+          <p className="mb-4 text-xs text-muted">
+            当前预设：{globalPresetLabel ?? '加载中…'}。修改后影响全部问答与检索。
+          </p>
+          <Link to="/strategy" className="text-sm text-brand hover:underline">
+            打开策略配置 →
+          </Link>
+        </Card>
+      ) : null}
 
       <Card className="p-5">
         <h2 className="mb-4 font-medium">连接与模型</h2>

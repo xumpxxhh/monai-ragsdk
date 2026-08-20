@@ -79,12 +79,13 @@ const presetTemplates: Record<StrategyPreset, Partial<StrategyConfig>> = {
   },
 };
 
-export async function getStrategy(collectionId: string): Promise<StrategyConfig> {
-  return apiGet<StrategyConfig>(`/collections/${collectionId}/strategy`);
+/** 读取全局检索策略（collectionId 固定为 global）。 */
+export async function getStrategy(): Promise<StrategyConfig> {
+  return apiGet<StrategyConfig>('/strategy');
 }
 
 export async function saveStrategy(config: StrategyConfig): Promise<StrategyConfig> {
-  return apiPut<StrategyConfig>(`/collections/${config.collectionId}/strategy`, config);
+  return apiPut<StrategyConfig>('/strategy', { ...config, collectionId: 'global' });
 }
 
 export function applyPreset(config: StrategyConfig, preset: StrategyPreset): StrategyConfig {
@@ -99,10 +100,10 @@ export function applyPreset(config: StrategyConfig, preset: StrategyPreset): Str
   };
 }
 
-export function resetStrategyDefaults(collectionId: string): StrategyConfig {
+export function resetStrategyDefaults(): StrategyConfig {
   const base = applyPreset(
     {
-      collectionId,
+      collectionId: 'global',
       preset: 'balanced',
       preRetrieval: {
         rewrite: true,

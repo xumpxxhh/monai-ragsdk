@@ -1,7 +1,5 @@
 import { Bell, ChevronDown } from 'lucide-react';
 import { useAppContext } from '@/shared/hooks/useAppContext';
-import { SelectNative } from '@/shared/ui/form';
-import { toast } from '@/shared/ui/Toast';
 
 interface TopbarProps {
   title?: string;
@@ -9,35 +7,12 @@ interface TopbarProps {
 }
 
 export function Topbar({ title, children }: TopbarProps) {
-  const { collections, currentCollectionId, setCurrentCollectionId, preferences } = useAppContext();
-
-  const handleCollectionChange = (nextId: string) => {
-    const next = collections.find((c) => c.id === nextId);
-    if (next) {
-      setCurrentCollectionId(nextId);
-      toast.success(`已切换到「${next.name}」`);
-    }
-  };
+  const { preferences } = useAppContext();
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-4 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        {title ? <h1 className="shrink-0 text-sm font-medium">{title}</h1> : (
-          <>
-            <span className="hidden text-sm text-muted sm:inline">当前知识库</span>
-            <SelectNative
-              value={currentCollectionId ?? ''}
-              onChange={(e) => handleCollectionChange(e.target.value)}
-              className="max-w-[200px]"
-            >
-              {collections.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </SelectNative>
-          </>
-        )}
+        {title ? <h1 className="shrink-0 text-sm font-medium">{title}</h1> : null}
         {children}
       </div>
 

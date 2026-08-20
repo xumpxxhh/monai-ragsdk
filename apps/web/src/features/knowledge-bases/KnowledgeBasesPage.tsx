@@ -6,6 +6,7 @@ import {
   searchCollections,
   subscribeCollectionsChanged,
 } from '@/shared/api/collections';
+import { getStrategy, presetLabels } from '@/shared/api/strategy';
 import { Button } from '@/shared/ui/Button';
 import { HealthBadge } from '@/shared/ui/Badge';
 import { Card, PageHeader } from '@/shared/ui';
@@ -24,11 +25,16 @@ export default function KnowledgeBasesPage() {
   const [description, setDescription] = useState('');
   const [ingestMode, setIngestMode] = useState<IngestMode>('incremental');
   const [creating, setCreating] = useState(false);
+  const [globalPresetLabel, setGlobalPresetLabel] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const result = await searchCollections(debouncedSearch);
     setCollections(result.items);
   }, [debouncedSearch]);
+
+  useEffect(() => {
+    void getStrategy().then((strategy) => setGlobalPresetLabel(presetLabels[strategy.preset]));
+  }, []);
 
   useEffect(() => {
     void load();
@@ -62,7 +68,11 @@ export default function KnowledgeBasesPage() {
     <div>
       <PageHeader
         title="知识库"
-        description="每个库对应一套入库、检索与问答闭环"
+        description={
+          globalPresetLabel
+            ? `每个库对应一套入库闭环；全局检索策略：${globalPresetLabel}`
+            : '每个库对应一套入库、检索与问答闭环'
+        }
         actions={
           <>
             <div className="relative">
@@ -91,9 +101,7 @@ export default function KnowledgeBasesPage() {
               <HealthBadge health={kb.health} />
             </div>
             <h3 className="font-semibold">{kb.name}</h3>
-            <p className="mt-1 text-sm text-muted">
-              文档 {kb.documentCount} · 默认策略：{kb.presetLabel}
-            </p>
+            <p className="mt-1 text-sm text-muted">文档 {kb.documentCount}</p>
             {kb.failedIngestCount > 0 ? (
               <p className="mt-1 text-xs text-warning">失败入库 {kb.failedIngestCount}</p>
             ) : null}

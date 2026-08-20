@@ -7,6 +7,9 @@ import { Input, SelectNative } from '@/shared/ui/form';
 import { cn, formatRelativeTime } from '@/shared/utils';
 import type { AskTrace, IngestTaskTrace } from '@/shared/types';
 
+import { TraceEventTimeline } from './TraceEventTimeline';
+import { stageLabel } from './trace-labels';
+
 type Tab = 'qa' | 'ingest';
 
 export default function ObservePage() {
@@ -100,6 +103,7 @@ export default function ObservePage() {
                     <span className="text-muted">{formatRelativeTime(trace.finishedAt)}</span>{' '}
                     {trace.question.slice(0, 12)}
                     {trace.question.length > 12 ? '…' : ''}
+                    <span className="mt-1 block text-xs text-muted">{trace.collectionName}</span>
                   </button>
                 </li>
               ))}
@@ -114,28 +118,50 @@ export default function ObservePage() {
                     Trace #{detail.id.slice(-4)} · {formatRelativeTime(detail.finishedAt)} · 耗时{' '}
                     {(detail.durationMs / 1000).toFixed(1)}s · {detail.success ? '成功' : '失败'}
                   </h2>
+                  <p className="mt-2 text-sm text-muted">
+                    检索范围：
+                    {detail.collectionId === 'global'
+                      ? detail.collectionName
+                      : `${detail.collectionName}（${detail.collectionId}）`}
+                  </p>
                   <p className="mt-2 text-sm">原问题：{detail.question}</p>
                   {detail.effectiveQuestion ? (
                     <p className="text-sm text-muted">有效问题：{detail.effectiveQuestion}</p>
                   ) : null}
                 </div>
 
-                <div className="space-y-4 border-l-2 border-line pl-4">
-                  {detail.stages.map((stage) => (
-                    <div key={stage.id} className="relative">
-                      <span
-                        className={cn(
-                          'trace-dot absolute -left-[1.35rem] top-1',
-                          stage.warning && 'trace-dot--warn',
-                        )}
-                      />
-                      <p className="text-sm font-medium">{stage.label}</p>
-                      {stage.durationMs ? (
-                        <p className="text-xs text-muted">+{stage.durationMs}ms</p>
-                      ) : null}
-                    </div>
-                  ))}
+                <div className="mb-4">
+                  <h3 className="mb-3 text-sm font-medium">阶段概览</h3>
+                  <div className="space-y-4 border-l-2 border-line pl-4">
+                    {detail.stages.length > 0 ? (
+                      detail.stages.map((stage) => (
+                        <div key={stage.id} className="relative">
+                          <span
+                            className={cn(
+                              'trace-dot absolute -left-[1.35rem] top-1',
+                              stage.warning && 'trace-dot--warn',
+                            )}
+                          />
+                          <p className="text-sm font-medium">{stageLabel(stage.id)}</p>
+                          {stage.durationMs ? (
+                            <p className="text-xs text-muted">+{stage.durationMs}ms</p>
+                          ) : null}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted">暂无阶段耗时摘要</p>
+                    )}
+                  </div>
                 </div>
+
+                {detail.executionTrace ? (
+                  <TraceEventTimeline trace={detail.executionTrace} />
+                ) : (
+                  <Card className="mt-4 border-line bg-canvas/50 p-4 text-sm text-muted">
+                    详细执行日志不可用（可能为服务重启前的旧记录，或未写入 observer
+                    快照）。上方仍展示阶段耗时摘要。
+                  </Card>
+                )}
 
                 {detail.warnings.length > 0 ? (
                   <Card className="mt-4 border-warning/30 bg-warning/5 p-4 text-sm text-warning">
@@ -149,7 +175,11 @@ export default function ObservePage() {
                   <Button variant="secondary" size="sm">
                     查看引用片段
                   </Button>
-                  <Button variant="secondary" size="sm" onClick={() => setComingSoon('用相同策略重放')}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setComingSoon('用相同策略重放')}
+                  >
                     用相同策略重放(后续)
                   </Button>
                 </div>

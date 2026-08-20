@@ -37,7 +37,7 @@ function renderAnswerWithCitations(
 export default function AskPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { currentCollection, currentCollectionId } = useAppContext();
+  const { totalDocumentCount } = useAppContext();
   const isAdmin = useIsAdmin();
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [input, setInput] = useState(searchParams.get('q') ?? '');
@@ -48,7 +48,7 @@ export default function AskPage() {
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const hasDocuments = (currentCollection?.documentCount ?? 0) > 0;
+  const hasDocuments = totalDocumentCount > 0;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -56,7 +56,7 @@ export default function AskPage() {
 
   const send = useCallback(async () => {
     const question = input.trim();
-    if (!question || !currentCollectionId || streaming) return;
+    if (!question || streaming) return;
 
     const userMsg: AskMessage = {
       id: `u-${Date.now()}`,
@@ -73,7 +73,10 @@ export default function AskPage() {
 
     abortRef.current = new AbortController();
     try {
-      const result = await askStream(currentCollectionId, question, abortRef.current.signal);
+      const result = await askStream({
+        question,
+        signal: abortRef.current.signal,
+      });
 
       let content = '';
       for await (const chunk of result.stream) {
@@ -117,7 +120,7 @@ export default function AskPage() {
       setStreaming(false);
       abortRef.current = null;
     }
-  }, [input, currentCollectionId, streaming]);
+  }, [input, streaming]);
 
   const stop = () => {
     abortRef.current?.abort();
@@ -138,14 +141,12 @@ export default function AskPage() {
     return (
       <EmptyState
         icon={<FolderOpen className="h-12 w-12" />}
-        title="这个知识库还没有文档"
-        description="请先让管理员完成入库，或切换其他知识库"
+        title="还没有可检索的文档"
+        description="请先在任一知识库中完成文档入库"
         action={
-          currentCollectionId ? (
-            <Link to={`/knowledge-bases/${currentCollectionId}/documents`}>
-              <Button>去文档与入库</Button>
-            </Link>
-          ) : null
+          <Link to="/knowledge-bases">
+            <Button>去知识库管理</Button>
+          </Link>
         }
       />
     );
@@ -154,7 +155,7 @@ export default function AskPage() {
   return (
     <div className="flex h-[calc(100vh-7rem)] flex-col">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h1 className="text-sm font-medium">问答 · {currentCollection?.name}</h1>
+        <h1 className="text-sm font-medium">问答</h1>
         {isAdmin ? (
           <div className="hidden items-center gap-3 rounded-ctrl border border-line px-3 py-1.5 text-sm sm:flex">
             <label className="flex cursor-pointer items-center gap-1.5">
@@ -195,7 +196,7 @@ export default function AskPage() {
                   <div className="max-w-[90%] rounded-card border border-warning/30 bg-warning/5 px-4 py-3 text-sm">
                     <p className="mb-1 font-medium text-warning">知识库未覆盖该问题</p>
                     <p className="text-muted">
-                      当前库中没有足够依据回答。可换一种问法，或请管理员补充相关文档。
+                      当前范围内没有足够依据回答。可换一种问法，或请管理员补充相关文档。
                     </p>
                   </div>
                 </div>
@@ -241,7 +242,7 @@ export default function AskPage() {
                 {streaming ? '停止' : '发送'}
               </Button>
             </div>
-            <p className="mt-2 text-xs text-muted">答案均基于当前知识库；可点击角标查看原文。</p>
+            <p className="mt-2 text-xs text-muted">答案基于全部已注册知识库；可点击角标查看原文。</p>
           </div>
         </section>
 

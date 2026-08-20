@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
-import { getCollection } from '@/shared/api/collections';
+import { Link } from 'react-router-dom';
 import {
   applyPreset,
   getStrategy,
@@ -10,27 +8,21 @@ import {
   resetStrategyDefaults,
   saveStrategy,
 } from '@/shared/api/strategy';
-import { useAppContext } from '@/shared/hooks/useAppContext';
 import { Button } from '@/shared/ui/Button';
-import { Card, ComingSoonModal } from '@/shared/ui';
+import { Card, ComingSoonModal, PageHeader } from '@/shared/ui';
 import { Input, SelectNative, SwitchRow } from '@/shared/ui/form';
 import { toast } from '@/shared/ui/Toast';
-import type { CollectionDetail, StrategyConfig, StrategyPreset } from '@/shared/types';
+import type { StrategyConfig, StrategyPreset } from '@/shared/types';
 
+/** 全局检索策略配置页；读写 `/api/v1/strategy`，作用于全部 ask/search。 */
 export default function StrategyPage() {
-  const { id = '' } = useParams();
-  const { setCurrentCollectionId } = useAppContext();
-  const [collection, setCollection] = useState<CollectionDetail | null>(null);
   const [config, setConfig] = useState<StrategyConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [comingSoon, setComingSoon] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
-    void getCollection(id).then(setCollection);
-    void getStrategy(id).then(setConfig);
-    setCurrentCollectionId(id);
-  }, [id, setCurrentCollectionId]);
+    void getStrategy().then(setConfig);
+  }, []);
 
   const handlePresetChange = (preset: StrategyPreset) => {
     if (!config) return;
@@ -43,52 +35,48 @@ export default function StrategyPage() {
     setSaving(true);
     try {
       await saveStrategy(config);
-      toast.success('策略已保存');
+      toast.success('全局策略已保存');
     } finally {
       setSaving(false);
     }
   };
 
   const handleReset = () => {
-    if (!id) return;
-    setConfig(resetStrategyDefaults(id));
+    setConfig(resetStrategyDefaults());
     toast.success('已恢复默认');
   };
 
-  if (!collection || !config) {
+  if (!config) {
     return <div className="text-sm text-muted">加载中…</div>;
   }
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm">
-          <Link to={`/knowledge-bases/${id}/documents`} className="text-muted hover:text-brand">
-            {collection.name}
-          </Link>
-          <ChevronRight className="mx-1 inline h-3 w-3 text-muted" />
-          <span className="font-medium">策略</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <SelectNative
-            value={config.preset}
-            onChange={(e) => handlePresetChange(e.target.value as StrategyPreset)}
-            className="h-8"
-          >
-            {(Object.keys(presetLabels) as StrategyPreset[]).map((key) => (
-              <option key={key} value={key}>
-                {presetLabels[key]}
-              </option>
-            ))}
-          </SelectNative>
-          <Button variant="secondary" size="sm" onClick={() => setComingSoon('策略预设另存')}>
-            另存为
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="全局检索策略"
+        description="作用于全部问答与检索；不再按单个知识库分别配置。"
+        actions={
+          <div className="flex items-center gap-2">
+            <SelectNative
+              value={config.preset}
+              onChange={(e) => handlePresetChange(e.target.value as StrategyPreset)}
+              className="h-8"
+            >
+              {(Object.keys(presetLabels) as StrategyPreset[]).map((key) => (
+                <option key={key} value={key}>
+                  {presetLabels[key]}
+                </option>
+              ))}
+            </SelectNative>
+            <Button variant="secondary" size="sm" onClick={() => setComingSoon('策略预设另存')}>
+              另存为
+            </Button>
+          </div>
+        }
+      />
 
       <p className="mb-4 text-sm text-muted">
-        预设说明：{presetDescriptions[config.preset]}
+        当前预设：{presetLabels[config.preset]} · {presetDescriptions[config.preset]}
       </p>
 
       <div className="space-y-4">
@@ -249,13 +237,18 @@ export default function StrategyPage() {
         </Card>
       </div>
 
-      <div className="mt-6 flex justify-end gap-2">
-        <Button variant="secondary" onClick={handleReset}>
-          恢复默认
-        </Button>
-        <Button onClick={() => void handleSave()} disabled={saving}>
-          {saving ? '保存中…' : '保存'}
-        </Button>
+      <div className="mt-6 flex items-center justify-between gap-2">
+        <Link to="/settings" className="text-sm text-brand hover:underline">
+          ← 返回设置
+        </Link>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={handleReset}>
+            恢复默认
+          </Button>
+          <Button onClick={() => void handleSave()} disabled={saving}>
+            {saving ? '保存中…' : '保存'}
+          </Button>
+        </div>
       </div>
 
       <ComingSoonModal

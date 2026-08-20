@@ -146,6 +146,63 @@ export interface TraceStage {
   warning?: boolean;
 }
 
+export type RAGEventScope = 'runtime' | 'indexing';
+
+export type RAGEventAction =
+  | 'receive'
+  | 'preprocess'
+  | 'start'
+  | 'complete'
+  | 'fail'
+  | 'select'
+  | 'drop'
+  | 'store';
+
+export type RAGEventName =
+  | `runtime.${string}.${RAGEventAction}`
+  | `indexing.${string}.${RAGEventAction}`;
+
+export type RAGAttributes = Record<string, unknown>;
+
+export interface RAGEvent {
+  traceId: string;
+  scope: RAGEventScope;
+  stage: string;
+  name: RAGEventName;
+  timestamp: number;
+  durationMs?: number;
+  attributes?: RAGAttributes;
+}
+
+export interface RAGErrorRecord {
+  traceId: string;
+  scope: RAGEventScope;
+  stage: string;
+  name: RAGEventName;
+  timestamp: number;
+  error: {
+    name: string;
+    message: string;
+    code?: string;
+  };
+  attributes?: RAGAttributes;
+}
+
+export interface RAGTrace {
+  traceId: string;
+  requestId?: string;
+  scope: RAGEventScope;
+  startedAt: number;
+  endedAt?: number;
+  durationMs?: number;
+  status: 'ok' | 'error';
+  tags?: Record<string, string | number | boolean>;
+  events: RAGEvent[];
+  errors?: RAGErrorRecord[];
+  serviceName?: string;
+  environment?: string;
+}
+
 export interface AskTrace {
   id: string;
   collectionId: string;
@@ -158,6 +215,7 @@ export interface AskTrace {
   citationCount: number;
   stages: TraceStage[];
   warnings: string[];
+  executionTrace?: RAGTrace;
 }
 
 export interface IngestTaskTrace {
@@ -202,4 +260,39 @@ export interface Paginated<T> {
 export interface ApiErrorBody {
   message?: string;
   code?: string;
+}
+
+export type ChunkingStrategy = 'fixed' | 'heading' | 'parent-child';
+
+export interface ChunkingConfig {
+  strategy?: ChunkingStrategy;
+  chunkSize?: number;
+  overlap?: number;
+}
+
+export interface IngestRecommendation {
+  chunking: ChunkingConfig & { strategy: ChunkingStrategy };
+  loaderHint: string;
+  mode: IngestMode;
+}
+
+export interface GlobalAskRequest {
+  question: string;
+  collectionIds?: string[];
+}
+
+export interface GlobalSearchRequest {
+  query: string;
+  topK?: number;
+  collectionIds?: string[];
+}
+
+export interface IngestDocumentInput {
+  id?: string;
+  content: string;
+  metadata?: {
+    title?: string;
+    sourceId?: string;
+    mimeType?: string;
+  };
 }

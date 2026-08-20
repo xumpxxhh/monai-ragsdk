@@ -5,12 +5,17 @@ import { getCollection } from '@/shared/api/collections';
 import {
   getLastIngest,
   listDocuments,
+  recommendIngest,
   removeDocument,
   retryDocument,
   startIngest,
   subscribeDocumentsChanged,
 } from '@/shared/api/documents';
-import { useAppContext, useIsAdmin } from '@/shared/hooks/useAppContext';
+import {
+  IngestConfigModal,
+  loaderLabel,
+} from '@/features/documents/IngestConfigModal';
+import { useIsAdmin } from '@/shared/hooks/useAppContext';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { Button } from '@/shared/ui/Button';
 import { DocStatusBadge, IngestStatsChips } from '@/shared/ui/Badge';
@@ -19,22 +24,61 @@ import { Input, SelectNative } from '@/shared/ui/form';
 import { toast } from '@/shared/ui/Toast';
 import { formatDateTime } from '@/shared/utils';
 import type {
+  ChunkingConfig,
+  ChunkingStrategy,
   CollectionDetail,
   DocumentSource,
   IngestProgressEvent,
   LastIngestSummary,
 } from '@/shared/types';
 
+const DEFAULT_CHUNKING: ChunkingConfig & { strategy: ChunkingStrategy } = {
+  strategy: 'fixed',
+  chunkSize: 500,
+  overlap: 50,
+};
+
+function recommendChunkingForLoader(loaderHint: string): ChunkingConfig & { strategy: ChunkingStrategy } {
+  if (loaderHint === 'text/markdown') {
+    return { strategy: 'heading' };
+  }
+  return { strategy: 'fixed', chunkSize: 500, overlap: 50 };
+}
+
+function inferMimeType(file: File): string {
+  if (file.type?.trim()) {
+    return file.type.trim();
+  }
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
+    return 'text/markdown';
+  }
+  if (lower.endsWith('.pdf')) {
+    return 'application/pdf';
+  }
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) {
+    return 'text/html';
+  }
+  return 'text/plain';
+}
+
 export default function DocumentsPage() {
   const { id = '' } = useParams();
   const isAdmin = useIsAdmin();
-  const { setCurrentCollectionId } = useAppContext();
   const [collection, setCollection] = useState<CollectionDetail | null>(null);
   const [lastIngest, setLastIngest] = useState<LastIngestSummary | null>(null);
   const [documents, setDocuments] = useState<DocumentSource[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const debouncedSearch = useDebouncedValue(search);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [ingestSubmitting, setIngestSubmitting] = useState(false);
+  const [loaderHint, setLoaderHint] = useState('text/plain');
+  const [chunking, setChunking] = useState<ChunkingConfig & { strategy: ChunkingStrategy }>(
+    DEFAULT_CHUNKING,
+  );
   const [ingestOpen, setIngestOpen] = useState(false);
   const [ingestProgress, setIngestProgress] = useState<IngestProgressEvent | null>(null);
   const [comingSoon, setComingSoon] = useState<string | null>(null);
@@ -50,14 +94,36 @@ export default function DocumentsPage() {
     setCollection(col);
     setLastIngest(ingest);
     setDocuments(docs.items);
-    setCurrentCollectionId(id);
-  }, [id, debouncedSearch, statusFilter, setCurrentCollectionId]);
+  }, [id, debouncedSearch, statusFilter]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => subscribeDocumentsChanged(load), [load]);
+
+  const loadIngestRecommendation = useCallback(
+    async (files: File[]) => {
+      setConfigLoading(true);
+      try {
+        const sample = files[0];
+        const mimeType = sample ? inferMimeType(sample) : 'text/plain';
+        const recommendation = await recommendIngest(id, [
+          { id: sample?.name, metadata: { title: sample?.name, mimeType } },
+        ]);
+        setLoaderHint(recommendation.loaderHint);
+        setChunking(recommendation.chunking);
+      } catch {
+        const fallbackMime = files[0] ? inferMimeType(files[0]) : 'text/plain';
+        setLoaderHint(fallbackMime);
+        setChunking(recommendChunkingForLoader(fallbackMime));
+        toast.error('获取推荐配置失败，已使用本地默认值');
+      } finally {
+        setConfigLoading(false);
+      }
+    },
+    [id],
+  );
 
   const handlePickFiles = () => {
     fileRef.current?.click();
@@ -68,17 +134,45 @@ export default function DocumentsPage() {
     event.target.value = '';
     if (files.length === 0) return;
 
+    setPendingFiles(files);
+    setConfigOpen(true);
+    await loadIngestRecommendation(files);
+  };
+
+  const handleLoaderChange = (nextLoader: string) => {
+    setLoaderHint(nextLoader);
+    setChunking(recommendChunkingForLoader(nextLoader));
+  };
+
+  const handleStartIngest = async () => {
+    if (pendingFiles.length === 0) return;
+    setIngestSubmitting(true);
+    setConfigOpen(false);
     setIngestOpen(true);
     setIngestProgress(null);
-    const stream = await startIngest(id, files);
-    for await (const progress of stream) {
-      setIngestProgress(progress);
-      if (progress.done) {
-        toast.success(
-          `入库完成：新增 ${progress.stats.added} / 跳过 ${progress.stats.skipped} / 失败 ${progress.stats.failed}`,
-        );
-        void load();
+
+    try {
+      const stream = await startIngest(id, {
+        files: pendingFiles,
+        chunking,
+        loaderHint,
+      });
+      for await (const progress of stream) {
+        setIngestProgress(progress);
+        if (progress.done) {
+          toast.success(
+            `入库完成（${loaderLabel(loaderHint)} / ${chunking.strategy}）：新增 ${progress.stats.added} / 跳过 ${progress.stats.skipped} / 失败 ${progress.stats.failed}`,
+          );
+          void load();
+        }
       }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '入库失败';
+      toast.error(message);
+      setIngestOpen(false);
+    } finally {
+      setIngestSubmitting(false);
+      setPendingFiles([]);
     }
   };
 
@@ -115,9 +209,9 @@ export default function DocumentsPage() {
           <span className="text-muted"> / 文档与入库</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <Link to={`/knowledge-bases/${id}/strategy`}>
+          <Link to="/strategy">
             <Button variant="secondary" size="sm">
-              策略
+              全局策略
             </Button>
           </Link>
           {isAdmin ? (
@@ -139,11 +233,11 @@ export default function DocumentsPage() {
             ref={fileRef}
             type="file"
             multiple
-            accept=".md,.txt,.markdown,.json,.csv,.html"
+            accept=".md,.txt,.markdown,.json,.csv,.html,.pdf"
             className="hidden"
             onChange={(event) => void handleFilesSelected(event)}
           />
-          <Button className="w-full" onClick={handlePickFiles}>
+          <Button className="w-full" onClick={handlePickFiles} disabled={ingestSubmitting}>
             <Upload className="h-4 w-4" /> 上传入库
           </Button>
           <Button
@@ -250,6 +344,19 @@ export default function DocumentsPage() {
           </tbody>
         </table>
       </Card>
+
+      <IngestConfigModal
+        open={configOpen}
+        onOpenChange={setConfigOpen}
+        files={pendingFiles}
+        loaderHint={loaderHint}
+        chunking={chunking}
+        loading={configLoading}
+        submitting={ingestSubmitting}
+        onLoaderChange={handleLoaderChange}
+        onChunkingChange={setChunking}
+        onConfirm={() => void handleStartIngest()}
+      />
 
       {ingestOpen ? (
         <div className="fixed inset-0 z-50">
