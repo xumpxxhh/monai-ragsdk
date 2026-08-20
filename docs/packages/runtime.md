@@ -1,9 +1,9 @@
 # `@monai-ragsdk/runtime` — 现状
 
-> 快照：**2026-08-19** · 状态：**可用**（契约切片 A–G 已收口；query routing 已落地）
+> 快照：**2026-08-20** · 状态：**可用**（四段 pipeline、routeDecision、官方装配）
 > 源码：`packages/runtime/` · 用法：[README](../../packages/runtime/README.md)
 > 回：[routing.md](./routing.md)
-> 契约修复过程：[ai-handoff.md](../context/ai-handoff.md)
+> 历史修复记录（可选）：[ai-handoff.md](../context/ai-handoff.md)
 
 ## 1. 定位
 
@@ -21,6 +21,7 @@
 - 不做答案内标记解析。
 - 不补 Chroma 查询，不新增第二查询路径。
 - 不要为 CLI / 控制台体验回头改本包边界。
+- 不删 `route` / `strategy` / `indexingMode` 等历史字段；`iterative` 路由形态不在公开类型中。
 
 ## 3. 运行入口
 
@@ -41,6 +42,8 @@
 
 实现 `RuntimeRetriever` 时从 **`@monai-ragsdk/runtime/contract`** 引用 `createIndexingRetrievalCandidate`、`filterRetrievalCandidatesByIndexingFilters`、`fuseByReciprocalRankFusion`、`enforceRetrievalRequestFilters`。这些符号已从包根撤出。
 
+条数语义：`budget.maxChunks` 为权威；`topK` 为单向别名（写入 budget，不反向覆盖）。
+
 ## 4. 各阶段现状
 
 ### 4.1 Pre-retrieval
@@ -55,20 +58,20 @@
 | `multi-query` | 同一意图多种措辞 | FanOut 多路 |
 | `query-routing` | 写出 `routeDecision`（targets / skip / searchType）以及可选 `route` / budget / filters | FanOut 消费 targets/skip；pgvector 消费 searchType；`route` 仍是 debug |
 
-LLM 策略默认失败透传（`onError: 'throw'` 可硬失败）。空 `effectiveQuery` 不调模型（切片 G）。routing 没有可用 route **且没有** `routeDecision` 时整单透传，不写 `rewriteReason`。工厂：`createLlmRoutingStrategy` / `createRuleBasedRoutingStrategy`；`createQueryRoutingStrategy` 仍可用（内部 `LlmRoutingResolver`）。
+LLM 策略默认失败透传（`onError: 'throw'` 可硬失败）。空 `effectiveQuery` 不调模型。routing 没有可用 route **且没有** `routeDecision` 时整单透传，不写 `rewriteReason`。工厂：`createLlmRoutingStrategy` / `createRuleBasedRoutingStrategy`；`createQueryRoutingStrategy` 仍可用（内部 `LlmRoutingResolver`）。
 
 ### 4.2 Retrieval
 
 - `FanOutRetriever` 读 `subQueries` 与 `routeDecision`。无 subQueries 且无 targets 时退化为只调 `#retrievers[0]`。`retrievalMode: skip` 或 `targets: []` 或不匹配的 targets：**不调子 retriever**，`candidates: []`，`retrievalMetadata.skipped: true`，禁止回退 `[0]`。
-- 编排层在 retrieve **之后**调用 `enforceRetrievalRequestFilters`（切片 D）。langchain 的 `filterByRequest: false` 只表示 adapter 不预过滤，runtime 仍强制过滤。
+- 编排层在 retrieve **之后**调用 `enforceRetrievalRequestFilters`。langchain 的 `filterByRequest: false` 只表示 adapter 不预过滤，runtime 仍强制过滤。
 - `RuntimeRetriever` 可选 `id` / `name` / `capabilities.searchTypes` / `close()`。pgvector 默认 `id: pgvector`、`searchTypes: ['vector', 'keyword', 'hybrid']`，并按 `routeDecision.searchType` 切换召回。
-- `RetrievalRequest.routeDecision` 已落地。searchType 原样下传，FanOut 不改融合算法。
+- `RetrievalRequest.routeDecision` 由 query-routing 写入；searchType 原样下传，FanOut 不改融合算法。
 
 ### 4.3 Post-retrieval
 
 已有策略：score-threshold、predicate、near-duplicate、budget-trim、source-coverage、candidate-ordering、llm-rerank、context-compression、lost-in-the-middle。
 
-切片 A 正确性：
+**分数口径与阈值：**
 
 - `RetrievalCandidate.scoreKind`：`retriever` | `rrf` | `llm`
 - 阈值：无 kind / 混口径 / `expectedScoreKind` 不符 → **拒绝比较、整批透传**，不静默全丢
@@ -98,25 +101,11 @@ LLM 策略默认失败透传（`onError: 'throw'` 可硬失败）。空 `effecti
 
 - `ingest` → 临时 in-memory Loader → `runIndexing`
 - `search` / `ask` → runtime
-- `listSources` / `deleteByFilters` / `close`：store 未实现对应方法时返回空 / `false`，不当错误抛出
+- `listSources` / `deleteByFilters` / `close`：直接探测 store 可选方法；未实现时返回空 / `false`，不当错误抛出
 
 不要新开 kb 包，也不要在这里扩展完整文档生命周期。
 
-## 6. 契约切片 A–G（已完成）
-
-| 切片 | 结果 |
-| --- | --- |
-| A | score 口径下沉到 candidate；阈值按口径拒绝；llm-rerank 正确性 |
-| B | generation 无依据成因信号 |
-| C | `budget.maxChunks` 为权威条数；`topK` 单向别名；死字段未删、只标职责 |
-| D | Retriever 身份 / 能力 / close；filters 强制点 |
-| E | `createRuntimeFromConfig` + 官方 post 顺序 |
-| F | 包根显式导出；`./contract` 子路径 |
-| G | collection 能力探测、passthrough 判定、appliedStrategies、routing 失败卫生 |
-
-**未做（故意）：** 拆 `run-runtime.ts`、收窄后改 `exports.spec.ts` 的 src/dist `toEqual` 语义（仍对齐键集合）、删除死字段、`iterative` / Active RAG。
-
-## 7. 关键入口
+## 6. 关键入口
 
 | 路径 | 职责 |
 | --- | --- |
@@ -131,9 +120,7 @@ LLM 策略默认失败透传（`onError: 'throw'` 可硬失败）。空 `effecti
 | `src/collection/create-collection.ts` | 门面 MVP |
 | `src/observation/` | 内部打点（不从包根泄漏） |
 
-## 8. 测试
-
-切片 G 后 runtime 单测 **101**；query routing 升级后 **108**。相关包验证：
+## 7. 测试
 
 ```powershell
 pnpm --filter @monai-ragsdk/runtime build
@@ -142,7 +129,7 @@ pnpm --filter @monai-ragsdk/runtime test
 
 adapters 依赖 runtime 的 `/contract` 类型，改 runtime 后需先 build 再跑 adapters 测试。
 
-## 9. 残留风险（改本包前必读）
+## 8. 残留风险（改本包前必读）
 
 - 手写 candidate 只给 `score` 不给 `scoreKind` 时，阈值拒绝比较（全留）。这是故意的。
 - 阈值与口径匹配仍靠调用方；未设 `expectedScoreKind` 时，同口径按绝对值比（RRF 配 0.2 仍会全丢）。
@@ -151,15 +138,16 @@ adapters 依赖 runtime 的 `/contract` 类型，改 runtime 后需先 build 再
 - `mergeSelectionTrace` 按 chunkId 覆盖，无法还原完整决策链。
 - 包外若仍从包根 import `applyScoreThresholdStrategy` 等内部 helper 会编译失败。
 - 死字段仍在：`route` / `strategy` / `indexingMode` / `metadata` / `rerank.topK`（debug 或未消费）。
+- `run-runtime.ts` 尚未拆分；`exports.spec.ts` 仍用 src/dist 键集合 `toEqual` 对齐。
 
-## 10. 下一刀（本包）
+## 9. 已知缺口
 
 1. 工程：拆 `run-runtime.ts`；与 core 双接口；selectionTrace 历史
 2. 产品：内置 generator 消费 `grounding`（无依据拒答 vs 用模型知识）
 
-**不要**把 Active RAG 解冻当默认下一刀。
+Active RAG 仍在冻结范围，不作为默认改进项。
 
-## 11. 关联
+## 10. 关联
 
 - [kernel-contract-defects.md](../decisions/kernel-contract-defects.md) — 病根归档（部分症状已修，文档状态仍可能写「草案」）
 - [query-routing-semantics.md](../decisions/query-routing-semantics.md)

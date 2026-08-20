@@ -29,15 +29,16 @@
 | PUT | `/api/v1/collections/:id` | 更新名称 / 描述 |
 | DELETE | `/api/v1/collections/:id` | 删除知识库（含向量表） |
 | GET | `/api/v1/collections/:id/documents` | 文档源列表 |
-| POST | `/api/v1/collections/:id/ingest` | 启动入库（异步任务） |
+| POST | `/api/v1/collections/:id/ingest/recommend` | 入库配置推荐（chunking / loaderHint） |
+| POST | `/api/v1/collections/:id/ingest` | 启动入库（异步任务；可选 `chunking`） |
 | GET | `/api/v1/collections/:id/ingest/:taskId` | 轮询入库进度 |
 | GET | `/api/v1/collections/:id/ingest/latest` | 最近一次入库摘要 |
 | POST | `/api/v1/collections/:id/documents/:documentId/retry` | 按登记原文重试入库 |
 | DELETE | `/api/v1/collections/:id/documents/:documentId` | 删除文档源 |
-| POST | `/api/v1/collections/:id/search` | 仅检索 |
-| POST | `/api/v1/collections/:id/ask` | 流式问答（SSE） |
-| GET | `/api/v1/collections/:id/strategy` | 读取策略 |
-| PUT | `/api/v1/collections/:id/strategy` | 保存策略并重建 runtime |
+| POST | `/api/v1/search` | 全局检索（可选 `collectionIds`） |
+| POST | `/api/v1/ask` | 全局流式问答（SSE；可选 `collectionIds`） |
+| GET | `/api/v1/strategy` | 读取全局策略 |
+| PUT | `/api/v1/strategy` | 保存全局策略 |
 | GET | `/api/v1/collections/:id/dashboard` | 工作台统计 |
 | GET | `/api/v1/activities` | 最近活动 |
 | GET | `/api/v1/traces/ask` | 问答轨迹列表 |
@@ -143,6 +144,28 @@
 
 **响应 `200`**：`Paginated<DocumentSource>`（不含原文 `content`）
 
+### `POST .../ingest/recommend`
+
+根据文档 metadata（标题扩展名 / `mimeType`）返回推荐入库配置。只读，不执行 ingest。
+
+**请求体**
+
+```json
+{
+  "documents": [{ "metadata": { "title": "手册.md", "mimeType": "text/markdown" } }]
+}
+```
+
+**响应 `200`**：`IngestRecommendation`
+
+```json
+{
+  "chunking": { "strategy": "heading" },
+  "loaderHint": "text/markdown",
+  "mode": "incremental"
+}
+```
+
 ### `POST .../ingest`
 
 异步入库：立即返回 `taskId`，后台跑 indexing。同一知识库同时只能有一个入库任务。
@@ -161,7 +184,12 @@
       }
     }
   ],
-  "mode": "incremental"
+  "mode": "incremental",
+  "chunking": {
+    "strategy": "fixed",
+    "chunkSize": 500,
+    "overlap": 50
+  }
 }
 ```
 
@@ -169,6 +197,8 @@
 | --- | --- |
 | `documents` | 文本文档数组；空内容会被过滤，全空则任务失败 |
 | `mode` | 可选，覆盖库默认 `ingestMode` |
+| `chunking.strategy` | 可选：`fixed`（默认）\| `heading` \| `parent-child` |
+| `chunking.chunkSize` / `overlap` | 仅 `strategy=fixed` 时有效；默认 500 / 50 |
 
 **响应 `202`**
 
@@ -221,52 +251,48 @@
 
 ---
 
-## 检索与问答
+## 检索与问答（全局）
 
-### `POST .../search`
+> **破坏性变更（2026-08-20）**：已删除 `POST .../collections/:id/ask|search|strategy`。  
+> 前端迁移见 [web-followup.md](./web-followup.md)。
+
+### `POST /api/v1/search`
 
 **请求体**
 
 ```json
 {
   "query": "退货时效是多久？",
-  "topK": 10
+  "topK": 10,
+  "collectionIds": ["kb-uuid-optional"]
 }
 ```
 
 | 字段 | 说明 |
 | --- | --- |
 | `query` | 必填 |
-| `topK` | 可选；缺省用该库策略 `retrieval.topK` |
+| `topK` | 可选；缺省用全局策略 `retrieval.topK` |
+| `collectionIds` | 可选；不传则检索全部已注册知识库 |
 
-**响应 `200`**：`SearchResult`
+**响应 `200`**：`SearchResult`（与旧单库 search 同构）
 
-```json
-{
-  "query": "退货时效是多久？",
-  "effectiveQuery": "可选，改写后的查询",
-  "hits": [
-    {
-      "rank": 1,
-      "sourceId": "退货政策.md",
-      "title": "退货政策.md",
-      "score": 0.92,
-      "snippet": "…"
-    }
-  ],
-  "appliedFilters": []
-}
-```
-
-### `POST .../ask`（SSE）
+### `POST /api/v1/ask`（SSE）
 
 流式问答。请求头建议：`Accept: text/event-stream`。
 
 **请求体**
 
 ```json
-{ "question": "退货时效是多久？" }
+{
+  "question": "退货时效是多久？",
+  "collectionIds": ["kb-uuid-optional"]
+}
 ```
+
+| 字段 | 说明 |
+| --- | --- |
+| `question` | 必填 |
+| `collectionIds` | 可选；不传则跨全部已注册知识库 |
 
 **响应**：`text/event-stream`，每行形如 `data: <json>\n\n`。
 
@@ -295,17 +321,17 @@
 
 ---
 
-## 策略
+## 策略（全局）
 
-### `GET .../strategy`
+### `GET /api/v1/strategy`
 
-**响应 `200`**：`StrategyConfig`
+**响应 `200`**：`StrategyConfig`（`collectionId` 为 `'global'`）
 
-### `PUT .../strategy`
+### `PUT /api/v1/strategy`
 
-**请求体**：完整 `StrategyConfig`（须含 `collectionId` 等字段；服务端会强制写回当前 `:id`）。
+**请求体**：完整 `StrategyConfig`；服务端强制 `collectionId: 'global'`。
 
-保存后按开关重建该库 runtime（pre / retrieval / post 策略链）。`generation.activeRag` 可写入但不生效（路线图冻结）。
+保存后影响后续全部 `/api/v1/ask` 与 `/api/v1/search`。`generation.activeRag` 可写入但不生效（路线图冻结）。
 
 **响应 `200`**：更新后的 `StrategyConfig`
 
@@ -411,6 +437,7 @@
 ## 实现边界（当前版本）
 
 - 无认证 / 多租户；角色视图仍由前端 localStorage 控制。
-- 入库只接受 JSON 文本正文，不做 PDF 解析或目录同步。
+- 入库只接受 JSON 文本正文，不做 PDF 解析或目录同步；可通过 `ingest/recommend` 获取 chunking 建议。
+- ask/search 为全局路由；跨库检索默认 FanOut 全部已注册知识库。
 - 活动与 ask/ingest 轨迹为**进程内缓冲**，重启丢失；知识库元数据落 `apps/server/data/state.json`，向量在 pgvector。
 - 不另开知识库 package，不扩展完整文档生命周期。

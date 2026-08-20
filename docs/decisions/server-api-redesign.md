@@ -1,9 +1,9 @@
 # Server API 重设计
 
-> 状态：**草案**
-> 日期：2026-08-19
-> 范围：`apps/server` API 层
-> 关联：Query Routing 内核语义偏移问题（独立议题，见末尾说明）
+> 状态：**server 已落地**（2026-08-20）；web 待跟进 [web-followup.md](../server/web-followup.md)
+> 日期：2026-08-20（内核快照对齐 [routing.md](../packages/routing.md)）
+> 范围：`apps/server` API 层 + `apps/web` 问答 / 检索 / 策略页（破坏性同期改造）
+> 关联：Query Routing 内核升级（[query-routing-upgrade.md](./query-routing-upgrade.md)，**已落地**）；语义归档（[query-routing-semantics.md](./query-routing-semantics.md)）
 
 ---
 
@@ -28,6 +28,8 @@ POST /api/v1/collections/:id/search
 - 前端必须在 UI 层实现"选库"交互，增加用户认知负担
 - 与 RAG 领域"Query Routing 自动决定检索源"的标准实践相悖
 
+**前端同样绑死在旧模型上**：`apps/web` 以「先选知识库再提问」为主路径，API client、路由与页面状态都假设 ask/search 挂在 `/collections/:id` 下。继续保留旧接口只会固化这套交互，与 server 全局化方向冲突。**本次采用破坏性变更**：删除单库 ask/search，server 与 web 同期改造。
+
 ### 问题 2：ingest 切分策略硬编码
 
 当前 `apps/server/src/services/collection-registry.ts` 中 `ensureHandle()` 的 indexing 配置：
@@ -41,15 +43,17 @@ const indexingBase: Omit<IndexingOptions, 'loader'> = {
 
 `chunkSize=500`、`overlap=50` 完全硬编码，用户无法根据文档类型、长度、领域特征调整切分策略。不同文档（长篇技术文档 vs 短 FAQ vs 结构化 Markdown）适合的切分粒度差异很大，一刀切会显著影响检索质量。
 
-同时，`Loader` 层虽然 SDK 已预留接口（`packages/indexing/src/loaders/loader.ts`），但 server 层没有任何 loader 选择或推荐机制。
+同时，内核与 adapters 已提供多种 Chunker / Loader，但 server 层没有任何选择或推荐机制，仍固定 `SimpleChunker` + 纯文本 JSON ingest。
 
 ---
 
-## SDK 层能力现状
+## SDK 层能力现状（2026-08-20）
 
-在制定 server 改造方案前，先确认 SDK 内核已具备的能力，**本次改造不涉及 SDK 层变更**。
+在制定 server 改造方案前，先确认 SDK 内核**当前**已具备的能力。**本次 server 改造仍不强制改 SDK**，但设计应利用已落地能力，避免重复发明。
 
-### FanOutRetriever（多路检索 + RRF 融合）
+内核快照详见 [routing.md](../packages/routing.md) 及各包页（[indexing](../packages/indexing.md) / [runtime](../packages/runtime.md) / [adapters](../packages/adapters.md)）。
+
+### FanOutRetriever（多路检索 + RRF 融合 + routeDecision 消费）
 
 `packages/runtime/src/stages/retrieval/fan-out-retriever.ts`：
 
@@ -63,42 +67,83 @@ export type FanOutRetrieverOptions = {
 };
 ```
 
-- 已支持传入 `retrievers: RuntimeRetriever[]`，对每个子查询并发调用全部 retriever，用 RRF 融合结果
-- 无 subQueries 时退化为单 retriever 单次检索
-- `RuntimeRetriever` 接口极简（单方法 `retrieve(request, context)`），任何满足签名的对象均可接入
+当前行为（[runtime.md](../packages/runtime.md) §4.2；实现见 [query-routing-upgrade.md](./query-routing-upgrade.md)）：
 
-**结论**：server 层只需为每个目标知识库构建各自的 `PgVectorRuntimeRetrieverAdapter`，用 `FanOutRetriever` 包装即可实现多库并发检索。
+- 读 `subQueries`：对每个子查询并发调用全部（或 targets 过滤后的）retriever，RRF 融合
+- 读 `routeDecision.targets`：按子 retriever 的 `id` 过滤；**无匹配时不回退 `[0]`**，等同 skip
+- 读 `routeDecision.retrievalMode === 'skip'` 或 `targets: []`：不调子 retriever，`retrievalMetadata.skipped: true`
+- 无 `subQueries` 且无 `routeDecision.targets` 时退化为只调 `#retrievers[0]`
+- `RuntimeRetriever` 可选 `id` / `name` / `capabilities.searchTypes` / `close()`
 
-### createQueryRoutingStrategy（语义路由标签）
+**结论**：server 为每个目标知识库构建 `PgVectorRuntimeRetrieverAdapter` 并设 `id`（建议用 collectionId），用 `FanOutRetriever({ retrievers: [...] })` 包装即可实现多库并发检索；若启用 query-routing 且 resolver 产出 `targets`，内核可进一步按 id 选库，无需 server 再写一套分发逻辑。
 
-`packages/runtime/src/stages/pre-retrieval/strategies/query-routing-strategy.ts`：
+### Query Routing（routeDecision 已落地）
 
-- 用 LLM 生成 `request.route`（字符串标签，如 `conceptual` / `factual`）
-- 可选输出 `topK`、`budget`、`filters`
-- **不负责选择 retriever 或知识库**——只给 request 打标签
+[query-routing-upgrade.md](./query-routing-upgrade.md) **已落地**。`query-routing` 策略经 `RoutingResolver` 写出结构化 `request.routeDecision`：
 
-**结论**：当前 Query Routing 做的是"查询类型分类"，不是"检索源选择"。这个职责划分在本次 server API 改造中是合理的（server 层自行处理库级路由），但其语义是否偏移了 Query Routing 的标准定义，需要另开文档讨论。
+| 字段 | 含义 | 消费方 |
+| --- | --- | --- |
+| `targets?: string[]` | 匹配子 retriever 的 `id` | FanOut 过滤召回目标 |
+| `retrievalMode?: 'skip' \| 'single'` | 是否跳过检索 | FanOut；generation 写 `grounding.chunksEmptyReason: 'skipped'` |
+| `searchType?: 'vector' \| 'keyword' \| 'hybrid'` | 召回形态 | pgvector adapter 切换向量 / 关键词 / 双路 RRF |
 
-### Chunker / Loader
+附加产出仍保留：`budget` / `filters`；`request.route` 仅为 debug，**不是**选路键。
 
-- `SimpleChunker`：唯一的切分器实现，参数为 `chunkSize` / `overlap`（固定字符窗口滑动）
-- `Loader`：仅有接口定义（`packages/indexing/src/loaders/loader.ts`），无内置实现
-- `IndexingOptions.chunker` 是可选字段，可以在每次 ingest 时传入不同实例
+工厂：`createLlmRoutingStrategy` / `createRuleBasedRoutingStrategy`；`createQueryRoutingStrategy` 仍可用（内部走 `LlmRoutingResolver`）。
 
-**结论**：server 层可以按用户参数动态构建 `SimpleChunker`，不需要改 SDK。Loader 推荐目前只能做信息性提示。
+**结论**：
+
+- 单库场景：routing 可切换 pgvector 的 dense / sparse / hybrid，或 skip 检索
+- 多库场景：若各库 retriever 设了 `id`，routing 的 `targets` 可实现**库级选路**——前提是 server 在 resolver 的 `availableTargets` 中注册 collection id，并在 FanOut 中挂载对应 retriever
+- server 当前 `pipeline-factory.ts` 仍手拼策略且 post 顺序与官方 `createRuntimeFromConfig` 不一致（rerank 在 threshold 之后）；全局 ask/search 改造时建议评估是否迁到 `createRuntimeFromConfig`，但不在本文档强制范围
+
+### Chunker / Loader / 装配入口
+
+**indexing 内置**（[indexing.md](../packages/indexing.md) §4）：
+
+| 角色 | 内置实现 |
+| --- | --- |
+| Chunker | `SimpleChunker`（默认 500 / 50）、`HeadingBasedChunker`、`ParentChildChunker` |
+| ChunkTransformer | `ContextualHeaderTransformer` |
+| Loader | **无**（仅契约：`packages/indexing/src/stages/load/loader.ts`） |
+
+**adapters LangChain**（[adapters.md](../packages/adapters.md) §5）——应用层接入，indexing 不重复实现：
+
+- Loader：directory、markdown directory、PDF、Web URL、Cheerio HTML、通用 loader adapter
+- Chunker：recursive character、markdown、token、semantic、language（代码感知）、sentence + presets
+
+`IndexingOptions.chunker` 为可选字段，每次 ingest 可传入不同 Chunker 实例（内核或 adapters 适配器均可）。
+
+**结论**：
+
+- server 层可按用户参数动态构建 `SimpleChunker`（最小改动），或按文档类型推荐 / 选用 `HeadingBasedChunker`、`ParentChildChunker` 或 adapters LangChain chunker——**均不需要改 indexing 内核**
+- Loader 真实实现已在 adapters；server ingest 若从纯文本 JSON 扩展到文件路径 / 上传，应通过 adapters 接入，而非在 server 内重写解析
+
+### createRuntimeFromConfig（官方推荐装配）
+
+`createRuntimeFromConfig()` 为 runtime 官方装配入口：默认包一层 FanOut、官方 post-retrieval 顺序（`llm-rerank → score-threshold → …`）。server 当前仍用 `buildRuntime()` 手拼；Wiki 建议改 server 时优先对齐此 API（[routing.md](../packages/routing.md) 横切事实 §3）。
 
 ---
 
-## 决策 1：全局 ask / search
+## 决策 1：全局 ask / search（破坏性变更）
 
-### 新增路由
+### 路由
+
+**唯一**问答 / 检索入口：
 
 ```
-POST /api/v1/ask          — 全局流式问答（SSE）
-POST /api/v1/search       — 全局检索
+POST /api/v1/ask          — 流式问答（SSE）
+POST /api/v1/search       — 检索
 ```
 
-旧的 `/api/v1/collections/:id/ask` 和 `/api/v1/collections/:id/search` 暂时保留，确保现有前端（`apps/web`）不被破坏。
+**删除**（不再提供兼容层）：
+
+```
+POST /api/v1/collections/:id/ask      — 移除
+POST /api/v1/collections/:id/search   — 移除
+```
+
+单库场景通过请求体 `collectionIds: [id]` 表达，不再从 URL path 绑定知识库。旧 path 请求应返回 `404` 或明确的 `410 Gone`（实现时二选一并在 API 文档写明）。
 
 ### 请求体
 
@@ -126,33 +171,48 @@ flowchart TD
   Resolve -->|"collectionIds 有值"| Selected["指定的知识库"]
   All --> EnsureHandles["为每个库 ensureHandle"]
   Selected --> EnsureHandles
-  EnsureHandles --> Retrievers["收集各库的 retriever"]
+  EnsureHandles --> Retrievers["收集各库 retriever\n每个设 id = collectionId"]
   Retrievers --> FanOut["new FanOutRetriever\nretrievers 数组"]
-  FanOut --> BuildRT["buildRuntime\n传入 FanOutRetriever"]
-  BuildRT --> Execute["runtime.runStream / search"]
+  FanOut --> BuildRT["buildRuntime / createRuntimeFromConfig\n传入 FanOutRetriever"]
+  BuildRT --> Pre["pre-retrieval\n可选 query-routing → routeDecision.targets"]
+  Pre --> Execute["runtime.runStream / search"]
 ```
 
 核心新增函数：
 
 - `buildGlobalRuntime(collectionIds?: string[])`：在 `collection-registry.ts` 中实现
   - 对每个目标库调 `ensureHandle(id)` 拿到各自的 `PgVectorRuntimeRetrieverAdapter`
+  - **为每个 retriever 设置 `id: collectionId`**，以便 FanOut / query-routing 的 `targets` 能按库过滤
   - 用 `new FanOutRetriever({ retrievers: [...] })` 包装
-  - 调 `buildRuntime(...)` 组装完整 runtime
+  - 调 `buildRuntime(...)`（或后续迁到 `createRuntimeFromConfig`）组装完整 runtime
 
-### 全局策略
+### 策略模型
 
-跨多库时，每个库可能有不同的 `StrategyConfig`（pre-retrieval / post-retrieval 开关不同）。方案：
+ask / search 统一走**全局策略**；不再按 URL 中的 collectionId 加载 per-collection strategy。
 
-- 新增一个"全局默认策略"（类似 `defaultStrategy('global')`），作为跨库 ask/search 的基准策略
-- 用户后续可通过 `PUT /api/v1/strategy`（不带 collectionId）配置全局策略
-- 单库 ask（旧接口）仍用该库自己的 strategy，行为不变
+- 新增 `defaultStrategy('global')`，作为 `/api/v1/ask` 与 `/api/v1/search` 的唯一策略来源
+- 用户通过 `PUT /api/v1/strategy`（不带 collectionId）配置全局策略
+- 各知识库仍可保留独立的 ingest / 文档管理配置；**仅查询链路**不再分叉 per-collection strategy（避免多库 FanOut 时策略语义不清）
 
-### SSE 逻辑复用
+启用全局 routing 时，resolver 的 `availableTargets` 应列出当前 FanOut 中各 retriever 的 `id`（即 collectionId），LLM 方可产出有意义的 `routeDecision.targets`。
 
-当前 SSE 流式问答逻辑写死在 `routes/documents.ts` 的 `/ask` 路由里。改造时需要：
+### 前端配套改造（`apps/web`）
 
-- 将 SSE 写入 + trace 记录逻辑提取为共享函数
-- 全局 `/api/v1/ask` 和单库 `/api/v1/collections/:id/ask` 共用该函数
+与 server 同期交付，不另开兼容期：
+
+| 现状 | 目标 |
+| --- | --- |
+| 必须先进入某 collection 再 ask | 默认全局问答；`collectionIds` 为可选收窄范围 |
+| API 调用 `/collections/:id/ask` | 改为 `POST /api/v1/ask`，必要时 body 传 `collectionIds` |
+| 选库作为主路径 UI | 降为高级选项 / 筛选器，或交给 routing 自动选库 |
+| 策略页绑定单库 | 对齐全局 `PUT /api/v1/strategy` |
+
+### SSE 实现
+
+当前 SSE 逻辑写在 `routes/documents.ts` 的旧 `/ask` 路由里。改造时：
+
+- 将 SSE 写入 + trace 记录提取为共享函数（如 `services/ask-stream.ts`）
+- 仅 `/api/v1/ask` 消费；从 `documents.ts` 移除 ask/search 路由
 
 ---
 
@@ -167,14 +227,18 @@ flowchart TD
   documents: IngestDocumentInput[];
   mode?: IngestMode;
   chunking?: {
-    chunkSize?: number;    // 默认 500
-    overlap?: number;      // 默认 50
+    strategy?: 'fixed' | 'heading' | 'parent-child';  // 默认 'fixed'
+    chunkSize?: number;    // strategy='fixed' 时默认 500
+    overlap?: number;      // strategy='fixed' 时默认 50
   };
 }
 ```
 
-- `chunking` 不传时使用现有默认值（向后兼容）
-- 传入时用参数动态构建 `SimpleChunker` 实例，不再使用 `ensureHandle` 中硬编码的默认 chunker
+- `chunking` 不传时使用现有默认值（`SimpleChunker` 500 / 50，向后兼容）
+- `strategy: 'fixed'`：动态构建 `SimpleChunker`
+- `strategy: 'heading'`：使用 indexing 内置 `HeadingBasedChunker`（适合 Markdown / 标题结构文档）
+- `strategy: 'parent-child'`：使用 `ParentChildChunker`（section 为 parent，段内再切 child）
+- LangChain 切分器（recursive / markdown / token / semantic 等）可作为**后续 server 扩展**：通过 adapters 接入，本期可不暴露全部 preset
 
 ### Loader 推荐接口
 
@@ -190,7 +254,7 @@ POST /api/v1/collections/:id/ingest/recommend
 
 ```typescript
 {
-  documents: Array<{ id?: string; metadata?: { title?: string } }>;
+  documents: Array<{ id?: string; metadata?: { title?: string; mimeType?: string } }>;
 }
 ```
 
@@ -198,15 +262,19 @@ POST /api/v1/collections/:id/ingest/recommend
 
 ```typescript
 {
-  chunking: { chunkSize: number; overlap: number };
-  loaderHint: string;   // 如 "text/plain", "text/markdown"
+  chunking: {
+    strategy: 'fixed' | 'heading' | 'parent-child';
+    chunkSize?: number;
+    overlap?: number;
+  };
+  loaderHint: string;   // 如 "text/plain", "text/markdown", "application/pdf"
   mode: IngestMode;
 }
 ```
 
-根据文档 metadata 中的文件扩展名（`.md` / `.txt` / `.pdf` 等）返回推荐配置。前端可展示推荐值供用户确认/调整。
+根据文档 metadata 中的扩展名 / mimeType（`.md` / `.txt` / `.pdf` 等）返回推荐配置。例如 Markdown 推荐 `strategy: 'heading'` 或 `parent-child`；纯文本推荐 `fixed`。前端可展示推荐值供用户确认/调整。
 
-**后续期**：当 `packages/indexing` 有真实 Loader 实现（FileLoader、MarkdownLoader 等）后，server 层按推荐自动选择 loader，ingest 接口可接受文件上传。
+**后续期**：ingest 接受文件路径或上传时，按推荐选用 [adapters LangChain Loader](../packages/adapters.md)（PDF / Web / directory 等），不再在 server 内实现解析逻辑。
 
 ---
 
@@ -216,40 +284,50 @@ POST /api/v1/collections/:id/ingest/recommend
 
 | 文件 | 操作 |
 | --- | --- |
-| `apps/server/src/routes/ask.ts` | 新建：全局 ask 路由（SSE） |
-| `apps/server/src/routes/search.ts` | 新建：全局 search 路由 |
-| `apps/server/src/routes/documents.ts` | 保留旧 ask/search（兼容）；提取 SSE 逻辑为共享函数 |
-| `apps/server/src/services/collection-registry.ts` | 新增 `buildGlobalRuntime`；`ingestDocuments` 接受 `chunking` 参数 |
-| `apps/server/src/services/pipeline-factory.ts` | 无改动（`buildRuntime` 已支持传入任意 `RuntimeRetriever`） |
-| `apps/server/src/app.ts` | 挂载新路由 |
+| `apps/server/src/routes/ask.ts` | 新建：`POST /api/v1/ask`（SSE） |
+| `apps/server/src/routes/search.ts` | 新建：`POST /api/v1/search` |
+| `apps/server/src/routes/documents.ts` | **删除** ask/search 路由；ingest 等文档接口保留 |
+| `apps/server/src/services/ask-stream.ts`（或同等） | 从 documents 提取 SSE + trace 共享逻辑 |
+| `apps/server/src/services/collection-registry.ts` | 新增 `buildGlobalRuntime`；retriever 设 `id`；`ingestDocuments` 接受 `chunking` 参数 |
+| `apps/server/src/services/pipeline-factory.ts` | 可选：评估迁到 `createRuntimeFromConfig`；本次至少保证 FanOut 多 retriever 可传入 |
+| `apps/server/src/app.ts` | 挂载新路由；移除旧 ask/search 挂载 |
 | `apps/server/src/types/api.ts` | 新增 `ChunkingConfig` / `IngestRecommendation` 等类型 |
-| `docs/server/api.md` | 补充新接口文档 |
+| `apps/web/**` | API client、问答页、策略页对齐全局接口（破坏性） |
+| `docs/server/api.md` | 新接口文档；标注已删除的旧 path |
 
 ---
 
 ## 不做的事
 
-- 不改 SDK 层（`packages/runtime` / `packages/indexing` / `packages/adapters`）
-- 不改前端（`apps/web`）—— 旧接口保留兼容
-- 不新增 Loader 实现（`packages/indexing` 当前只有接口）
-- 不实现"按语义 route 标签自动选库"的路由（这依赖 Query Routing 内核语义的重新定义，见下节）
-- 不在本次改造中引入新依赖
+- 不改 SDK 层契约（`packages/runtime` / `packages/indexing` / `packages/adapters` 现有公开 API）
+- 不提供旧 ask/search path 的兼容层、适配器或 deprecation 双轨期
+- 不在 server 内新增 Loader / Chunker 实现（解析与 LangChain 切分走 adapters；结构切分用 indexing 内置）
+- 不在本次改造中实现完整文件上传管线（推荐接口 + 可配置 chunking 为先；Loader 自动选择留后续期）
+- 不在本次改造中强制迁移 `pipeline-factory` 到 `createRuntimeFromConfig`（建议项，非阻塞）
+- 不在本次改造中引入新 npm 依赖
 
 ---
 
-## 与 Query Routing 内核偏移问题的关系
+## 与 Query Routing 内核升级的关系
 
-当前 `createQueryRoutingStrategy`（`packages/runtime/src/stages/pre-retrieval/strategies/query-routing-strategy.ts`）的行为是：
+2026-08-19 起，内核已完成 Query Routing 语义升级（[query-routing-upgrade.md](./query-routing-upgrade.md)，状态 **已落地**）：
 
-- 用 LLM 根据问题生成一个 `route` 字符串标签（如 `conceptual` / `factual`）
-- 可选输出 `topK` / `budget` / `filters`
-- 标签写入 `request.route`，供下游 retriever / postprocessor 读取
+- pre-retrieval 产出 `routeDecision`（`targets` / `skip` / `searchType`），下游**必须**改变检索路径
+- FanOut 按 `targets` 过滤子 retriever；无匹配或 skip 时不回退默认 retriever
+- pgvector 按 `searchType` 切换 vector / keyword / hybrid
+- `request.route` 保留为 debug
 
-在 RAG 领域的标准定义中，**Query Routing** 通常指"根据查询特征选择不同的检索源/索引/知识库"，而不仅仅是打一个语义分类标签。当前实现更接近"Query Classification"或"Intent Detection"。
+方向性决策归档见 [query-routing-semantics.md](./query-routing-semantics.md)（状态草案；其中「内核必须做真正路由」已通过 upgrade 文档落地）。
 
-这个偏移影响：
+### 对本次 server 改造的影响
 
-- 当前 server 的全局 ask/search 改造不依赖 Query Routing 做库级分发（server 层自行处理），所以本次改造不受阻
-- 但如果后续要实现"LLM 自动决定查哪些库"，则需要重新审视 Query Routing 的职责定义
+| 场景 | 行为 |
+| --- | --- |
+| 用户显式传 `collectionIds` | server 层 `resolveTargetCollections` 决定 FanOut 成员；与 routing 无关 |
+| 不传 `collectionIds`，routing 关闭 | FanOut 召回全部已注册库（当前默认策略 `routing: false`） |
+| 不传 `collectionIds`，routing 开启 | 若各库 retriever `id === collectionId` 且 resolver 配置了 `availableTargets`，LLM 可通过 `routeDecision.targets` **自动选库**；server 需同步维护 targets 列表 |
+| 单库收窄 | `collectionIds: [id]`，与旧 path 单库语义等价，但策略仍走全局配置 |
 
-**建议**：Query Routing 内核语义问题作为独立决策文档另行讨论，文件建议为 `docs/decisions/query-routing-semantics.md`。
+**本次 server 改造不依赖 routing 做库级分发也能交付**（`collectionIds` + FanOut 全库召回即可），但 retriever `id` 与全局 routing 配置应一并设计，避免后续再接 routing 时返工。
+
+Semantic / embedding 路由、Adaptive RAG 多步迭代、按 route 选 generator 等仍在内核边界外（[runtime.md](../packages/runtime.md) §2），不在本次 server 范围。

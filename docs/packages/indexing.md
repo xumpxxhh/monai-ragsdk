@@ -1,6 +1,6 @@
 # `@monai-ragsdk/indexing` — 现状
 
-> 快照：**2026-08-19** · 状态：**可用**
+> 快照：**2026-08-20** · 状态：**可用**
 > 源码：`packages/indexing/` · 用法：[README](../../packages/indexing/README.md)
 > 回：[routing.md](./routing.md)
 
@@ -54,28 +54,47 @@
 | 角色 | 内置 | 说明 |
 | --- | --- | --- |
 | Chunker | `SimpleChunker` | 固定大小 + overlap |
+| Chunker | `HeadingBasedChunker` | 按 Markdown 标题切 section（纯 TS） |
+| Chunker | `ParentChildChunker` | 标题 section 为 parent，section 内再切 child；metadata 含 `chunkRole` / `parentChunkId` |
 | Embedder | `MockEmbedder` | 离线回退，默认 8 维 |
 | Store | `MemoryVectorStore` | 进程内 |
 | Transformer | `ContentCleanupTransformer` | 文档清洗 |
 | ChunkTransformer | `ContextualHeaderTransformer` | 上下文感知 / 标题注入 |
 | Filter | `HashDedupChunkFilter` | 哈希去重 |
 | Metadata | `BasicMetadataExtractor` | 基础抽取 |
-| Loader | **无** | 目录 / Markdown 用 adapters 的 LangChain 适配 |
+| Loader | **无** | PDF / Web / 目录 / Markdown 用 [adapters](./adapters.md) 的 LangChain 适配 |
 
-`VectorStore` 已声明可选 `deleteByFilter?` / `listSourceRecords?` / `close?`。runtime 的 `createCollection` 直接探测这些方法（切片 G 去掉了 `as unknown as`）。
+`VectorStore` 已声明可选 `deleteByFilter?` / `listSourceRecords?` / `close?`。runtime 的 `createCollection` 直接探测这些方法。
 
-## 5. 关键入口
+## 5. 目录与关键入口
+
+源码按流水线阶段分组（与 [runtime](./runtime.md) 的 `stages/` 叙事对齐）：
+
+```
+src/
+  pipeline/          run-indexing、incremental、批处理默认值
+  stages/
+    load/              Loader 契约
+    document/          DocumentTransformer、shouldIndex 默认
+    chunk/             Chunker、ChunkTransformer
+    enrich/            MetadataExtractor、metadataBuilder 默认
+    filter/            ChunkFilter
+    embed/             Embedder
+    store/             VectorStore
+  types/               IndexingOptions / Result / Context
+  errors/
+```
 
 | 路径 | 职责 |
 | --- | --- |
 | `src/pipeline/run-indexing.ts` | 主流程 |
 | `src/pipeline/incremental.ts` | skip / replace / stale |
-| `src/stores/vector-store.ts` | 存储契约 |
-| `src/loaders/loader.ts` | 加载契约（无默认实现） |
+| `src/stages/store/vector-store.ts` | 存储契约 |
+| `src/stages/load/loader.ts` | 加载契约（无默认实现） |
 
 ## 6. 测试与脚本
 
-- 单测约 30（run-indexing / incremental / components / observer / chunker）
+- 单测约 35（run-indexing / incremental / components / observer / chunker / heading / parent-child）
 - `pnpm --filter @monai-ragsdk/indexing test`
 - demo：`demo`、`demo:incremental`、`demo:extensions`
 
@@ -84,10 +103,12 @@
 | 条目 | 现状 |
 | --- | --- |
 | 文档清洗、元数据、固定切分、稠密向量、增量、元数据关联 | **已落地** |
-| 递归 / 语义 / Markdown 切分 | **在 adapters**（LangChain），本包不重复实现 |
+| 递归 / 语义 / Markdown / 代码 / 句子切分 | **在 adapters**（LangChain），本包不重复实现 |
+| 按标题结构切分（无 LangChain） | **已落地**（`HeadingBasedChunker`） |
 | 上下文感知 embedding（header 注入） | **已落地**（`ContextualHeaderTransformer`） |
 | 混合索引 / 稀疏编码 | **不在本包**；查询期 hybrid 在 pgvector adapter |
-| 多模态解析、父子/分级块 | **未做** |
+| 多模态解析 | **未做** |
+| 父子/分级块 | **已落地**（`ParentChildChunker`；召回侧按 `chunkRole` / hierarchy 过滤由 app 或 runtime filter 消费） |
 | 向量索引策略（HNSW 等） | 交给底层 store，本包不抽象 |
 
 ## 8. 已知缺口

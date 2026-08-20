@@ -1,6 +1,6 @@
 # `@monai-ragsdk/adapters` — 现状
 
-> 快照：**2026-08-19** · 状态：**可用**
+> 快照：**2026-08-20** · 状态：**可用**
 > 源码：`packages/adapters/` · 用法：[README](../../packages/adapters/README.md)
 > 回：[routing.md](./routing.md)
 
@@ -59,17 +59,19 @@
 
 换 adapter 后面条数、排序、分数口径仍可能对不上。langchain 按 `maxChunks` 截断是 P2，尚未做。
 
-切片 D：langchain `filterByRequest: false` 不再让观测假装 filters 生效——runtime 会丢候选并打 `requestFiltersEnforced`。
+langchain `filterByRequest: false` 时 adapter 不预过滤；runtime 仍强制 filters，会丢不匹配候选并打 `requestFiltersEnforced`。
 
 ## 5. LangChain 侧已有实现
 
-- Loader：directory、markdown directory、通用 loader adapter
-- Chunker：recursive character、markdown、token、semantic + presets
+- Loader：directory、markdown directory、PDF、Web URL（`HTMLWebBaseLoader`）、Cheerio HTML（URL / 本地文件 / 内联字符串）、通用 loader adapter
+- Chunker：recursive character、markdown、token、semantic、**language（代码感知）**、**sentence（句子优先）** + presets
 - Chunk transformer：header-aware
 - Metadata extractor
 - Embeddings adapter
 - Retriever：runtime adapter + `BaseRetriever` adapter
 - Generator：runtime adapter + chat model adapter
+
+PDF / Web loader 运行时分别依赖 `pdf-parse` 与网络访问；Cheerio loader 解析 HTML 需 `cheerio`（已在 adapters 显式声明）。
 
 ## 6. 关键入口
 
@@ -83,7 +85,7 @@
 
 ## 7. 测试与脚本
 
-- 单测约 66（改 runtime 契约后需先 `pnpm --filter @monai-ragsdk/runtime build`）
+- 单测约 74（改 runtime 契约后需先 `pnpm --filter @monai-ragsdk/runtime build`）
 - `pnpm --filter @monai-ragsdk/adapters test`
 - demo：`demo:openai-adapters`、`demo:ollama-adapters`、`demo:pgvector-store`、`demo:pgvector-runtime`、`demo:chroma-store`、`demo:langchain-runtime`、`demo:langchain-extensions`
 
@@ -96,6 +98,5 @@
 
 ## 9. 关联
 
-- [runtime.md](./runtime.md) 契约与装配
+- [runtime.md](./runtime.md) 契约与装配（§4.2 Retriever 身份与能力）
 - [indexing.md](./indexing.md) VectorStore / Embedder / Loader 接口
-- 切片 D 落地提交意图：retriever 身份与能力声明

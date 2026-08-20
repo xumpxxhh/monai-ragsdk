@@ -36,7 +36,7 @@ exporter 失败会被隔离，默认不拖死主链路。
 
 runtime 侧还有策略步进事件（`query_strategy.*`、`retrieval_fanout.*`、`retrieval_fuse.*`、`post_retrieval_strategy.*`），字段由 runtime 的 `observation/` 组装，协议形状在本包 README。
 
-分数口径类型：观测层 `ObservationScoreKind` 已是 runtime `RetrievalScoreKind` 的别名（切片 A），不再两套枚举。
+分数口径类型：观测层 `ObservationScoreKind` 已是 runtime `RetrievalScoreKind` 的别名，不再两套枚举。
 
 ## 4. 关键入口
 
@@ -63,4 +63,4 @@ runtime 侧还有策略步进事件（`query_strategy.*`、`retrieval_fanout.*`�
 ## 7. 关联
 
 - 字段约定以本包 README 为权威；runtime 如何打点见 [runtime.md](./runtime.md)
-- 切片 A 修正了观测层对 pgvector RRF 分的误判（不再标成 `retriever`）
+- RRF 融合分观测为 `rrf`，不再标成 `retriever`；优先读 candidate 上的 `scoreKind`

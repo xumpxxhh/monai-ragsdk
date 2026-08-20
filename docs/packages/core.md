@@ -54,7 +54,7 @@
 
 **Filters / Budget 在 core `RAGResponse` 与 runtime 请求类型双份维护**，靠 `assemble-runtime-result` 手工映射。字段增删需两处同步。
 
-不要在本包「补」runtime 阶段字段来消掉双份；收敛方案属于后续工程债，见 [routing.md](./routing.md) 的 P2。
+不要在本包「补」runtime 阶段字段来消掉双份；收敛方案属于后续工程债，见 [routing.md](./routing.md) 已知缺口。
 
 ## 7. 关联
 
