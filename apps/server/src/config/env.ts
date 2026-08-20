@@ -10,8 +10,8 @@ export const PACKAGE_ROOT = resolve(SRC_DIR, '../..');
 const DEFAULT_PGVECTOR_CONNECTION_STRING = 'postgresql://monai:monai@localhost:5432/monai_ragsdk';
 const DEFAULT_EMBEDDING_BASE_URL =
   'https://llm-5vs4jf61x3o1aul1.cn-beijing.maas.aliyuncs.com/compatible-mode/v1';
-const DEFAULT_CHAT_BASE_URL = 'https://api.deepseek.com';
-const DEFAULT_CHAT_MODEL = 'deepseek-v4-flash';
+const DEFAULT_CHAT_BASE_URL = 'https://note3-prev-api.askdiandian.com/v1';
+const DEFAULT_CHAT_MODEL = 'dots3-note-prev';
 const DEFAULT_EMBEDDING_MODEL = 'text-embedding-v3';
 const DEFAULT_EMBEDDING_DIMENSION = 1024;
 
@@ -22,6 +22,7 @@ export type ServerConfig = {
   embeddingBaseUrl: string;
   chatBaseUrl: string;
   chatModel: string;
+  chatApiKey?: string;
   embeddingModel: string;
   dimension: number;
 };
@@ -77,8 +78,17 @@ export function loadServerConfig(): ServerConfig {
     connectionString:
       process.env.PGVECTOR_CONNECTION_STRING?.trim() || DEFAULT_PGVECTOR_CONNECTION_STRING,
     embeddingBaseUrl: process.env.EMBEDDING_BASE_URL?.trim() || DEFAULT_EMBEDDING_BASE_URL,
-    chatBaseUrl: process.env.OPENAI_BASE_URL?.trim() || DEFAULT_CHAT_BASE_URL,
-    chatModel: process.env.OPENAI_CHAT_MODEL?.trim() || DEFAULT_CHAT_MODEL,
+    // Chat / 策略 LLM：优先 DOTSAI；为兼容老配置仍保留 OPENAI_* 兜底。
+    chatBaseUrl:
+      process.env.DOTSAI_BASE_URL?.trim() ||
+      process.env.OPENAI_BASE_URL?.trim() ||
+      DEFAULT_CHAT_BASE_URL,
+    chatModel:
+      process.env.DOTSAI_CHAT_MODEL?.trim() ||
+      process.env.OPENAI_CHAT_MODEL?.trim() ||
+      DEFAULT_CHAT_MODEL,
+    chatApiKey:
+      process.env.DOTSAI_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim() || undefined,
     embeddingModel: process.env.EMBEDDING_MODEL?.trim() || DEFAULT_EMBEDDING_MODEL,
     dimension: readPositiveInt(process.env.EMBEDDING_DIMENSION, DEFAULT_EMBEDDING_DIMENSION),
   };
@@ -89,7 +99,7 @@ export function hasEmbeddingKey(): boolean {
 }
 
 export function hasChatKey(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY?.trim());
+  return Boolean(process.env.DOTSAI_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim());
 }
 
 export function hasVectorStoreConfig(): boolean {

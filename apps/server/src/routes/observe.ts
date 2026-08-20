@@ -12,7 +12,11 @@ import {
   listIngestTraces,
 } from '../services/activity-store.js';
 import { getCollectionRecord } from '../services/collection-registry.js';
-import { clearObserverTraces, listObserverTraces } from '../services/shared-stack.js';
+import {
+  clearObserverTraces,
+  getObserverTrace,
+  listObserverTraces,
+} from '../services/shared-stack.js';
 
 export const observeRouter: ExpressRouter = Router();
 
@@ -60,7 +64,8 @@ observeRouter.get(
     if (!trace) {
       throw notFound('轨迹不存在');
     }
-    res.json(trace);
+    const executionTrace = trace.executionTrace ?? getObserverTrace(trace.id);
+    res.json({ ...trace, executionTrace });
   }),
 );
 

@@ -14,6 +14,7 @@ import {
 import type { RuntimeGenerator, RuntimeStrategyModel } from '@monai-ragsdk/runtime';
 
 import { loadServerConfig, type ServerConfig } from '../config/env.js';
+import { createDotsChatFetch } from './dots-chat-fetch.js';
 
 export type SharedStack = {
   config: ServerConfig;
@@ -57,13 +58,18 @@ export function getSharedStack(): SharedStack {
       dimension: config.dimension,
       batchSize: 10,
     });
+    const dotsFetch = createDotsChatFetch();
     const generator = new OpenAIRuntimeGenerator({
       model: config.chatModel,
       baseUrl: config.chatBaseUrl,
+      apiKey: config.chatApiKey,
+      fetch: dotsFetch,
     });
     const strategyModel = new OpenAIStrategyModel({
       model: config.chatModel,
       baseUrl: config.chatBaseUrl,
+      apiKey: config.chatApiKey,
+      fetch: dotsFetch,
     });
     const memoryExporter = createMemoryTraceExporter();
     const observer = createRAGObserver({
@@ -101,6 +107,11 @@ export async function shutdownSharedStack(): Promise<void> {
 export function listObserverTraces(): RAGTrace[] {
   const s = getSharedStack();
   return s.memoryExporter.getTraces();
+}
+
+/** 按 traceId 取单条 observer 全链路；仅进程内存，重启后不可用。 */
+export function getObserverTrace(traceId: string): RAGTrace | undefined {
+  return listObserverTraces().find((trace) => trace.traceId === traceId);
 }
 
 /** 清空 memoryExporter 中已导出的 trace，避免列表无限增长。 */

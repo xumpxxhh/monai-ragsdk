@@ -28,6 +28,8 @@ export type CollectionRecord = {
 
 type PersistedState = {
   collections: CollectionRecord[];
+  /** 全局 ask / search 策略；缺省时由 registry 用 defaultStrategy('global') 填充。 */
+  globalStrategy?: StrategyConfig;
 };
 
 const STATE_PATH = resolve(PACKAGE_ROOT, 'data/state.json');

@@ -1,19 +1,14 @@
-import { randomUUID } from 'node:crypto';
-
 import { Router, type Router as ExpressRouter } from 'express';
 
 import { asyncHandler, badRequest } from '../http/errors.js';
 import { readQueryInt, readQueryString } from '../http/query.js';
-import { mapCitations, mapSearchResult, paginate } from '../mappers/dto.js';
+import { paginate } from '../mappers/dto.js';
 import {
-  askCollection,
   getCollectionRecord,
   ingestDocuments,
-  recordAskActivity,
+  recommendIngestForCollection,
   removeDocument,
   retryDocument,
-  saveStrategyConfig,
-  searchCollection,
 } from '../services/collection-registry.js';
 import {
   beginIngest,
@@ -24,8 +19,7 @@ import {
   isIngesting,
   updateIngestTask,
 } from '../services/ingest-tasks.js';
-import { recordAskTrace } from '../services/activity-store.js';
-import type { IngestDocumentInput, IngestMode, StrategyConfig } from '../types/api.js';
+import type { ChunkingConfig, IngestDocumentInput, IngestMode } from '../types/api.js';
 
 export const documentsRouter: ExpressRouter = Router({ mergeParams: true });
 
@@ -70,6 +64,21 @@ documentsRouter.get(
 );
 
 documentsRouter.post(
+  '/ingest/recommend',
+  asyncHandler(async (req, res) => {
+    const collectionId = collectionIdOf(req);
+    const body = req.body as {
+      documents?: Array<{ id?: string; metadata?: { title?: string; mimeType?: string } }>;
+    };
+    const documents = Array.isArray(body?.documents) ? body.documents : [];
+    if (documents.length === 0) {
+      throw badRequest('documents 不能为空');
+    }
+    res.json(recommendIngestForCollection(collectionId, documents));
+  }),
+);
+
+documentsRouter.post(
   '/ingest',
   asyncHandler(async (req, res) => {
     const collectionId = collectionIdOf(req);
@@ -77,7 +86,11 @@ documentsRouter.post(
       throw badRequest('该知识库正在入库，请稍后再试');
     }
 
-    const body = req.body as { documents?: IngestDocumentInput[]; mode?: IngestMode };
+    const body = req.body as {
+      documents?: IngestDocumentInput[];
+      mode?: IngestMode;
+      chunking?: ChunkingConfig;
+    };
     const documents = Array.isArray(body?.documents) ? body.documents : [];
     const fileName = documents[0]?.metadata?.title ?? documents[0]?.id ?? '文档';
     const { taskId } = createIngestTask(collectionId, Math.max(documents.length, 1), fileName);
@@ -86,7 +99,12 @@ documentsRouter.post(
     void (async () => {
       try {
         updateIngestTask(taskId, { current: 1, fileName });
-        const stats = await ingestDocuments(collectionId, documents, body?.mode);
+        const stats = await ingestDocuments(
+          collectionId,
+          documents,
+          body?.mode,
+          body?.chunking,
+        );
         completeIngestTask(taskId, stats);
       } catch (error) {
         const message = error instanceof Error ? error.message : '入库失败';
@@ -130,143 +148,5 @@ documentsRouter.delete(
   asyncHandler(async (req, res) => {
     await removeDocument(collectionIdOf(req), req.params.documentId);
     res.status(204).end();
-  }),
-);
-
-documentsRouter.post(
-  '/search',
-  asyncHandler(async (req, res) => {
-    const collectionId = collectionIdOf(req);
-    const body = req.body as { query?: string; topK?: number };
-    const query = body?.query?.trim();
-    if (!query) {
-      throw badRequest('query 不能为空');
-    }
-    const topK =
-      typeof body.topK === 'number' && Number.isInteger(body.topK) && body.topK > 0
-        ? body.topK
-        : getCollectionRecord(collectionId).strategy.retrieval.topK;
-    const result = await searchCollection(collectionId, query, topK);
-    res.json(mapSearchResult(result, query, topK));
-  }),
-);
-
-documentsRouter.post(
-  '/ask',
-  asyncHandler(async (req, res) => {
-    const collectionId = collectionIdOf(req);
-    const body = req.body as { question?: string };
-    const question = body?.question?.trim();
-    if (!question) {
-      throw badRequest('question 不能为空');
-    }
-
-    const { runtime, collectionName, strategy } = await askCollection(collectionId, question);
-    const requestId = randomUUID();
-
-    res.status(200);
-    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders?.();
-
-    const send = (payload: unknown) => {
-      res.write(`data: ${JSON.stringify(payload)}\n\n`);
-    };
-
-    let aborted = false;
-    req.on('close', () => {
-      aborted = true;
-    });
-
-    const startedAt = Date.now();
-    let citationCount = 0;
-    let effectiveQuestion: string | undefined;
-    let success = true;
-    const stages: { id: string; label: string; durationMs?: number }[] = [];
-
-    try {
-      for await (const event of runtime.runStream(
-        { query: question },
-        {
-          requestId,
-          // 为了让 /api/v1/traces/ask 能拿到 runtime.debug.timings，从而记录 stages。
-          includeDebug: true,
-          trace: { traceId: requestId, tags: { collectionId, collectionName } },
-        },
-      )) {
-        if (aborted) {
-          break;
-        }
-        if (event.type === 'delta' && event.text) {
-          send({ type: 'token', content: event.text });
-        }
-        if (event.type === 'result') {
-          const empty = event.result.chunks.length === 0;
-          const noGrounding = empty && strategy.generation.noGroundingPolicy === 'explicit';
-          effectiveQuestion =
-            event.result.effectiveQuery.query !== question
-              ? event.result.effectiveQuery.query
-              : undefined;
-          if (effectiveQuestion) {
-            send({ type: 'meta', effectiveQuery: effectiveQuestion });
-          }
-          const citations = noGrounding ? [] : mapCitations(event.result);
-          citationCount = citations.length;
-          send({ type: 'result', citations, noGrounding });
-
-          const timings = event.result.debug?.timings ?? {};
-          for (const [id, durationMs] of Object.entries(timings)) {
-            stages.push({ id, label: id, durationMs });
-          }
-        }
-      }
-    } catch (error) {
-      success = false;
-      const message = error instanceof Error ? error.message : '问答失败';
-      if (!aborted) {
-        send({ type: 'error', message });
-      }
-    }
-
-    if (!aborted) {
-      send({ type: 'done' });
-      res.write('data: [DONE]\n\n');
-    }
-    res.end();
-
-    recordAskActivity({ collectionId, collectionName, question, citationCount });
-    await recordAskTrace({
-      id: requestId,
-      collectionId,
-      collectionName,
-      question,
-      effectiveQuestion,
-      finishedAt: new Date().toISOString(),
-      durationMs: Date.now() - startedAt,
-      success,
-      citationCount,
-      stages,
-      warnings: success ? [] : ['问答执行失败'],
-    });
-  }),
-);
-
-documentsRouter.get(
-  '/strategy',
-  asyncHandler(async (req, res) => {
-    res.json(getCollectionRecord(collectionIdOf(req)).strategy);
-  }),
-);
-
-documentsRouter.put(
-  '/strategy',
-  asyncHandler(async (req, res) => {
-    const collectionId = collectionIdOf(req);
-    const body = req.body as StrategyConfig;
-    if (!body || typeof body !== 'object') {
-      throw badRequest('无效的策略配置');
-    }
-    res.json(saveStrategyConfig(collectionId, body));
   }),
 );

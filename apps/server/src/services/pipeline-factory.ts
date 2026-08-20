@@ -13,7 +13,7 @@ import {
   createQueryDecompositionStrategy,
   createQueryExpansionStrategy,
   createQueryRewriteStrategy,
-  createQueryRoutingStrategy,
+  createLlmRoutingStrategy,
   createScoreThresholdStrategy,
   createBudgetTrimStrategy,
   createSourceCoverageStrategy,
@@ -35,19 +35,24 @@ import type { StrategyConfig } from '../types/api.js';
 export function buildRuntime(options: {
   strategy: StrategyConfig;
   retriever: RuntimeRetriever;
+  /** 多库 FanOut：传入后不再包单层 retriever，直接 FanOut(retrievers)。 */
+  retrievers?: RuntimeRetriever[];
+  /** query-routing 的 LLM 可选 targets，通常为 collectionId 列表。 */
+  routingTargets?: string[];
   generator: RuntimeGenerator;
   strategyModel: RuntimeStrategyModel;
   observer: RAGObserver;
 }): Runtime {
-  const { strategy, retriever, generator, strategyModel, observer } = options;
+  const { strategy, retriever, retrievers, routingTargets, generator, strategyModel, observer } =
+    options;
   const topK = strategy.retrieval.topK;
   const queryStrategies: QueryStrategy[] = [];
 
   if (strategy.preRetrieval.routing) {
     queryStrategies.push(
-      createQueryRoutingStrategy({
+      createLlmRoutingStrategy({
         model: strategyModel,
-        defaultRoute: 'vector',
+        availableTargets: routingTargets,
       }),
     );
   }
@@ -64,7 +69,11 @@ export function buildRuntime(options: {
     queryStrategies.push(createMultiQueryStrategy({ model: strategyModel, count: 2 }));
   }
 
+  // 顺序对齐 runtime POST_RETRIEVAL_ASSEMBLY_ORDER：rerank 写回 scoreKind=llm 后，threshold 才按重排分过滤。
   const postStrategies: PostRetrievalStrategy[] = [];
+  if (strategy.postRetrieval.rerank) {
+    postStrategies.push(createLlmRerankStrategy({ model: strategyModel }));
+  }
   if (strategy.postRetrieval.scoreThreshold) {
     postStrategies.push(
       createScoreThresholdStrategy({
@@ -84,9 +93,6 @@ export function buildRuntime(options: {
   }
   if (strategy.postRetrieval.sourceCoverage) {
     postStrategies.push(createSourceCoverageStrategy({ enabled: true }));
-  }
-  if (strategy.postRetrieval.rerank) {
-    postStrategies.push(createLlmRerankStrategy({ model: strategyModel }));
   }
   if (strategy.postRetrieval.compression) {
     postStrategies.push(createContextCompressionStrategy({ model: strategyModel }));
@@ -115,10 +121,14 @@ export function buildRuntime(options: {
     strategies: queryStrategies,
   });
 
+  const retrieval =
+    retrievers && retrievers.length > 0
+      ? new FanOutRetriever({ retriever: retrievers[0]!, retrievers })
+      : new FanOutRetriever({ retriever });
+
   return createDefaultRuntime({
     preprocessor,
-    // 无 subQueries 时 FanOut 退化为单次检索，避免按开关再分两套 retriever
-    retriever: new FanOutRetriever({ retriever }),
+    retriever: retrieval,
     postprocessor: new StrategyRetrievalPostprocessor({
       strategies: postStrategies,
     }),

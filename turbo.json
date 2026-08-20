@@ -11,9 +11,9 @@
     "EMBEDDING_BASE_URL",
     "EMBEDDING_MODEL",
     "EMBEDDING_DIMENSION",
-    "OPENAI_API_KEY",
-    "OPENAI_BASE_URL",
-    "OPENAI_CHAT_MODEL"
+    "DOTSAI_API_KEY",
+    "DOTSAI_BASE_URL",
+    "DOTSAI_CHAT_MODEL"
   ],
   "tasks": {
     "build": {

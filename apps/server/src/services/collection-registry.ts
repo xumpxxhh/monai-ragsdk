@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import type { Document } from '@monai-ragsdk/core';
 import { PgVectorRuntimeRetrieverAdapter, PgVectorStoreAdapter } from '@monai-ragsdk/adapters';
-import { SimpleChunker, type IndexingOptions } from '@monai-ragsdk/indexing';
+import { SimpleChunker, runIndexing, type IndexingOptions } from '@monai-ragsdk/indexing';
 import { createCollection, type Runtime, type RuntimeSearchResult } from '@monai-ragsdk/runtime';
 import { Pool } from 'pg';
 
@@ -10,13 +10,16 @@ import { loadServerConfig } from '../config/env.js';
 import { badRequest, notFound } from '../http/errors.js';
 import { toCollectionDetail, toIngestStats } from '../mappers/dto.js';
 import type {
+  ChunkingConfig,
   CreateCollectionInput,
   IngestDocumentInput,
   IngestMode,
+  IngestRecommendation,
   IngestStats,
   StrategyConfig,
 } from '../types/api.js';
 import { recordActivity, recordIngestTrace, ingestActivityTitle } from './activity-store.js';
+import { buildChunker, recommendIngestConfig } from './chunking.js';
 import { buildRuntime, defaultStrategy } from './pipeline-factory.js';
 import { embedQuery, getSharedStack } from './shared-stack.js';
 import { loadState, saveState, type CollectionRecord, type StoredDocument } from './state-store.js';
@@ -33,10 +36,12 @@ type CollectionHandle = {
 };
 
 const handles = new Map<string, CollectionHandle>();
+let globalStrategy: StrategyConfig = defaultStrategy('global');
 
 function persist(): void {
   saveState({
     collections: [...handles.values()].map((handle) => handle.record),
+    globalStrategy,
   });
 }
 
@@ -90,9 +95,44 @@ function toDocuments(inputs: IngestDocumentInput[]): Document[] {
  */
 export function initCollectionRegistry(): void {
   const state = loadState();
+  globalStrategy = state.globalStrategy ?? defaultStrategy('global');
   for (const record of state.collections) {
     handles.set(record.id, { record });
   }
+}
+
+export function getGlobalStrategy(): StrategyConfig {
+  return globalStrategy;
+}
+
+export function saveGlobalStrategy(strategy: StrategyConfig): StrategyConfig {
+  globalStrategy = {
+    ...strategy,
+    collectionId: 'global',
+  };
+  persist();
+  recordActivity({
+    kind: 'strategy',
+    title: '全局策略已更新',
+  });
+  return globalStrategy;
+}
+
+/** 解析 ask/search 目标库：显式 id 须存在；缺省为全部已注册库。 */
+export function resolveTargetCollections(collectionIds?: string[]): CollectionRecord[] {
+  if (!collectionIds || collectionIds.length === 0) {
+    const all = listCollectionRecords();
+    if (all.length === 0) {
+      throw badRequest('没有可用的知识库');
+    }
+    return all;
+  }
+
+  const unique = [...new Set(collectionIds.map((id) => id.trim()).filter(Boolean))];
+  if (unique.length === 0) {
+    throw badRequest('collectionIds 不能为空');
+  }
+  return unique.map((id) => getCollectionRecord(id));
 }
 
 export function listCollectionRecords(): CollectionRecord[] {
@@ -195,6 +235,7 @@ async function ensureHandle(
     ensureTable: true,
   });
   const retriever = new PgVectorRuntimeRetrieverAdapter({
+    id,
     connectionString: shared.config.connectionString,
     tableName,
     embedQuery: (query) => embedQuery(shared.embedder, query),
@@ -253,6 +294,7 @@ export function getStrategyConfig(id: string): StrategyConfig {
   return getCollectionRecord(id).strategy;
 }
 
+/** @deprecated 查询链路已改用全局策略；保留供历史 state 字段兼容。 */
 export function saveStrategyConfig(id: string, strategy: StrategyConfig): StrategyConfig {
   const handle = handles.get(id);
   if (!handle) {
@@ -315,6 +357,7 @@ export async function ingestDocuments(
   id: string,
   inputs: IngestDocumentInput[],
   mode?: IngestMode,
+  chunking?: ChunkingConfig,
 ): Promise<IngestStats> {
   const filtered = inputs.filter((item) => item.content.trim().length > 0);
   if (filtered.length === 0) {
@@ -322,7 +365,15 @@ export async function ingestDocuments(
   }
   const handle = await ensureHandle(id);
   const documents = toDocuments(filtered);
-  const result = await handle.collection.ingest(documents, {
+  const chunker = buildChunker(chunking);
+  const result = await runIndexing({
+    ...handle.indexingBase!,
+    loader: {
+      async load() {
+        return documents;
+      },
+    },
+    chunker,
     mode: mode ?? handle.record.ingestMode,
     observer: getSharedStack().observer,
     trace: { tags: { collectionId: id, collectionName: handle.record.name } },
@@ -360,6 +411,86 @@ export async function ingestDocuments(
   return stats;
 }
 
+export function recommendIngestForCollection(
+  id: string,
+  documents: Array<{ metadata?: { title?: string; mimeType?: string } }>,
+): IngestRecommendation {
+  const record = getCollectionRecord(id);
+  return recommendIngestConfig(documents, record.ingestMode);
+}
+
+/**
+ * 为全局 ask/search 组装 runtime：多库 FanOut + 全局策略。
+ * 每个子 retriever 的 id 设为 collectionId，供 routeDecision.targets 选路。
+ */
+export async function buildGlobalRuntime(collectionIds?: string[]): Promise<{
+  runtime: Runtime;
+  targets: CollectionRecord[];
+  strategy: StrategyConfig;
+}> {
+  const targets = resolveTargetCollections(collectionIds);
+  const shared = getSharedStack();
+  const strategy = getGlobalStrategy();
+  const retrievers = [];
+
+  for (const record of targets) {
+    const handle = await ensureHandle(record.id);
+    if (!handle.retriever) {
+      throw badRequest(`知识库 ${record.id} 尚未就绪`);
+    }
+    retrievers.push(handle.retriever);
+  }
+
+  const runtime = buildRuntime({
+    strategy,
+    retriever: retrievers[0]!,
+    retrievers,
+    routingTargets: targets.map((item) => item.id),
+    generator: shared.generator,
+    strategyModel: shared.strategyModel,
+    observer: shared.observer,
+  });
+
+  return { runtime, targets, strategy };
+}
+
+export async function searchGlobal(
+  query: string,
+  topK: number | undefined,
+  collectionIds?: string[],
+): Promise<RuntimeSearchResult> {
+  const { runtime, targets, strategy } = await buildGlobalRuntime(collectionIds);
+  const resolvedTopK =
+    typeof topK === 'number' && Number.isInteger(topK) && topK > 0 ? topK : strategy.retrieval.topK;
+  const scope = targets.length === 1 ? targets[0]! : null;
+
+  return runtime.search(
+    { query, metadata: { topK: resolvedTopK } },
+    {
+      requestId: randomUUID(),
+      trace: {
+        tags: {
+          collectionId: scope?.id ?? 'global',
+          collectionName: scope?.name ?? `${targets.length} 个知识库`,
+          collectionIds: targets.map((item) => item.id).join(','),
+        },
+      },
+    },
+  );
+}
+
+export async function prepareGlobalAsk(
+  _question: string,
+  collectionIds?: string[],
+): Promise<{
+  runtime: Runtime;
+  strategy: StrategyConfig;
+  targets: CollectionRecord[];
+}> {
+  const { runtime, targets, strategy } = await buildGlobalRuntime(collectionIds);
+  return { runtime, strategy, targets };
+}
+
 export async function retryDocument(collectionId: string, documentId: string): Promise<void> {
   const record = getCollectionRecord(collectionId);
   const doc = record.documents.find((item) => item.id === documentId);
@@ -392,33 +523,6 @@ export async function removeDocument(collectionId: string, documentId: string): 
   await handle.collection.deleteByFilters({ sourceIds: [doc.sourceId] });
   handle.record.documents.splice(index, 1);
   persist();
-}
-
-export async function searchCollection(
-  id: string,
-  query: string,
-  topK: number,
-): Promise<RuntimeSearchResult> {
-  const handle = await ensureHandle(id);
-  return handle.collection.search(
-    { query, metadata: { topK } },
-    {
-      requestId: randomUUID(),
-      trace: { tags: { collectionId: id, collectionName: handle.record.name } },
-    },
-  );
-}
-
-export async function askCollection(
-  id: string,
-  _question: string,
-): Promise<{ runtime: Runtime; collectionName: string; strategy: StrategyConfig }> {
-  const handle = await ensureHandle(id);
-  return {
-    runtime: handle.runtime,
-    collectionName: handle.record.name,
-    strategy: handle.record.strategy,
-  };
 }
 
 export function recordAskActivity(input: {

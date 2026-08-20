@@ -7,6 +7,9 @@ import { collectionsRouter } from './routes/collections.js';
 import { documentsRouter } from './routes/documents.js';
 import { healthRouter } from './routes/health.js';
 import { observeRouter } from './routes/observe.js';
+import { askRouter } from './routes/ask.js';
+import { searchRouter } from './routes/search.js';
+import { strategyRouter } from './routes/strategy.js';
 
 /** 组装 Express 应用：健康检查在根路径，业务 API 挂在 /api/v1。 */
 export function createApp(): Express {
@@ -26,6 +29,9 @@ export function createApp(): Express {
   const api = express.Router();
   api.use('/collections', collectionsRouter);
   api.use('/collections/:id', documentsRouter);
+  api.use('/ask', askRouter);
+  api.use('/search', searchRouter);
+  api.use('/strategy', strategyRouter);
   api.use(observeRouter);
   app.use('/api/v1', api);
 

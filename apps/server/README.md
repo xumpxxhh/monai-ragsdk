@@ -7,12 +7,14 @@
 ```bash
 pnpm install
 copy apps\server\.env.example apps\server\.env
-# 填入 EMBEDDING_API_KEY / OPENAI_API_KEY，并确认 PostgreSQL + pgvector 可连
+# 填入 EMBEDDING_API_KEY / DOTSAI_API_KEY，并确认 PostgreSQL + pgvector 可连
 
 pnpm dev:server
 ```
 
 默认监听 `http://localhost:3000`。健康检查：`GET /health`。业务 API 前缀：`/api/v1`。
+
+接口说明：[docs/server/api.md](../../docs/server/api.md)。ask/search 为全局路由（`POST /api/v1/ask|search`）；web 迁移见 [docs/server/web-followup.md](../../docs/server/web-followup.md)。
 
 ## 与 Web 联调
 
@@ -44,7 +46,7 @@ pnpm dev:server
 | `CORS_ORIGIN` | 允许的前端源，默认 `http://localhost:5173` |
 | `PGVECTOR_CONNECTION_STRING` | pgvector 连接串 |
 | `EMBEDDING_API_KEY` / `EMBEDDING_BASE_URL` / `EMBEDDING_MODEL` / `EMBEDDING_DIMENSION` | Embedding |
-| `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_CHAT_MODEL` | Chat 与策略 LLM |
+| `DOTSAI_API_KEY` / `DOTSAI_BASE_URL` / `DOTSAI_CHAT_MODEL` | Chat 与策略 LLM |
 
 约定说明见 [`docs/turborepo.md`](../../docs/turborepo.md) 中 `globalPassThroughEnv` / `globalEnv` 一节。
 

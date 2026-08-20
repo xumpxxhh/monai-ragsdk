@@ -1,3 +1,5 @@
+import type { RAGTrace } from '@monai-ragsdk/observability';
+
 /** 与 apps/web `shared/types` 对齐的 API 边界类型，字段名不另造。 */
 
 export type UserRole = 'admin' | 'user';
@@ -146,6 +148,8 @@ export interface AskTrace {
   citationCount: number;
   stages: TraceStage[];
   warnings: string[];
+  /** observer 全链路快照；GET 详情时若缺失可回退 memoryExporter。 */
+  executionTrace?: RAGTrace;
 }
 
 export interface IngestTaskTrace {
@@ -180,11 +184,37 @@ export interface Paginated<T> {
   pageSize: number;
 }
 
+export type ChunkingStrategy = 'fixed' | 'heading' | 'parent-child';
+
+export interface ChunkingConfig {
+  strategy?: ChunkingStrategy;
+  chunkSize?: number;
+  overlap?: number;
+}
+
+export interface IngestRecommendation {
+  chunking: ChunkingConfig & { strategy: ChunkingStrategy };
+  loaderHint: string;
+  mode: IngestMode;
+}
+
+export interface GlobalAskRequest {
+  question: string;
+  collectionIds?: string[];
+}
+
+export interface GlobalSearchRequest {
+  query: string;
+  topK?: number;
+  collectionIds?: string[];
+}
+
 export interface IngestDocumentInput {
   id?: string;
   content: string;
   metadata?: {
     title?: string;
     sourceId?: string;
+    mimeType?: string;
   };
 }
