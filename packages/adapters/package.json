@@ -37,7 +37,9 @@
     "@monai-ragsdk/core": "workspace:*",
     "@monai-ragsdk/indexing": "workspace:*",
     "@monai-ragsdk/runtime": "workspace:*",
+    "cheerio": "catalog:",
     "chromadb": "catalog:",
+    "pdf-parse": "catalog:",
     "pg": "catalog:"
   },
   "devDependencies": {

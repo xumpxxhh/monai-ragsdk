@@ -9,7 +9,7 @@
 ## 依赖
 
 - workspace：`core`、`indexing`、`runtime`
-- 第三方：`@langchain/*`、`pg`、`chromadb`
+- 第三方：`@langchain/*`、`pg`、`chromadb`、`pdf-parse`、`cheerio`
 - 被谁用：只有应用层（`apps/cli`、`apps/example`）。库不再依赖 adapters，把厂商锁在最外一层。
 
 不直接依赖 `observability`：适配器只做事，trace 由 indexing / runtime 上报。
@@ -77,6 +77,44 @@ const runtime = createDefaultRuntime({
 ```
 
 LangChain 目录加载、递归 / 语义 / Markdown 切分见 `demo/langchain-adapters.ts` 与 `demo/langchain-extensions.ts`。
+
+PDF / Web / HTML 加载与代码 / 句子切分示例：
+
+```ts
+import {
+  LangChainCheerioWebLoaderAdapter,
+  LangChainLanguageTextSplitterAdapter,
+  LangChainPdfLoaderAdapter,
+  LangChainSentenceTextSplitterAdapter,
+  LangChainWebLoaderAdapter,
+} from '@monai-ragsdk/adapters';
+import { runIndexing } from '@monai-ragsdk/indexing';
+
+await runIndexing({
+  loader: new LangChainPdfLoaderAdapter({ filePath: './docs/guide.pdf', splitPages: true }),
+  chunker: new LangChainLanguageTextSplitterAdapter({ language: 'js', chunkSize: 800 }),
+  embedder,
+  store,
+});
+
+await runIndexing({
+  loader: new LangChainWebLoaderAdapter({ urls: ['https://example.com/docs'] }),
+  chunker: new LangChainSentenceTextSplitterAdapter({ chunkSize: 500 }),
+  embedder,
+  store,
+});
+
+await runIndexing({
+  loader: new LangChainCheerioWebLoaderAdapter({
+    html: '<main>FAQ content</main>',
+    selector: 'main',
+  }),
+  embedder,
+  store,
+});
+```
+
+PDF loader 需要 `pdf-parse`；Web loader 需要可访问的网络。
 
 ## 脚本
 

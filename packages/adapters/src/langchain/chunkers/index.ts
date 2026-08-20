@@ -3,3 +3,5 @@ export * from './langchain-semantic-chunker-adapter.js';
 export * from './langchain-recursive-character-text-splitter-adapter.js';
 export * from './langchain-token-text-splitter-adapter.js';
 export * from './langchain-markdown-text-splitter-adapter.js';
+export * from './langchain-language-text-splitter-adapter.js';
+export * from './langchain-sentence-text-splitter-adapter.js';
