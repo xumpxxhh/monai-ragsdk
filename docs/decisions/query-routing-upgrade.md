@@ -1,150 +1,194 @@
 # Query Routing 语义升级 — 实施方案
 
-> 状态：**已确认**
+> 状态：**已落地**
 > 日期：2026-08-19
-> 前置决策：[query-routing-semantics.md](./query-routing-semantics.md)
-> 范围：`packages/runtime` 的 query-routing-strategy 重构 + retriever 消费路由决策
+> 前置：[query-routing-semantics.md](./query-routing-semantics.md)
+> 范围：`packages/runtime` + pgvector retriever 消费 `searchType`
 
 ---
 
-## 概述
+## 目标
 
-升级 query-routing-strategy 支持可插拔裁断策略（LLM / 规则 / 算法），产出结构化 RouteDecision 写入 request，由现有 retriever 消费决策调整检索行为，pipeline 保持单条流水线不分裂。
-
----
-
-## 现状
-
-- `query-routing-strategy.ts` 在 pre-retrieval 层调用 LLM 输出 `route` 标签，写入 `request.route`
-- 下游 retrieval / post-retrieval / generation **无任何代码读取** `request.route`
-- `FanOutRetriever` 将所有 sub-query 无差别发给所有 retriever，不看 route
-
-## 架构总览
+pre-retrieval 产出结构化 `RouteDecision`，retrieval **必须读取并改变检索路径**（去哪检索 / 怎么检索 / 是否跳过）。`request.route` 保留为 debug，不是选路键。pipeline 保持单条，不引入 RoutingRetriever。
 
 ```mermaid
 flowchart LR
-  QRS["query-routing-strategy"]
-  Resolver["RoutingResolver（可插拔）"]
-  RD["RouteDecision → request.routeDecision"]
-  Retriever["现有 retriever（FanOut / 底层）"]
-  Behavior["根据 decision 调整：选 collection / searchType / skip 等"]
+  Strategy["query-routing-strategy"]
+  Resolver["RoutingResolver"]
+  Decision["request.routeDecision"]
+  FanOut["FanOutRetriever"]
+  Adapter["底层 retriever"]
+  Gen["generator 空 chunks"]
 
-  QRS --> Resolver
-  Resolver --> RD
-  RD --> Retriever
-  Retriever --> Behavior
+  Strategy --> Resolver --> Decision
+  Decision --> FanOut
+  FanOut -->|"targets / skip"| FanOut
+  Decision -->|"searchType"| Adapter
+  FanOut -->|"空结果"| Gen
 ```
-
-**核心原则**：路由决策在 pre-retrieval 产出，retriever 消费决策调整行为，pipeline 单条流水线不分裂。
 
 ---
 
-## 实施步骤
+## 做 / 不做
 
-### 1. 新增 RouteDecision 类型
+做：`RouteDecision`；LLM / 规则 resolver；FanOut 消费 `targets` / `skip`；pgvector 按 `searchType` 切换召回；`run-runtime` 接线 `retrievalSkipped`；观测与 passthrough 纳入决策。
 
-新建 `packages/runtime/src/types/route-decision.ts`：
+不做：`iterative` / Active RAG / 第二查询路径；按 route 选 generator；Semantic / embedding 路由实现；拆 `run-runtime.ts`；删 `request.route`；改 `apps/`、eval / utils；改 generator 拒答。
+
+---
+
+## 1. 类型
+
+新建 `packages/runtime/src/types/route-decision.ts`，从 `types/index.ts` 导出。
+
+`searchType` 使用已有 `RuntimeRetrieverSearchType`（`vector` | `keyword` | `hybrid`）。不要新增 dense/sparse，不要把 `iterative` 写进公开类型。
 
 ```typescript
+import type { RuntimeRetrieverSearchType } from '../stages/retrieval/runtime-retriever.js';
+
+export type RouteRetrievalMode = 'skip' | 'single';
+
 export type RouteDecision = {
+  /** 匹配子 retriever 的 `id`。缺省：不按目标过滤。 */
   targets?: string[];
-  retrievalMode?: "skip" | "single" | "iterative";
-  searchType?: "dense" | "sparse" | "hybrid";
+  /** 缺省视为 `single`。 */
+  retrievalMode?: RouteRetrievalMode;
+  /** 必须改变召回形态（由声明了对应能力的 retriever 执行）。 */
+  searchType?: RuntimeRetrieverSearchType;
 };
 ```
 
-在 `packages/runtime/src/types/retrieval-request.ts` 新增字段：
+`RetrievalRequest` 增加 `routeDecision?: RouteDecision`。保留 `route?: string`。JSDoc：行为以 `routeDecision` 为准。
 
-```typescript
-routeDecision?: RouteDecision;
-```
-
-保留现有 `route?: string` 不动（向后兼容 debug/observability）。
+route → retriever 映射放在 resolver（规则命中，或 LLM 的 `availableTargets`），retrieval 不再维护第二份 `{ factual: retrieverA }` 表。
 
 ---
 
-### 2. RoutingResolver 接口 + 内置实现
+## 2. RoutingResolver
 
-新建 `packages/runtime/src/stages/pre-retrieval/strategies/routing-resolver.ts`：
+目录：`packages/runtime/src/stages/pre-retrieval/strategies/routing/`。
 
 ```typescript
+export type RoutingResolveResult = {
+  decision?: RouteDecision;
+  /** debug；缺省可由 strategy 填 `decision.targets?.[0]` */
+  route?: string;
+  budget?: RetrievalBudget;
+  filters?: RetrievalFilters;
+};
+
 export interface RoutingResolver {
   resolve(
     query: string,
     request: RetrievalRequest,
     context: RuntimeContext,
-  ): Promise<RouteDecision | undefined>;
+  ): Promise<RoutingResolveResult | undefined>;
 }
-```
 
-**内置实现**（同目录下各一个文件）：
-
-- **`LlmRoutingResolver`** — 现有 query-routing-strategy 的 LLM 调用逻辑迁入，扩展 prompt 让 LLM 额外输出 `targets` / `retrievalMode` / `searchType`。构造参数接收 `RuntimeStrategyModel` + `availableTargets`
-- **`RuleBasedRoutingResolver`** — 用户传入规则数组，按优先级匹配，命中即返回 `RouteDecision`。零 LLM 开销
-
-```typescript
-type RoutingRule = {
+export type RoutingRule = {
   name: string;
   match: (query: string, request: RetrievalRequest) => boolean;
   decision: RouteDecision;
 };
 ```
 
----
+**LlmRoutingResolver**：迁入现有 LLM 调用与 JSON 解析。prompt 增加 `targets` / `retrievalMode` / `searchType`，保留 `topK` / `budget` / `filters`。`topK` 只写 `budget.maxChunks`，不写 `request.topK`。构造：`RuntimeStrategyModel` + `availableTargets`（写入 prompt；内核不校验 id）。无法识别的 `searchType` / `retrievalMode`：丢弃该字段；`onError: 'throw'` 时才整单失败。
 
-### 3. 重构 query-routing-strategy.ts
+**RuleBasedRoutingResolver**：按规则数组顺序，命中即返回。
 
-修改 `packages/runtime/src/stages/pre-retrieval/strategies/query-routing-strategy.ts`：
-
-- 构造参数新增 `resolver: RoutingResolver`
-- `apply()` 调用 `resolver.resolve()` 获取 `RouteDecision`，写入 `request.routeDecision`
-- 保留现有 `topK` / `budget` / `filters` 参数建议能力（从 LlmRoutingResolver 的输出中解析，仍写入 request 对应字段）
-- `request.route` 仍可选写入（从 `decision.targets?.[0]` 或 resolver 自定义），兼容 observability
-- 提供便捷工厂函数：`createLlmRoutingStrategy(options)` / `createRuleBasedRoutingStrategy(rules)`
-- 旧的硬编码 LLM 调用方式标记 `@deprecated`，保留向后兼容
+不实现第三种（embedding）resolver。
 
 ---
 
-### 4. retriever 消费 RouteDecision
+## 3. query-routing-strategy
 
-修改 `packages/runtime/src/stages/retrieval/fan-out-retriever.ts` 和/或底层 retriever，读取 `request.routeDecision` 调整检索行为：
+文件：`packages/runtime/src/stages/pre-retrieval/strategies/query-routing-strategy.ts`。
 
-- **`targets`** → 如果底层 retriever 支持多 collection，根据 targets 过滤/选择检索范围。FanOutRetriever 可根据 targets 只激活匹配的 retriever
-- **`retrievalMode === "skip"`** → retriever 直接返回空 candidates + `{ skipped: true }` metadata，不执行实际检索
-- **`searchType`** → 透传到 request metadata 或 retriever 配置，由底层 retriever 决定 dense/sparse/hybrid 行为
-- **无 routeDecision** → 行为不变，完全向后兼容
-
-具体消费方式取决于底层 retriever 的能力，FanOutRetriever 作为编排层优先消费 `targets` 和 `skip`。
-
----
-
-### 5. observability
-
-query-routing-strategy 的 observation event 扩展，增加 `routeDecision` 到 attributes 中，让 trace 能看到完整的路由决策结果（targets / retrievalMode / searchType）。
+- 注入 `resolver: RoutingResolver`。
+- `apply()`：写入 `routeDecision`；可选写 `route` / `budget` / `filters`；有决策才写 `rewriteReason: 'query-routing'`。
+- 无 decision 且无可用 route：透传，不写 `rewriteReason`。
+- 工厂：`createLlmRoutingStrategy` / `createRuleBasedRoutingStrategy`。
+- `createQueryRoutingStrategy`：`@deprecated`，有 `model` 无 `resolver` 时内部创建 `LlmRoutingResolver`。
+- `isQueryStrategyPassthrough` 比较 `routeDecision`。
 
 ---
 
-## 改动边界
+## 4. FanOut 消费 targets / skip
 
-- `run-runtime.ts` **不改动**
-- pipeline 保持单条流水线，不分裂
-- 现有无 routing 的用法完全不受影响（不配 query-routing-strategy 则无 routeDecision，retriever 行为不变）
-- generator 自行处理空 candidates（skip 模式下 retriever 返回空结果，generator 直接用 LLM 回答）
+文件：`packages/runtime/src/stages/retrieval/fan-out-retriever.ts`。`searchType` 原样下传，FanOut 不改融合算法。
 
----
+官方路径：`createRuntimeFromConfig` 默认包一层 FanOut。多库时调用方传入 `FanOutRetriever({ retrievers })` 并为每个子 retriever 设 `id`。
 
-## 设计决策记录
-
-| 决策点 | 结论 | 理由 |
-| --- | --- | --- |
-| 路由裁断放在哪一层 | pre-retrieval | 路由是检索前决策，不应在 retrieval 层分裂管线 |
-| 是否引入 RoutingRetriever | 否 | 会分裂出多条 pipeline，增加复杂度；应由现有 retriever 消费 routeDecision |
-| 裁断策略是否支持多种 | 是，通过 RoutingResolver 接口 | 需要同时支持 LLM 裁断（高智能）和规则裁断（低延迟） |
-| skip 模式由谁处理 | retriever 返回空 + generator 自行容错 | 不侵入 run-runtime.ts |
-| request.route 是否保留 | 保留，标记为可选 debug 字段 | 向后兼容 observability |
+| 条件 | 行为 |
+| --- | --- |
+| 无 `routeDecision` | 行为不变（无 `subQueries` 时仍只调 `#retrievers[0]`） |
+| `retrievalMode === 'skip'` 或 `targets: []` | 不调子 retriever；`candidates: []`；`retrievalMetadata.skipped: true` |
+| `targets` 非空 | 按 `id` 过滤；单查询也召回全部匹配目标，不短路成 `[0]` |
+| `targets` 非空且无一匹配 | 同 skip；打 observation；禁止回退 `[0]` |
 
 ---
 
-## 参考
+## 5. 底层 retriever 消费 searchType
 
-- [Query Routing 语义偏移决策归档](./query-routing-semantics.md)
+**pgvector**（`packages/adapters/src/pgvector/retrievers/pg-vector-runtime-retriever-adapter.ts`）：
+
+- `vector`：只跑 `#retrieveByEmbedding`
+- `keyword`：只跑 `#retrieveByKeyword`
+- 缺省或 `hybrid`：保持现有双路 RRF
+- `capabilities.searchTypes` 声明 `['vector', 'keyword', 'hybrid']`
+- 单路结果的 `scoreKind` 为 `retriever`；双路融合仍为 `rrf`
+
+**langchain**：无双路则不切换。请求的 `searchType` 不在 `capabilities` 内时按现有单路执行，不要假装已切换。
+
+---
+
+## 6. skip → grounding
+
+`buildRuntimeGeneratorInput`（`run` / `runStream` 共用）传入：
+
+```ts
+retrievalSkipped:
+  request.routeDecision?.retrievalMode === 'skip' ||
+  retrievalResult.retrievalMetadata?.skipped === true
+```
+
+空 chunks 时内置 generator 仍生成。不拆 `run-runtime.ts`，不改拒答。`runtime.search()` 不需要 grounding，skip 表现为 0 条候选。
+
+---
+
+## 7. 观测
+
+`queryIntentSnapshot`：有 `routeDecision` 则写入 attributes。FanOut 在 skip / 无匹配 targets 时，事件不得表现成「已检索但库空」。
+
+---
+
+## 8. 导出、注释、测试
+
+包根导出新类型、resolver、两个工厂。`exports.spec.ts` 为新符号加 `toBeDefined()`，不改 src/dist 键集合的 `toEqual` 语义。
+
+公开类型与 skip / 无匹配 targets / pgvector 按 searchType 分路的控制流写简体中文注释（为什么，不复述标识符）。
+
+测试至少覆盖：
+
+- 规则 skip：不调子 retrieve；`grounding.chunksEmptyReason === 'skipped'`
+- `targets: ['b']` 只调 `id === 'b'`
+- 无匹配 targets 不调 `[0]`
+- 无 `routeDecision` 行为不变
+- `createQueryRoutingStrategy` 仍能写 `route` 与 budget
+- 只写 `routeDecision` 不算 passthrough
+- pgvector `searchType: 'vector'` 不跑 keyword SQL
+
+```powershell
+pnpm --filter @monai-ragsdk/runtime build
+pnpm --filter @monai-ragsdk/runtime test
+pnpm --filter @monai-ragsdk/adapters test
+```
+
+改 adapters 前先 build runtime。
+
+---
+
+## 边界
+
+- 不配 routing 策略则无 `routeDecision`，retriever 行为不变。
+- 不改默认 post-retrieval 顺序，不改「单 retriever 再包一层 FanOut」。

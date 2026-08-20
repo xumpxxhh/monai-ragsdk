@@ -3,8 +3,9 @@
 > 状态：**切片 A–G 已落地**
 > 日期：2026-08-19
 > 诊断原文：[kernel-contract-defects.md](../decisions/kernel-contract-defects.md)
-> 关联：[query-routing-upgrade.md](../decisions/query-routing-upgrade.md)（**本轮不落地**）
+> 关联：[query-routing-upgrade.md](../decisions/query-routing-upgrade.md)（**已落地**）
 > 范围：`packages/`；不含 `apps/`
+> 各包现状 Wiki：[packages/routing.md](../packages/routing.md)（按包查阅，不替代本文的切片约定）
 
 下一轮 Agent 读完本文即可开工，不必再通读诊断全文。实现时以诊断为证据、以本文为范围与约定。
 
@@ -424,4 +425,4 @@ pnpm --filter @monai-ragsdk/adapters test
 
 ## 下一刀（复制给下一个 Agent 的任务句）
 
-内核契约缺陷切片 A–G 已收口。剩余项单独立项：拆 `run-runtime.ts`、core/runtime 双接口、`mergeSelectionTrace` 历史、indexing 概念泄漏。若做产品路由，再开 [query-routing-upgrade.md](../decisions/query-routing-upgrade.md)（grounding.skipped 与 retriever `id` 已具备）。不要在未确认时落地 `routeDecision`。要把 server 的 rerank/threshold 顺序修好，用 `createRuntimeFromConfig` 改 `apps/server` 的 `pipeline-factory`。
+内核契约缺陷切片 A–G 已收口。[query-routing-upgrade.md](../decisions/query-routing-upgrade.md) 已落地（`routeDecision` + FanOut skip/targets + pgvector searchType）。剩余项：拆 `run-runtime.ts`、core/runtime 双接口、`mergeSelectionTrace` 历史、indexing 概念泄漏。要把 server 的 rerank/threshold 顺序修好，用 `createRuntimeFromConfig` 改 `apps/server` 的 `pipeline-factory`。内置 generator 消费 `grounding` 仍未做。

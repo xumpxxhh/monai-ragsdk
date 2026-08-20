@@ -1,0 +1,40 @@
+---
+description: 维护 packages 现状 Wiki：改内核先查路由，改完回写对应包页与一览表
+alwaysApply: true
+---
+
+# packages 现状 Wiki
+
+`docs/packages/` 是内核知识库（仅 `packages/*`）。入口：[`docs/packages/routing.md`](docs/packages/routing.md)。
+
+动 `packages/` 或回答内核现状 / 边界 / 下一刀时：
+
+1. 先读 `routing.md`「按问题选文档」，再打开对应包页，不要只靠 README 或记忆。
+2. 行为或边界变了，**同一轮**回写该包页；一览表、依赖方向、主路径 API、下一刀变了，同步 `routing.md`。
+3. 快照日期改成当天。包页与 README / `docs/decisions/` 互相链，不复制大段示例或决策正文。
+
+分层（写错层等于没维护）：
+
+| 写什么 | 写哪 |
+| --- | --- |
+| 现在做到哪、缺口、冻结、关键路径 | `docs/packages/<pkg>.md` |
+| 怎么用、代码示例 | `packages/<pkg>/README.md` |
+| 为什么这样设计 | `docs/decisions/` |
+| 切片交接、未完成约定 | `docs/context/ai-handoff.md` |
+| apps / 控制台 / server | **不要**写进本 Wiki |
+
+不要：
+
+- 改了 runtime 策略或契约却不改 `runtime.md` / `routing.md`
+- 在 Wiki 里发明尚未落地的 API（例如把 `routeDecision` 写成已实现）
+- 往 `eval` / `utils` 预堆实现或把它们写成分包现状「已可用」
+- 为洁癖重写未改动的包页
+
+```md
+# ❌ 只改代码
+# packages/runtime/src/types/route-decision.ts 新增 RouteDecision
+
+# ✅ 代码 + Wiki
+# 1. 实现后改 docs/packages/runtime.md「没有 routeDecision」为已落地及消费点
+# 2. routing.md 一览表 / 下一刀去掉「尚未实现」
+```

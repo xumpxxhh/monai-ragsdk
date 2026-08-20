@@ -59,7 +59,7 @@ runtime 缺省用 UUID，不把 query 嵌进 ID；只传 `requestId` 时 `traceI
 | `decisions` | 该步自己的选留；`stage` 用真实策略名。`post_retrieval.select` 不带此字段 |
 | `error` | 失败时 `{ name, message, code? }`，不再平铺 `errorName` / `errorMessage` |
 
-query 意图快照形如 `{ query, subQueries?, route?, filters? }`。不要把 `request.strategy`（routing 可能写入的 route 名）当成策略名打出去。
+query 意图快照形如 `{ query, subQueries?, route?, routeDecision?, filters? }`。不要把 `request.strategy`（routing 可能写入的 route 名）当成策略名打出去。
 
 ### 策略步进记什么
 

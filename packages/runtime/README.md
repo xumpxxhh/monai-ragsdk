@@ -37,9 +37,10 @@ Pre-retrieval（`QueryStrategy`，经 `StrategyQueryPreprocessor` 串联）：
 - `createQueryExpansionStrategy`：扩展相关查询到 `subQueries`
 - `createQueryDecompositionStrategy`：拆成可独立检索的子问题
 - `createMultiQueryStrategy`：同一意图多种措辞
-- `createQueryRoutingStrategy`：产出 route / topK / budget / filters
+- `createQueryRoutingStrategy`（deprecated）：LLM 路由，内部创建 `LlmRoutingResolver`
+- `createLlmRoutingStrategy` / `createRuleBasedRoutingStrategy`：写入 `routeDecision`（targets / skip / searchType）以及可选 route / budget / filters
 
-多路召回用 `FanOutRetriever` 读 `subQueries`，默认 `fuseByReciprocalRankFusion`（RRF，k=60）。无 `subQueries` 时退化为单次检索。
+`FanOutRetriever` 消费 `routeDecision.targets` / `skip`；无 `routeDecision` 且无 `subQueries` 时仍只打第一个子 retriever。多路召回默认 `fuseByReciprocalRankFusion`（RRF，k=60）。
 
 Post-retrieval（可交给 `createDefaultPostprocessor`，或用 `StrategyRetrievalPostprocessor` 自定义链）：
 

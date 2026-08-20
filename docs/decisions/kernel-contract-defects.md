@@ -342,7 +342,9 @@ LLM 调用失败并 passthrough 时（`:198-206`），重排根本没发生，�
 
 ## 对 query-routing-upgrade 方案的重新定位
 
-结合本文档，[query-routing-upgrade.md](./query-routing-upgrade.md) 的三个 `RouteDecision` 字段落地条件如下：
+落地范围以 [query-routing-upgrade.md](./query-routing-upgrade.md) 为准。以下是契约修复前的字段条件（已过时，仅作诊断证据）：
+
+结合本文档，当时三个 `RouteDecision` 字段落地条件如下：
 
 - **`retrievalMode: "skip"`** — 「让 retriever 返回空 candidates」这一半可以立即实现，但**完整语义依赖缺口 1**。skip 的目的是「不检索、让模型用自身知识回答」，而 generator 只能看到 `chunks: []`，无法区分这是路由主动跳过还是检索失败，因此仍会按「无依据」处理。方案原文所称「generator 自行处理空 candidates，直接用 LLM 回答」在当前内核下不成立。
 - **`targets`** — 依赖 **P1 的 retriever 身份标识**。当前 `RuntimeRetriever` 无 name/id，`FanOutRetriever` 持有的是匿名数组，`targets: string[]` 没有可匹配的键。
