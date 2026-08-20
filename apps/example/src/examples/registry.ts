@@ -35,7 +35,7 @@ export const EXAMPLE_REGISTRY: Record<string, ExampleEntry> = {
   'full-pipeline': {
     id: 'full-pipeline',
     description:
-      '完整 pipeline：Routing + Rewrite + Multi-Query + FanOut + Rerank + Compression（含 observer）',
+      'Query Routing：LLM routeDecision + FanOut targets + pgvector searchType（含 observer）',
     run: runFullPipelineExample,
   },
 };
