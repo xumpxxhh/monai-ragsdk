@@ -8,15 +8,13 @@ import type {
   TraceIdSource,
 } from '@monai-ragsdk/observability';
 
-import { SimpleChunker } from '../chunkers/simple-chunker.js';
-import {
-  DEFAULT_BATCH_SIZE,
-  defaultMetadataBuilder,
-  defaultShouldIndex,
-} from '../defaults/index.js';
+import { SimpleChunker } from '../stages/chunk/simple-chunker.js';
+import { DEFAULT_BATCH_SIZE } from './defaults.js';
+import { defaultMetadataBuilder } from '../stages/enrich/metadata-builder.js';
+import { defaultShouldIndex } from '../stages/document/should-index.js';
 import { IndexingError } from '../errors/index.js';
-import type { ChunkFilter } from '../filters/chunk-filter.js';
-import type { MetadataExtractor } from '../metadata/metadata-extractor.js';
+import type { ChunkFilter } from '../stages/filter/chunk-filter.js';
+import type { MetadataExtractor } from '../stages/enrich/metadata-extractor.js';
 import type {
   FingerprintResolver,
   IndexingContext,
@@ -26,8 +24,8 @@ import type {
   IndexingStage,
   SourceIdResolver,
 } from '../types/index.js';
-import type { VectorStore } from '../stores/vector-store.js';
-import type { ChunkTransformer } from '../chunk-transformers/chunk-transformer.js';
+import type { VectorStore } from '../stages/store/vector-store.js';
+import type { ChunkTransformer } from '../stages/chunk/chunk-transformer.js';
 import {
   buildSourceFingerprintMap,
   collectStaleSourceIds,

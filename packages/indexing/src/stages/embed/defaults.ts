@@ -1,0 +1,1 @@
+export const DEFAULT_VECTOR_DIMENSION = 8;

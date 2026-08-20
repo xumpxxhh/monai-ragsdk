@@ -1,6 +1,6 @@
 import type { Vector } from '@monai-ragsdk/core';
 
-import type { IndexingMode } from '../types/indexing-context.js';
+import type { IndexingMode } from '../../types/indexing-context.js';
 
 export type VectorStoreWriteContext = {
   documentId?: string;

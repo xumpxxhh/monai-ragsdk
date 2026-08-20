@@ -1,6 +1,6 @@
 import type { Chunk, Document } from '@monai-ragsdk/core';
 
-import { DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE } from '../defaults/index.js';
+import { DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE } from './defaults.js';
 import type { Chunker } from './chunker.js';
 
 export type SimpleChunkerOptions = {

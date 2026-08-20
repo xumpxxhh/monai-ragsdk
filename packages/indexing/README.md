@@ -6,6 +6,10 @@
 
 在线问答不在本包；查询编排走 `@monai-ragsdk/runtime`。真实 LLM / pgvector / 目录加载器走 `@monai-ragsdk/adapters`。
 
+## 目录
+
+`src/stages/` 按流水线阶段分组（`load` → `document` → `chunk` → `enrich` → `filter` → `embed` → `store`），编排逻辑在 `src/pipeline/`。对外 API 仍从包根 `@monai-ragsdk/indexing` 导出，路径变更不影响调用方。
+
 ## 依赖
 
 - workspace：`core`、`observability`
@@ -38,6 +42,8 @@
 | 角色 | 实现 |
 | --- | --- |
 | Chunker | `SimpleChunker` |
+| Chunker | `HeadingBasedChunker`（按 Markdown 标题） |
+| Chunker | `ParentChildChunker`（parent section + child 小块） |
 | Embedder | `MockEmbedder`（离线回退，默认 8 维） |
 | Store | `MemoryVectorStore` |
 | Transformer | `ContentCleanupTransformer` |
@@ -45,7 +51,35 @@
 | Filter | `HashDedupChunkFilter` |
 | Metadata | `BasicMetadataExtractor` |
 
-Loader 只有接口，没有内置实现；目录 / Markdown 加载用 adapters 的 LangChain 适配。
+Loader 只有接口，没有内置实现；PDF / Web / 目录 / Markdown 加载用 `@monai-ragsdk/adapters` 的 LangChain 适配。
+
+标题结构 / 父子块切分（无 LangChain 依赖）：
+
+```ts
+import {
+  BasicMetadataExtractor,
+  HeadingBasedChunker,
+  ParentChildChunker,
+  runIndexing,
+} from '@monai-ragsdk/indexing';
+
+await runIndexing({
+  loader,
+  chunker: new HeadingBasedChunker({ maxSectionSize: 1200 }),
+  embedder,
+  store,
+});
+
+await runIndexing({
+  loader,
+  chunker: new ParentChildChunker({ childChunkSize: 200, childChunkOverlap: 20 }),
+  metadataExtractors: [new BasicMetadataExtractor()],
+  embedder,
+  store,
+});
+```
+
+`ParentChildChunker` 在 chunk metadata 写入 `chunkRole`（`parent` | `child`）与 `parentChunkId`；召回时可按 role 过滤，或用 `BasicMetadataExtractor` 生成的 `hierarchyPath` 配合 runtime filter。
 
 ## 使用方式
 

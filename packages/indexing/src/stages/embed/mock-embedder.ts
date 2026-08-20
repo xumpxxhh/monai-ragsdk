@@ -1,6 +1,6 @@
 import type { Chunk, Vector } from '@monai-ragsdk/core';
 
-import { DEFAULT_VECTOR_DIMENSION } from '../defaults/index.js';
+import { DEFAULT_VECTOR_DIMENSION } from './defaults.js';
 import type { Embedder } from './embedder.js';
 
 export type MockEmbedderOptions = {

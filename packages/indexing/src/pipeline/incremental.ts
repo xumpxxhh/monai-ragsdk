@@ -1,4 +1,4 @@
-import type { VectorStoreSourceRecord } from '../stores/vector-store.js';
+import type { VectorStoreSourceRecord } from '../stages/store/vector-store.js';
 
 export type SourceFingerprintMap = Map<string, Set<string>>;
 
