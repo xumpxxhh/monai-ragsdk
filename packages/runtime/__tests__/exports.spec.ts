@@ -39,6 +39,10 @@ describe('runtime export surface', () => {
     expect(distExports.createQueryDecompositionStrategy).toBeDefined();
     expect(distExports.createMultiQueryStrategy).toBeDefined();
     expect(distExports.createQueryRoutingStrategy).toBeDefined();
+    expect(distExports.createLlmRoutingStrategy).toBeDefined();
+    expect(distExports.createRuleBasedRoutingStrategy).toBeDefined();
+    expect(distExports.LlmRoutingResolver).toBeDefined();
+    expect(distExports.RuleBasedRoutingResolver).toBeDefined();
     expect(distExports.createLlmRerankStrategy).toBeDefined();
     expect(distExports.createContextCompressionStrategy).toBeDefined();
     expect(distExports.applyRetrievalTopKAlias).toBeDefined();

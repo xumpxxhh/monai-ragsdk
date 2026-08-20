@@ -128,6 +128,7 @@ export function isQueryStrategyPassthrough(
     before.effectiveQuery.query === after.effectiveQuery.query &&
     sameStringList(subQueryTexts(before.subQueries), subQueryTexts(after.subQueries)) &&
     before.route === after.route &&
+    stableJson(before.routeDecision) === stableJson(after.routeDecision) &&
     before.rewriteReason === after.rewriteReason &&
     before.strategy === after.strategy &&
     before.indexingMode === after.indexingMode &&

@@ -357,6 +357,12 @@ async function runPreGenerationStages(
     typeof retrievalResult.retrievalMetadata?.provider === 'string'
       ? retrievalResult.retrievalMetadata.provider
       : undefined;
+  const retrievalSkipped = retrievalResult.retrievalMetadata?.skipped === true;
+
+  const retrievalOutput = {
+    ...(retrievalProvider ? { provider: retrievalProvider } : {}),
+    ...(retrievalSkipped ? { skipped: true } : {}),
+  };
 
   await emitEvent(observer, trace, {
     stage: 'retrieval',
@@ -364,12 +370,13 @@ async function runPreGenerationStages(
     timestamp: Date.now(),
     durationMs: timings.retrieval,
     attributes: buildObservationAttributes({
+      ...(retrievalSkipped ? { outcome: 'skipped' } : {}),
       counts: { candidates: retrievalResult.candidates.length },
       candidates: summarizeCandidates(
         retrievalResult.candidates,
         inferMissingScoreKind(retrievalResult),
       ),
-      ...(retrievalProvider ? { output: { provider: retrievalProvider } } : {}),
+      ...(Object.keys(retrievalOutput).length > 0 ? { output: retrievalOutput } : {}),
     }),
   });
 
@@ -431,7 +438,7 @@ async function runPreGenerationStages(
 
 /**
  * run / runStream 共用 generator 输入。空 chunks 时附带成因，让拒答与「用模型知识」可区分。
- * 本切片不实现 routing skip，因此不会写出 `skipped`。
+ * skip 必须显式传入：主动不检索也会得到 0 条，不能标成库空。
  */
 function buildRuntimeGeneratorInput(
   request: RetrievalRequest,
@@ -441,6 +448,9 @@ function buildRuntimeGeneratorInput(
   const grounding = resolveGenerationGrounding({
     retrievedCount: retrievalResult.candidates.length,
     chunkCount: postResult.chunks.length,
+    retrievalSkipped:
+      request.routeDecision?.retrievalMode === 'skip' ||
+      retrievalResult.retrievalMetadata?.skipped === true,
   });
 
   return {

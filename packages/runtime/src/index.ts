@@ -17,9 +17,21 @@ export * from './stages/pre-retrieval/strategies/query-expansion-strategy.js';
 export * from './stages/pre-retrieval/strategies/query-decomposition-strategy.js';
 export * from './stages/pre-retrieval/strategies/multi-query-strategy.js';
 export * from './stages/pre-retrieval/strategies/query-routing-strategy.js';
+export {
+  LlmRoutingResolver,
+  RuleBasedRoutingResolver,
+  type LlmRoutingResolverOptions,
+  type RuleBasedRoutingResolverOptions,
+  type RoutingResolveResult,
+  type RoutingResolver,
+  type RoutingRule,
+} from './stages/pre-retrieval/strategies/routing/index.js';
 
 export * from './stages/retrieval/runtime-retriever.js';
-export { FanOutRetriever, type FanOutRetrieverOptions } from './stages/retrieval/fan-out-retriever.js';
+export {
+  FanOutRetriever,
+  type FanOutRetrieverOptions,
+} from './stages/retrieval/fan-out-retriever.js';
 export { applyRetrievalTopKAlias } from './stages/retrieval/apply-retrieval-top-k-alias.js';
 
 export type { RetrievalPostprocessor } from './stages/post-retrieval/retrieval-postprocessor.js';

@@ -4,7 +4,7 @@ import type { RetrievalRequest, RetrievalScoreKind } from '../types/index.js';
 
 export type ObservationScoreKind = RetrievalScoreKind;
 
-export type ObservationOutcome = 'applied' | 'passthrough' | 'failed';
+export type ObservationOutcome = 'applied' | 'passthrough' | 'failed' | 'skipped';
 
 export type ObservationCandidateRef = {
   chunkId: string;
@@ -99,6 +99,9 @@ export function queryIntentSnapshot(request: RetrievalRequest): JsonValue {
   }
   if (request.route) {
     snapshot.route = request.route;
+  }
+  if (request.routeDecision) {
+    snapshot.routeDecision = request.routeDecision as JsonValue;
   }
   if (request.filters) {
     snapshot.filters = request.filters as JsonValue;

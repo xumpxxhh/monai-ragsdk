@@ -3,6 +3,7 @@ import type { JsonValue, Query } from '@monai-ragsdk/core';
 import type { RetrievalBudget } from './retrieval-budget.js';
 import type { RetrievalFilters } from './retrieval-filters.js';
 import type { RetrievalRerankPolicy } from './retrieval-rerank-policy.js';
+import type { RouteDecision } from './route-decision.js';
 
 export type RetrievalRequest = {
   originalQuery: Query;
@@ -22,10 +23,12 @@ export type RetrievalRequest = {
    */
   strategy?: string;
   /**
-   * debug-only：query-routing 的分类标签。检索/生成行为不读这个字段；
-   * 真正按目标切换 retriever 要等 `routeDecision`（本切片不引入）。
+   * debug-only：query-routing 的分类标签。检索/生成行为不读这个字段。
+   * 去哪检索 / 怎么检索 / 是否跳过以 `routeDecision` 为准。
    */
   route?: string;
+  /** 结构化选路；FanOut 读 targets/skip，底层 retriever 读 searchType。 */
+  routeDecision?: RouteDecision;
   rewriteReason?: string;
   /**
    * query-time unused：索引期概念泄漏到查询请求上，仅 Noop / audit 透传。

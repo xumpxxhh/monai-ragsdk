@@ -3,6 +3,7 @@ export * from './runtime-query-input.js';
 export * from './retrieval-filters.js';
 export * from './retrieval-budget.js';
 export * from './retrieval-rerank-policy.js';
+export * from './route-decision.js';
 export * from './retrieval-request.js';
 export * from './retrieval-candidate.js';
 export * from './runtime-retrieval-result.js';

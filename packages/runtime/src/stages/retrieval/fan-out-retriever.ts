@@ -32,6 +32,10 @@ export type FanOutRetrieverOptions = {
   rrf?: FuseByReciprocalRankFusionOptions;
 };
 
+type RetrieverSelection =
+  | { skipped: true; reason: 'retrieval-mode-skip' | 'targets-empty' | 'targets-unmatched' }
+  | { skipped: false; retrievers: RuntimeRetriever[]; targetFiltered: boolean };
+
 function resolveSubQueries(request: RetrievalRequest): Query[] {
   if (request.subQueries && request.subQueries.length > 0) {
     return request.subQueries;
@@ -68,7 +72,8 @@ async function mapWithConcurrency<T, R>(
 /**
  * 读 RetrievalRequest.subQueries 对每个子查询 fan-out 检索再融合；
  * 无 subQueries 时退化为单次底层 retrieve，兼容现有 retriever。
- * 真正多路时按 index 顺序打 retrieval_fanout / retrieval_fuse，避免 JSONL 被并发打乱。
+ * routeDecision.targets / skip 在这里消费：空目标或 skip 不得回退到 retrievers[0]，
+ * 否则「主动不检索」会被观测成库空。
  */
 export class FanOutRetriever implements RuntimeRetriever {
   readonly id?: string;
@@ -97,9 +102,30 @@ export class FanOutRetriever implements RuntimeRetriever {
     request: RetrievalRequest,
     context: RuntimeContext,
   ): Promise<RuntimeRetrievalResult> {
+    const selection = selectRetrievers(this.#retrievers, request);
+    if (selection.skipped) {
+      await emitSkipObservation(context, request, selection.reason);
+      return {
+        candidates: [],
+        retrievalMetadata: {
+          provider: 'fan-out',
+          skipped: true,
+          skipReason: selection.reason,
+          retrieverCount: 0,
+        },
+      };
+    }
+
     const subQueries = resolveSubQueries(request);
-    if (subQueries.length === 1 && subQueries[0] === request.effectiveQuery) {
-      return this.#retrievers[0]!.retrieve(request, context);
+    const isSingleQuery = subQueries.length === 1 && subQueries[0] === request.effectiveQuery;
+    // 无 targets 时保持历史：单查询只打 [0]，避免无意把多库全部召回。
+    const retrievers =
+      isSingleQuery && !selection.targetFiltered
+        ? [selection.retrievers[0]!]
+        : selection.retrievers;
+
+    if (isSingleQuery && retrievers.length === 1) {
+      return retrievers[0]!.retrieve(request, context);
     }
 
     const rankedLists = await mapWithConcurrency(
@@ -114,7 +140,7 @@ export class FanOutRetriever implements RuntimeRetriever {
 
         try {
           const results = await Promise.all(
-            this.#retrievers.map((retriever) => retriever.retrieve(subRequest, context)),
+            retrievers.map((retriever) => retriever.retrieve(subRequest, context)),
           );
 
           return {
@@ -187,11 +213,65 @@ export class FanOutRetriever implements RuntimeRetriever {
       retrievalMetadata: {
         provider: 'fan-out',
         subQueryCount: subQueries.length,
-        retrieverCount: this.#retrievers.length,
+        retrieverCount: retrievers.length,
         fusedCandidateCount: fusedCandidates.length,
       },
     };
   }
+}
+
+function selectRetrievers(
+  retrievers: RuntimeRetriever[],
+  request: RetrievalRequest,
+): RetrieverSelection {
+  const decision = request.routeDecision;
+  if (decision?.retrievalMode === 'skip') {
+    return { skipped: true, reason: 'retrieval-mode-skip' };
+  }
+
+  if (decision?.targets && decision.targets.length === 0) {
+    return { skipped: true, reason: 'targets-empty' };
+  }
+
+  if (decision?.targets && decision.targets.length > 0) {
+    const matched: RuntimeRetriever[] = [];
+    const seen = new Set<RuntimeRetriever>();
+    for (const target of decision.targets) {
+      const retriever = retrievers.find((candidate) => candidate.id === target);
+      if (retriever && !seen.has(retriever)) {
+        seen.add(retriever);
+        matched.push(retriever);
+      }
+    }
+
+    if (matched.length === 0) {
+      return { skipped: true, reason: 'targets-unmatched' };
+    }
+
+    return { skipped: false, retrievers: matched, targetFiltered: true };
+  }
+
+  return { skipped: false, retrievers, targetFiltered: false };
+}
+
+async function emitSkipObservation(
+  context: RuntimeContext,
+  request: RetrievalRequest,
+  reason: 'retrieval-mode-skip' | 'targets-empty' | 'targets-unmatched',
+): Promise<void> {
+  await emitRuntimeObservation(context, {
+    stage: 'retrieval_fanout',
+    action: 'complete',
+    timestamp: Date.now(),
+    attributes: buildObservationAttributes({
+      outcome: 'skipped',
+      input: {
+        query: request.effectiveQuery.query,
+        skipReason: reason,
+      },
+      counts: { candidates: 0, retrievers: 0 },
+    }),
+  });
 }
 
 function mergeRetrieverCapabilities(

@@ -2,62 +2,49 @@ import type { QueryStrategy } from '../query-strategy.js';
 
 import type { RetrievalRequest, RuntimeContext } from '../../../types/index.js';
 
-import type { JsonValue } from '@monai-ragsdk/core';
-
 import type { LlmQueryStrategyOptions } from './llm-query-strategy-options.js';
-import { completeQueryStrategyModel, isBlankEffectiveQuery } from './complete-query-strategy.js';
+import { isBlankEffectiveQuery } from './complete-query-strategy.js';
+import {
+  LlmRoutingResolver,
+  RuleBasedRoutingResolver,
+  type RoutingResolver,
+  type RoutingRule,
+} from './routing/index.js';
 
-function extractJson(text: string): unknown | undefined {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = (fenced?.[1] ?? trimmed).trim();
-
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    return undefined;
-  }
-}
-
-export type QueryRoutingStrategyOptions = LlmQueryStrategyOptions & {
+export type QueryRoutingStrategyBaseOptions = {
+  resolver?: RoutingResolver;
   /** LLM 输出缺省 route 时使用该值；默认 `undefined`（透传 request.route）。 */
   defaultRoute?: string;
-  /** 是否把 route 写入 request.strategy，便于后续 debug 与 retriever/adapter 使用。 */
+  /** 是否把 route 写入 request.strategy，便于后续 debug。 */
   alsoSetStrategy?: boolean;
 };
 
-const DEFAULT_SYSTEM =
-  '你是查询路由器。根据用户问题决定检索 route（用于选择检索/后处理配置）。\n' +
-  '只输出 JSON，字段尽量精简：\n' +
-  '{\n' +
-  '  "route": "string",\n' +
-  '  "topK": number  // 可选\n' +
-  '  "budget": { "maxChunks": number, "maxPromptChars": number } // 可选\n' +
-  '  "filters": { "metadata": { "key": "value" } } // 可选\n' +
-  '}\n' +
-  '不要回答问题本身。';
+/**
+ * @deprecated 有 `model` 无 `resolver` 时内部创建 `LlmRoutingResolver`。
+ * 新代码请用 `createLlmRoutingStrategy` / `createRuleBasedRoutingStrategy`。
+ */
+export type QueryRoutingStrategyOptions = LlmQueryStrategyOptions &
+  QueryRoutingStrategyBaseOptions & {
+    availableTargets?: string[];
+  };
 
-function buildPrompt(query: string): string {
-  return [
-    '请为下面的问题选择检索 route，并可选给出 topK / budget / filters。',
-    '只输出 JSON，不要输出多余说明。',
-    '',
-    `问题：${query}`,
-  ].join('\n');
-}
+export type LlmRoutingStrategyOptions = LlmQueryStrategyOptions &
+  Omit<QueryRoutingStrategyBaseOptions, 'resolver'> & {
+    availableTargets?: string[];
+  };
+
+export type RuleBasedRoutingStrategyOptions = Omit<QueryRoutingStrategyBaseOptions, 'resolver'> & {
+  rules: RoutingRule[];
+};
 
 /**
- * Query Routing：用 LLM 生成 `request.route`（以及可选 budget/filters）。
- * LLM 的 topK 直接写入 `budget.maxChunks`（权威条数），不写 `request.topK`。
- * 若 JSON 同时带 budget.maxChunks，以 budget 覆盖先前由 topK 写入的值。
- * - 路由写入能被 runtime debug 与后续适配（retriever/postprocessor）消费
- * - LLM 失败或输出无法解析：默认透传 request（避免策略链把检索拖死）
+ * Query Routing：把 resolver 的决策写入 `routeDecision`，可选写 route / budget / filters。
+ * 有决策或可用 route 才写 `rewriteReason`；否则整单透传，避免审计看起来已经路由过。
+ * LLM 的 topK 只进 `budget.maxChunks`，不写 `request.topK`。
  */
-export function createQueryRoutingStrategy(options: QueryRoutingStrategyOptions): QueryStrategy {
+export function createRoutingStrategy(
+  options: QueryRoutingStrategyBaseOptions & { resolver: RoutingResolver },
+): QueryStrategy {
   const alsoSetStrategy = options.alsoSetStrategy ?? true;
 
   return {
@@ -67,86 +54,85 @@ export function createQueryRoutingStrategy(options: QueryRoutingStrategyOptions)
         return request;
       }
 
-      const text = await completeQueryStrategyModel(
-        options.model,
-        {
-          prompt: buildPrompt(request.effectiveQuery.query),
-          system: options.system ?? DEFAULT_SYSTEM,
-        },
+      const resolved = await options.resolver.resolve(
+        request.effectiveQuery.query,
+        request,
         context,
-        options.onError,
       );
-
-      if (!text) {
-        if (options.onError === 'throw') {
-          throw new Error('query routing strategy model returned empty text');
-        }
+      if (!resolved) {
         return request;
       }
 
-      const json = extractJson(text);
-      if (!json || typeof json !== 'object' || Array.isArray(json)) {
-        if (options.onError === 'throw') {
-          throw new Error('query routing strategy could not parse routing json');
-        }
-        return request;
-      }
-
-      const routeValue = (json as { route?: unknown }).route;
-      const route =
-        typeof routeValue === 'string' && routeValue.trim().length > 0
-          ? routeValue.trim()
-          : options.defaultRoute;
-
-      const topK = (json as { topK?: unknown }).topK;
-      const budget = (json as { budget?: unknown }).budget;
-      const filters = (json as { filters?: unknown }).filters;
-
-      // 没有可用 route 时不算路由成功；若仍写 rewriteReason，审计会看起来像已经路由过。
-      if (!route) {
-        if (options.onError === 'throw') {
-          throw new Error('query routing strategy could not determine route');
-        }
+      const route = resolved.route ?? resolved.decision?.targets?.[0] ?? options.defaultRoute;
+      if (!resolved.decision && !route) {
         return request;
       }
 
       const next: RetrievalRequest = {
         ...request,
         rewriteReason: 'query-routing',
-        route,
-        strategy: alsoSetStrategy ? (request.strategy ?? route) : request.strategy,
+        ...(resolved.decision ? { routeDecision: resolved.decision } : {}),
+        ...(route ? { route } : {}),
+        strategy: alsoSetStrategy && route ? (request.strategy ?? route) : request.strategy,
       };
 
-      if (typeof topK === 'number' && Number.isFinite(topK) && topK > 0) {
+      if (resolved.budget) {
         next.budget = {
           ...(next.budget ?? {}),
-          maxChunks: topK,
+          ...resolved.budget,
         };
       }
 
-      if (budget && typeof budget === 'object' && !Array.isArray(budget)) {
-        const maxChunks = (budget as { maxChunks?: unknown }).maxChunks;
-        const maxPromptChars = (budget as { maxPromptChars?: unknown }).maxPromptChars;
-        next.budget = {
-          ...(next.budget ?? {}),
-          ...(typeof maxChunks === 'number' && maxChunks > 0 ? { maxChunks } : {}),
-          ...(typeof maxPromptChars === 'number' && maxPromptChars > 0 ? { maxPromptChars } : {}),
+      if (resolved.filters) {
+        next.filters = {
+          ...(next.filters ?? {}),
+          ...resolved.filters,
         };
-      }
-
-      if (filters && typeof filters === 'object' && !Array.isArray(filters)) {
-        // filters 字段只做尽力映射：metadata 里只接受 string/number/boolean/null，不能保证严格 JsonValue 类型
-        const metadata = (filters as { metadata?: unknown }).metadata;
-        if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
-          next.filters = {
-            ...(next.filters ?? {}),
-            // JSON.parse 的结果语义上满足 JsonValue；这里是类型层面的“受控断言”，避免阻断编译。
-            metadata: metadata as Record<string, JsonValue>,
-          };
-        }
       }
 
       return next;
     },
   };
+}
+
+export function createLlmRoutingStrategy(options: LlmRoutingStrategyOptions): QueryStrategy {
+  return createRoutingStrategy({
+    ...options,
+    resolver: new LlmRoutingResolver({
+      model: options.model,
+      availableTargets: options.availableTargets,
+      system: options.system,
+      onError: options.onError,
+      defaultRoute: options.defaultRoute,
+    }),
+  });
+}
+
+export function createRuleBasedRoutingStrategy(
+  options: RuleBasedRoutingStrategyOptions,
+): QueryStrategy {
+  return createRoutingStrategy({
+    ...options,
+    resolver: new RuleBasedRoutingResolver({ rules: options.rules }),
+  });
+}
+
+/**
+ * @deprecated 请改用 `createLlmRoutingStrategy`。保留是为了旧调用方仍能写 `route` 与 budget。
+ */
+export function createQueryRoutingStrategy(options: QueryRoutingStrategyOptions): QueryStrategy {
+  const resolver =
+    options.resolver ??
+    new LlmRoutingResolver({
+      model: options.model,
+      availableTargets: options.availableTargets,
+      system: options.system,
+      onError: options.onError,
+      defaultRoute: options.defaultRoute,
+    });
+
+  return createRoutingStrategy({
+    ...options,
+    resolver,
+  });
 }
