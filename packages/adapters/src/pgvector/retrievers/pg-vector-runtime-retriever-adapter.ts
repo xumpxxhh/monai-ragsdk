@@ -67,13 +67,16 @@ const DEFAULT_CANDIDATE_POOL_SIZE = 100;
 const DEFAULT_RRF_K = 60;
 
 /**
- * pgvector 查询期 retriever：向量召回与关键词召回并行，再按 RRF 融合。
- * SQL 不表达 Phase D filter；融合后再复用 runtime 统一过滤，避免和 LangChain 路径语义分叉。
+ * pgvector 查询期 retriever：默认向量 + 关键词双路 RRF；`routeDecision.searchType`
+ * 为 vector / keyword 时只跑对应 SQL，避免路由要求纯向量时仍被关键词分污染。
+ * SQL 不表达 Phase D filter；召回后再复用 runtime 统一过滤。
  */
 export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
   readonly id: string;
   readonly name = 'pgvector';
-  readonly capabilities: RuntimeRetrieverCapabilities = { searchTypes: ['hybrid'] };
+  readonly capabilities: RuntimeRetrieverCapabilities = {
+    searchTypes: ['vector', 'keyword', 'hybrid'],
+  };
   readonly #client: PgRuntimeRetrieverClientLike;
   readonly #ownedPool: Pool | undefined;
   readonly #schema: string;
@@ -120,8 +123,27 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
   ): Promise<RuntimeRetrievalResult> {
     const query = request.effectiveQuery.query;
     const topK = request.budget?.maxChunks ?? 3;
+    // 未声明的 searchType 不能假装已切换；缺省与 hybrid 保持双路 RRF，避免默认路径行为漂移。
+    const searchType = request.routeDecision?.searchType ?? 'hybrid';
 
-    // 召回池大于 topK，否则 RRF 与 filter 之后容易凑不满最终结果
+    if (searchType === 'vector') {
+      const vectorCandidates = await this.#retrieveByEmbedding(
+        query,
+        request,
+        DEFAULT_CANDIDATE_POOL_SIZE,
+      );
+      return this.#finishRetrieve(request, vectorCandidates, [], topK, 'vector');
+    }
+
+    if (searchType === 'keyword') {
+      const keywordCandidates = await this.#retrieveByKeyword(
+        query,
+        request,
+        DEFAULT_CANDIDATE_POOL_SIZE,
+      );
+      return this.#finishRetrieve(request, [], keywordCandidates, topK, 'keyword');
+    }
+
     const [vectorCandidates, keywordCandidates] = await Promise.all([
       this.#retrieveByEmbedding(query, request, DEFAULT_CANDIDATE_POOL_SIZE),
       this.#retrieveByKeyword(query, request, DEFAULT_CANDIDATE_POOL_SIZE),
@@ -140,8 +162,37 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
           },
         }),
     });
-    const filteredCandidates = filterRetrievalCandidatesByIndexingFilters(
+    return this.#finishRetrieve(
+      request,
+      vectorCandidates,
+      keywordCandidates,
+      topK,
+      'hybrid',
       fusedCandidates,
+    );
+  }
+
+  /**
+   * 单路结果保留 retriever 分；双路才走 RRF。
+   * 融合后再过滤，避免 SQL 与 LangChain 路径语义分叉。
+   */
+  #finishRetrieve(
+    request: RetrievalRequest,
+    vectorCandidates: RetrievalCandidate[],
+    keywordCandidates: RetrievalCandidate[],
+    topK: number,
+    searchType: 'vector' | 'keyword' | 'hybrid',
+    fusedCandidates?: RetrievalCandidate[],
+  ): RuntimeRetrievalResult {
+    const ranked =
+      searchType === 'hybrid'
+        ? (fusedCandidates ?? [])
+        : searchType === 'vector'
+          ? vectorCandidates
+          : keywordCandidates;
+
+    const filteredCandidates = filterRetrievalCandidatesByIndexingFilters(
+      ranked,
       request.filters,
     ).slice(0, topK);
 
@@ -150,9 +201,10 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
       retrievalMetadata: {
         provider: 'pgvector',
         topK,
+        searchType,
         vectorCandidateCount: vectorCandidates.length,
         keywordCandidateCount: keywordCandidates.length,
-        fusedCandidateCount: fusedCandidates.length,
+        fusedCandidateCount: ranked.length,
         filteredCandidateCount: filteredCandidates.length,
       },
     };
@@ -206,6 +258,7 @@ export class PgVectorRuntimeRetrieverAdapter implements RuntimeRetriever {
 
       return createIndexingRetrievalCandidate(chunk, {
         score: readScore(row.score),
+        scoreKind: 'retriever',
         route: request.route,
         strategy: request.strategy,
         retrieverMetadata: {

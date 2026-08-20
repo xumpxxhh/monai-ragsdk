@@ -133,6 +133,7 @@ export class LangChainRuntimeRetrieverAdapter<
     request: RetrievalRequest,
     context: RuntimeContext,
   ): Promise<RuntimeRetrievalResult> {
+    // 无双路能力：请求的 searchType 即使存在也不切换，避免观测上假装已改召回形态。
     const retrieverInput = this.#options.mapRequest
       ? await this.#options.mapRequest(request, context)
       : (request.effectiveQuery.query as TInput);

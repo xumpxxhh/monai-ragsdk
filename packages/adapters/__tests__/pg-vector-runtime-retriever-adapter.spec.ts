@@ -79,7 +79,9 @@ describe('PgVectorRuntimeRetrieverAdapter', () => {
     });
 
     expect(adapter.id).toBe('pgvector');
-    expect(adapter.capabilities).toEqual({ searchTypes: ['hybrid'] });
+    expect(adapter.capabilities).toEqual({
+      searchTypes: ['vector', 'keyword', 'hybrid'],
+    });
 
     const result = await adapter.retrieve(
       {
@@ -211,5 +213,55 @@ describe('PgVectorRuntimeRetrieverAdapter', () => {
     );
 
     expect(result.candidates[0]?.chunk.content).toBe('stored in metadata');
+  });
+
+  it('does not run keyword SQL when searchType is vector', async () => {
+    const embedQuery = vi.fn(async () => [0.3, 0.1]);
+    const query = vi.fn(async (sql: string) => {
+      if (String(sql).includes('plainto_tsquery')) {
+        throw new Error('keyword SQL should not run');
+      }
+
+      return {
+        rows: [
+          {
+            id: 'chunk-vector',
+            content: 'vector only',
+            metadata: { sourceId: 'docs/runtime' },
+            score: 0.91,
+          },
+        ],
+      };
+    });
+    const adapter = new PgVectorRuntimeRetrieverAdapter({
+      tableName: 'rag_vectors',
+      client: { query },
+      embedQuery,
+    });
+
+    const result = await adapter.retrieve(
+      {
+        originalQuery: { query: 'runtime' },
+        effectiveQuery: { query: 'runtime' },
+        budget: { maxChunks: 1 },
+        routeDecision: { searchType: 'vector' },
+      },
+      runtimeContext,
+    );
+
+    expect(embedQuery).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(String(query.mock.calls[0]?.[0])).toContain('<=>');
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]).toMatchObject({
+      chunk: { id: 'chunk-vector' },
+      scoreKind: 'retriever',
+      retrieverMetadata: { searchType: 'vector' },
+    });
+    expect(result.retrievalMetadata).toMatchObject({
+      searchType: 'vector',
+      vectorCandidateCount: 1,
+      keywordCandidateCount: 0,
+    });
   });
 });
