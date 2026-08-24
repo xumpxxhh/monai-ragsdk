@@ -31,7 +31,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [refreshCollections]);
 
   // 创建 / 更新 / 删除知识库后同步列表
-  useEffect(() => subscribeCollectionsChanged(() => void refreshCollections()), [refreshCollections]);
+  useEffect(
+    () => subscribeCollectionsChanged(() => void refreshCollections()),
+    [refreshCollections],
+  );
 
   const updatePreferences = useCallback((patch: Partial<AppPreferences>) => {
     setPreferences((prev) => {

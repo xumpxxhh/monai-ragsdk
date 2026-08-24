@@ -19,7 +19,13 @@ export const presetDescriptions: Record<StrategyPreset, string> = {
 
 const presetTemplates: Record<StrategyPreset, Partial<StrategyConfig>> = {
   balanced: {
-    preRetrieval: { rewrite: true, expansion: false, decomposition: false, multiQuery: false, routing: false },
+    preRetrieval: {
+      rewrite: true,
+      expansion: false,
+      decomposition: false,
+      multiQuery: false,
+      routing: false,
+    },
     postRetrieval: {
       scoreThreshold: true,
       scoreThresholdValue: 0.2,
@@ -33,7 +39,13 @@ const presetTemplates: Record<StrategyPreset, Partial<StrategyConfig>> = {
     },
   },
   high_recall: {
-    preRetrieval: { rewrite: true, expansion: true, decomposition: false, multiQuery: true, routing: false },
+    preRetrieval: {
+      rewrite: true,
+      expansion: true,
+      decomposition: false,
+      multiQuery: true,
+      routing: false,
+    },
     retrieval: { topK: 12 },
     postRetrieval: {
       scoreThreshold: false,
@@ -48,7 +60,13 @@ const presetTemplates: Record<StrategyPreset, Partial<StrategyConfig>> = {
     },
   },
   low_cost: {
-    preRetrieval: { rewrite: false, expansion: false, decomposition: false, multiQuery: false, routing: false },
+    preRetrieval: {
+      rewrite: false,
+      expansion: false,
+      decomposition: false,
+      multiQuery: false,
+      routing: false,
+    },
     retrieval: { topK: 5 },
     postRetrieval: {
       scoreThreshold: true,
@@ -63,7 +81,13 @@ const presetTemplates: Record<StrategyPreset, Partial<StrategyConfig>> = {
     },
   },
   strict_cite: {
-    preRetrieval: { rewrite: true, expansion: false, decomposition: false, multiQuery: false, routing: false },
+    preRetrieval: {
+      rewrite: true,
+      expansion: false,
+      decomposition: false,
+      multiQuery: false,
+      routing: false,
+    },
     postRetrieval: {
       scoreThreshold: true,
       scoreThresholdValue: 0.35,

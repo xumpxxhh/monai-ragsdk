@@ -13,7 +13,10 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   );
 }
 
-export function Textarea({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function Textarea({
+  className,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       className={cn(
@@ -87,7 +90,9 @@ export function SwitchRow({
     >
       <span>
         <span className="text-sm">{label}</span>
-        {description ? <span className="mt-0.5 block text-xs text-muted">{description}</span> : null}
+        {description ? (
+          <span className="mt-0.5 block text-xs text-muted">{description}</span>
+        ) : null}
       </span>
       <input
         type="checkbox"

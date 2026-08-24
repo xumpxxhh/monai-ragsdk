@@ -100,7 +100,8 @@ export function summarizeEventAttributes(event: RAGEvent): string | undefined {
   }
 
   const candidateCount =
-    readNumber(readNested(counts, 'candidates')) ?? readNumber(readNested(output, 'candidateCount'));
+    readNumber(readNested(counts, 'candidates')) ??
+    readNumber(readNested(output, 'candidateCount'));
   if (candidateCount !== undefined) {
     parts.push(`候选: ${candidateCount}`);
   }
@@ -117,7 +118,9 @@ export function summarizeEventAttributes(event: RAGEvent): string | undefined {
 
   const selectedChunkIds = readNested(output, 'selectedChunkIds');
   if (Array.isArray(selectedChunkIds) && selectedChunkIds.length > 0) {
-    parts.push(`片段: ${selectedChunkIds.slice(0, 3).join(', ')}${selectedChunkIds.length > 3 ? '…' : ''}`);
+    parts.push(
+      `片段: ${selectedChunkIds.slice(0, 3).join(', ')}${selectedChunkIds.length > 3 ? '…' : ''}`,
+    );
   }
 
   const contextChunkIds = readNested(output, 'contextChunkIds');

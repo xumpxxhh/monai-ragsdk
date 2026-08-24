@@ -148,7 +148,10 @@ export default function StrategyPage() {
           <SwitchRow
             checked={config.postRetrieval.scoreThreshold}
             onCheckedChange={(v) =>
-              setConfig({ ...config, postRetrieval: { ...config.postRetrieval, scoreThreshold: v } })
+              setConfig({
+                ...config,
+                postRetrieval: { ...config.postRetrieval, scoreThreshold: v },
+              })
             }
             label="分数阈值过滤"
             description={`低于 ${config.postRetrieval.scoreThresholdValue} 丢弃`}

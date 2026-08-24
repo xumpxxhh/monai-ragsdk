@@ -51,9 +51,7 @@ export default function SettingsPage() {
               key={density}
               className={cn(
                 'flex-1 cursor-pointer rounded-ctrl border p-3',
-                preferences.density === density
-                  ? 'border-brand bg-brand-soft'
-                  : 'border-line',
+                preferences.density === density ? 'border-brand bg-brand-soft' : 'border-line',
               )}
             >
               <input

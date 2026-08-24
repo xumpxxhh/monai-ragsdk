@@ -11,10 +11,7 @@ import {
   startIngest,
   subscribeDocumentsChanged,
 } from '@/shared/api/documents';
-import {
-  IngestConfigModal,
-  loaderLabel,
-} from '@/features/documents/IngestConfigModal';
+import { IngestConfigModal, loaderLabel } from '@/features/documents/IngestConfigModal';
 import { useIsAdmin } from '@/shared/hooks/useAppContext';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { Button } from '@/shared/ui/Button';
@@ -38,7 +35,9 @@ const DEFAULT_CHUNKING: ChunkingConfig & { strategy: ChunkingStrategy } = {
   overlap: 50,
 };
 
-function recommendChunkingForLoader(loaderHint: string): ChunkingConfig & { strategy: ChunkingStrategy } {
+function recommendChunkingForLoader(
+  loaderHint: string,
+): ChunkingConfig & { strategy: ChunkingStrategy } {
   if (loaderHint === 'text/markdown') {
     return { strategy: 'heading' };
   }

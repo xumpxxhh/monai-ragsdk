@@ -31,7 +31,11 @@ export function Modal({ open, onOpenChange, title, children, footer, className }
             </Dialog.Close>
           </div>
           <div className="p-5">{children}</div>
-          {footer ? <div className="flex h-14 items-center justify-end gap-2 border-t border-line px-5">{footer}</div> : null}
+          {footer ? (
+            <div className="flex h-14 items-center justify-end gap-2 border-t border-line px-5">
+              {footer}
+            </div>
+          ) : null}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

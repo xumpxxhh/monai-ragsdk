@@ -1,12 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import {
-  FlaskConical,
-  Home,
-  Layers,
-  MessageCircle,
-  Settings,
-  History,
-} from 'lucide-react';
+import { FlaskConical, Home, Layers, MessageCircle, Settings, History } from 'lucide-react';
 import { cn } from '@/shared/utils';
 import { useAppContext } from '@/shared/hooks/useAppContext';
 import { useState } from 'react';

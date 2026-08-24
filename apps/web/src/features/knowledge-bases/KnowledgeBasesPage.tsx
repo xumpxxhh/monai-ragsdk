@@ -139,7 +139,11 @@ export default function KnowledgeBasesPage() {
             <Button variant="secondary" onClick={() => setCreateOpen(false)}>
               取消
             </Button>
-            <Button variant="secondary" disabled={creating} onClick={() => void handleCreate(false)}>
+            <Button
+              variant="secondary"
+              disabled={creating}
+              onClick={() => void handleCreate(false)}
+            >
               创建
             </Button>
             <Button disabled={creating} onClick={() => void handleCreate(true)}>
@@ -153,7 +157,11 @@ export default function KnowledgeBasesPage() {
             <Input id="kb-name" value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
           <Field label="说明" htmlFor="kb-desc">
-            <Input id="kb-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Input
+              id="kb-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </Field>
           <Field label="入库模式">
             <div className="space-y-2">

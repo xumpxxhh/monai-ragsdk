@@ -59,7 +59,9 @@ export function TraceEventTimeline({ trace }: TraceEventTimelineProps) {
                   <p className={cn('text-sm font-medium', failed && 'text-warning')}>
                     {eventLabel(event.name)}
                   </p>
-                  <span className="text-xs text-muted">{formatOffsetMs(startedAt, event.timestamp)}</span>
+                  <span className="text-xs text-muted">
+                    {formatOffsetMs(startedAt, event.timestamp)}
+                  </span>
                   {typeof event.durationMs === 'number' ? (
                     <span className="text-xs text-muted">耗时 {event.durationMs}ms</span>
                   ) : null}
@@ -68,7 +70,9 @@ export function TraceEventTimeline({ trace }: TraceEventTimelineProps) {
                 {summary ? <p className="text-xs text-muted">{summary}</p> : null}
                 {event.attributes ? (
                   <details className="text-xs">
-                    <summary className="cursor-pointer text-brand hover:underline">attributes</summary>
+                    <summary className="cursor-pointer text-brand hover:underline">
+                      attributes
+                    </summary>
                     <pre className="mt-1 max-h-64 overflow-auto rounded-ctrl bg-canvas p-2 font-mono text-[11px] leading-relaxed text-muted">
                       {formatAttributesJson(event.attributes)}
                     </pre>

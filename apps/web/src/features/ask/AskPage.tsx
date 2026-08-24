@@ -242,7 +242,9 @@ export default function AskPage() {
                 {streaming ? '停止' : '发送'}
               </Button>
             </div>
-            <p className="mt-2 text-xs text-muted">答案基于全部已注册知识库；可点击角标查看原文。</p>
+            <p className="mt-2 text-xs text-muted">
+              答案基于全部已注册知识库；可点击角标查看原文。
+            </p>
           </div>
         </section>
 
