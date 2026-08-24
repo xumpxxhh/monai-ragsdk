@@ -9,20 +9,20 @@
 ## 依赖
 
 - workspace：`core`、`indexing`、`runtime`
-- 第三方：`@langchain/*`、`pg`、`chromadb`、`pdf-parse`、`cheerio`
-- 被谁用：只有应用层（`apps/cli`、`apps/example`）。库不再依赖 adapters，把厂商锁在最外一层。
+- 第三方：`openai`、`@langchain/*`、`pg`、`chromadb`、`pdf-parse`、`cheerio`
+- 被谁用：只有应用层（`apps/cli`、`apps/example`、`apps/server`）。库不再依赖 adapters，把厂商锁在最外一层。
 
 不直接依赖 `observability`：适配器只做事，trace 由 indexing / runtime 上报。
 
 ## 适配一览
 
-| 分组 | 接到哪一层 | 内容 |
-| --- | --- | --- |
-| OpenAI 兼容 | indexing `Embedder`；runtime `Generator` / `StrategyModel` | `OpenAIEmbedder`、`OpenAIRuntimeGenerator`、`OpenAIStrategyModel` |
-| Ollama | 同上 | `OllamaEmbedder`、`OllamaRuntimeGenerator`、`OllamaStrategyModel` |
-| pgvector | indexing `VectorStore`；runtime `Retriever` | **默认查询路径** |
-| LangChain | indexing loader / chunker / embedder / metadata / chunk-transformer；runtime retriever / generator | 文档加载与切分 |
-| Chroma | 仅 `VectorStore.upsert` | **只写不查** |
+| 分组        | 接到哪一层                                                                                         | 内容                                                                |
+| ----------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| OpenAI 兼容 | indexing `Embedder`；runtime `Generator` / `StrategyModel`                                         | 官方 `openai` SDK；`createOpenAIChatAdapters` / `OpenAIEmbedder` 等 |
+| Ollama      | 同上                                                                                               | `OllamaEmbedder`、`OllamaRuntimeGenerator`、`OllamaStrategyModel`   |
+| pgvector    | indexing `VectorStore`；runtime `Retriever`                                                        | **默认查询路径**                                                    |
+| LangChain   | indexing loader / chunker / embedder / metadata / chunk-transformer；runtime retriever / generator | 文档加载与切分                                                      |
+| Chroma      | 仅 `VectorStore.upsert`                                                                            | **只写不查**                                                        |
 
 `baseUrl` / `model` 由调用方显式传入，SDK 不内置厂商 URL。
 
@@ -31,16 +31,16 @@
 - embedding：`EMBEDDING_API_KEY`（`OpenAIEmbedder`）
 - ask / 策略模型：`OPENAI_API_KEY`（`OpenAIRuntimeGenerator`、`OpenAIStrategyModel`）
 
-两套 key 分开，避免和 embedding 混用。
+两套 key 分开，避免和 embedding 混用。同一套 chat 配置推荐 `createOpenAIChatAdapters()`，让 Generator 与 StrategyModel 共用一个 client。
 
 ## 使用方式
 
 ```ts
 import {
   OpenAIEmbedder,
-  OpenAIRuntimeGenerator,
   PgVectorRuntimeRetrieverAdapter,
   PgVectorStoreAdapter,
+  createOpenAIChatAdapters,
 } from '@monai-ragsdk/adapters';
 import { runIndexing, type Loader } from '@monai-ragsdk/indexing';
 import { createDefaultRuntime } from '@monai-ragsdk/runtime';
@@ -63,18 +63,23 @@ declare const loader: Loader;
 
 await runIndexing({ loader, embedder, store });
 
+const { generator, strategyModel } = createOpenAIChatAdapters({
+  model: 'deepseek-chat',
+  baseUrl: process.env.OPENAI_BASE_URL!,
+});
+
+// strategyModel 与 generator 共用同一 OpenAIChatClient，可注入 rewrite / rerank 等策略
 const runtime = createDefaultRuntime({
   retriever: new PgVectorRuntimeRetrieverAdapter({
     connectionString,
     tableName,
     embedQuery: (text) => embedder.embed([{ id: 'query', content: text }]).then(([v]) => v!.values),
   }),
-  generator: new OpenAIRuntimeGenerator({
-    model: 'deepseek-chat',
-    baseUrl: process.env.OPENAI_BASE_URL!,
-  }),
+  generator,
 });
 ```
+
+也可继续 `new OpenAIRuntimeGenerator({ model, baseUrl })` 单独使用 Generator。
 
 LangChain 目录加载、递归 / 语义 / Markdown 切分见 `demo/langchain-adapters.ts` 与 `demo/langchain-extensions.ts`。
 

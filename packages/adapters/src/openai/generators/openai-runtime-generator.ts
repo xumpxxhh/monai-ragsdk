@@ -1,3 +1,4 @@
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import type {
   RuntimeGenerationResult,
   RuntimeGenerationStreamEvent,
@@ -5,96 +6,56 @@ import type {
   RuntimeGeneratorInput,
 } from '@monai-ragsdk/runtime';
 
-import { postOpenAIJson, postOpenAISse, type OpenAIHttpOptions } from '../shared/http.js';
+import { OpenAIChatClient, type OpenAIChatClientOptions } from '../shared/openai-chat-client.js';
 
-export type OpenAIRuntimeGeneratorOptions = Omit<OpenAIHttpOptions, 'apiKey'> & {
-  model: string;
-  /** OpenAI 兼容 /chat/completions 的根地址，须由调用方显式传入，SDK 不内置厂商 URL。 */
-  baseUrl: string;
-  apiKey?: string;
+export type OpenAIRuntimeGeneratorFromClientOptions = {
+  client: OpenAIChatClient;
   systemPrompt?: string;
 };
 
-type OpenAIChatMessage = {
-  content?: string | Array<{ text?: string }>;
+export type OpenAIRuntimeGeneratorCreateOptions = OpenAIChatClientOptions & {
+  systemPrompt?: string;
 };
 
-type OpenAIChatResponse = {
-  choices?: Array<{
-    message?: OpenAIChatMessage;
-  }>;
-};
+/** 注入共享 chat client，或按 model/baseUrl 自建；保留历史单类 new 用法。 */
+export type OpenAIRuntimeGeneratorOptions =
+  OpenAIRuntimeGeneratorFromClientOptions | OpenAIRuntimeGeneratorCreateOptions;
 
-/** ask 优先用显式 apiKey，再回退 OPENAI_API_KEY；不和 embedding 密钥混用。 */
-function resolveApiKey(apiKey?: string): string | undefined {
-  return apiKey || process.env.OPENAI_API_KEY;
+function isFromClientOptions(
+  options: OpenAIRuntimeGeneratorOptions,
+): options is OpenAIRuntimeGeneratorFromClientOptions {
+  return 'client' in options && options.client instanceof OpenAIChatClient;
 }
 
-function readMessageContent(content: OpenAIChatMessage['content']): string {
-  if (typeof content === 'string') {
-    return content.trim();
-  }
+const DEFAULT_SYSTEM_PROMPT =
+  '只根据提供的上下文回答问题。如果上下文不足以回答，就明确说明无法判断。';
 
-  if (!Array.isArray(content)) {
-    return '';
-  }
-
-  return content
-    .map((part) => (typeof part.text === 'string' ? part.text : ''))
-    .join('')
-    .trim();
-}
-
-/** 按 OpenAI 兼容 /chat/completions 生成答案；baseUrl / model 由调用方传入。 */
+/**
+ * RAG 最终答问：拼 grounded prompt / metadata，实际 HTTP 交给共享 OpenAIChatClient。
+ * run() 走 generate()；流式走 generateStream()，避免把流式超时语义套到非流式路径。
+ */
 export class OpenAIRuntimeGenerator implements RuntimeGenerator {
-  readonly #model: string;
-  readonly #baseUrl: string;
+  readonly #client: OpenAIChatClient;
   readonly #systemPrompt: string;
-  readonly #http: OpenAIHttpOptions;
 
   constructor(options: OpenAIRuntimeGeneratorOptions) {
-    const apiKey = resolveApiKey(options.apiKey);
-
-    if (!apiKey) {
-      throw new Error('OpenAIRuntimeGenerator requires apiKey, or OPENAI_API_KEY');
+    if (isFromClientOptions(options)) {
+      this.#client = options.client;
+      this.#systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+      return;
     }
 
-    const baseUrl = options.baseUrl.trim();
+    this.#client = new OpenAIChatClient(options);
+    this.#systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+  }
 
-    if (!baseUrl) {
-      throw new Error('OpenAIRuntimeGenerator requires baseUrl');
-    }
-
-    if (!options.model.trim()) {
-      throw new Error('OpenAIRuntimeGenerator requires model');
-    }
-
-    this.#model = options.model;
-    this.#baseUrl = baseUrl.replace(/\/$/, '');
-    this.#systemPrompt =
-      options.systemPrompt ??
-      '只根据提供的上下文回答问题。如果上下文不足以回答，就明确说明无法判断。';
-    this.#http = {
-      apiKey,
-      timeoutMs: options.timeoutMs,
-      retries: options.retries,
-      retryDelayMs: options.retryDelayMs,
-      fetch: options.fetch,
-    };
+  /** 供工厂/测试确认与 StrategyModel 共用同一 chat 客户端。 */
+  get chatClient(): OpenAIChatClient {
+    return this.#client;
   }
 
   async generate(input: RuntimeGeneratorInput): Promise<RuntimeGenerationResult> {
-    const payload = await postOpenAIJson<OpenAIChatResponse>(
-      `${this.#baseUrl}/chat/completions`,
-      this.#buildChatBody(input, false),
-      this.#http,
-    );
-
-    const answer = readMessageContent(payload.choices?.[0]?.message?.content);
-
-    if (!answer) {
-      throw new Error('OpenAI-compatible chat returned an empty response');
-    }
+    const answer = await this.#client.createTextCompletion(this.#buildMessages(input));
 
     return {
       answer,
@@ -102,15 +63,11 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
     };
   }
 
-  /** SSE 增量输出；run() 仍走 generate()，避免把流式超时套到非流式 JSON 调用。 */
+  /** SSE 增量输出；空流在聚合后抛错，与非流式 empty response 语义对齐。 */
   async *generateStream(input: RuntimeGeneratorInput): AsyncIterable<RuntimeGenerationStreamEvent> {
     let answer = '';
 
-    for await (const text of postOpenAISse(
-      `${this.#baseUrl}/chat/completions`,
-      this.#buildChatBody(input, true),
-      this.#http,
-    )) {
+    for await (const text of this.#client.streamText(this.#buildMessages(input))) {
       answer += text;
       yield {
         type: 'delta',
@@ -149,27 +106,23 @@ export class OpenAIRuntimeGenerator implements RuntimeGenerator {
     ].join('\n');
   }
 
-  #buildChatBody(input: RuntimeGeneratorInput, stream: boolean) {
-    return {
-      model: this.#model,
-      stream,
-      messages: [
-        {
-          role: 'system',
-          content: this.#systemPrompt,
-        },
-        {
-          role: 'user',
-          content: this.#buildPrompt(input),
-        },
-      ],
-    };
+  #buildMessages(input: RuntimeGeneratorInput): ChatCompletionMessageParam[] {
+    return [
+      {
+        role: 'system',
+        content: this.#systemPrompt,
+      },
+      {
+        role: 'user',
+        content: this.#buildPrompt(input),
+      },
+    ];
   }
 
   #buildMetadata(input: RuntimeGeneratorInput, streamed: boolean) {
     return {
       provider: 'openai',
-      model: this.#model,
+      model: this.#client.model,
       streamed,
       chunkIds: input.chunks.map((chunk) => chunk.id),
     };

@@ -81,8 +81,8 @@ describe('LangChainCheerioWebLoaderAdapter', () => {
   });
 
   it('requires exactly one source input', () => {
-    expect(() => new LangChainCheerioWebLoaderAdapter({ html: '<p>x</p>', webPath: 'https://x' })).toThrow(
-      /exactly one/i,
-    );
+    expect(
+      () => new LangChainCheerioWebLoaderAdapter({ html: '<p>x</p>', webPath: 'https://x' }),
+    ).toThrow(/exactly one/i);
   });
 });

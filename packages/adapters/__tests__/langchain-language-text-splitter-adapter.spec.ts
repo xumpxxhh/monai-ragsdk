@@ -24,9 +24,13 @@ describe('LangChainLanguageTextSplitterAdapter', () => {
     });
 
     expect(chunks.length).toBeGreaterThan(1);
-    expect(chunks.every((chunk) => !chunk.content.includes('function greet') || chunk.content.includes('function farewell') === false)).toBe(
-      true,
-    );
+    expect(
+      chunks.every(
+        (chunk) =>
+          !chunk.content.includes('function greet') ||
+          chunk.content.includes('function farewell') === false,
+      ),
+    ).toBe(true);
     expect(chunks.some((chunk) => chunk.content.includes('function greet'))).toBe(true);
     expect(chunks.some((chunk) => chunk.content.includes('function farewell'))).toBe(true);
   });

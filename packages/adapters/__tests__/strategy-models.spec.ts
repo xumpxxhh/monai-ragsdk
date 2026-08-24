@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { createOpenAIChatAdapters } from '../src/openai/shared/create-openai-chat-adapters.ts';
 import { OpenAIStrategyModel } from '../src/openai/models/openai-strategy-model.ts';
 import { OllamaStrategyModel } from '../src/ollama/models/ollama-strategy-model.ts';
 
@@ -12,7 +13,7 @@ describe('strategy model adapters', () => {
           baseUrl: '',
           apiKey: 'test-key',
         }),
-    ).toThrow('OpenAIStrategyModel requires baseUrl');
+    ).toThrow(/baseUrl/);
   });
 
   it('calls OpenAI-compatible chat for complete()', async () => {
@@ -42,6 +43,17 @@ describe('strategy model adapters', () => {
         },
       ),
     ).resolves.toBe('rewritten query');
+  });
+
+  it('createOpenAIChatAdapters shares one chat client between generator and strategyModel', () => {
+    const adapters = createOpenAIChatAdapters({
+      model: 'gpt-test',
+      baseUrl: 'https://example.test/v1',
+      apiKey: 'test-key',
+    });
+
+    expect(adapters.generator.chatClient).toBe(adapters.client);
+    expect(adapters.strategyModel.chatClient).toBe(adapters.client);
   });
 
   it('calls Ollama chat for complete()', async () => {

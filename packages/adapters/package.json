@@ -31,15 +31,16 @@
   },
   "dependencies": {
     "@langchain/classic": "catalog:",
-    "@langchain/community": "catalog:",
+    "@langchain/community": "^1.1.27",
     "@langchain/core": "catalog:",
-    "@langchain/textsplitters": "catalog:",
+    "@langchain/textsplitters": "^1.0.1",
     "@monai-ragsdk/core": "workspace:*",
     "@monai-ragsdk/indexing": "workspace:*",
     "@monai-ragsdk/runtime": "workspace:*",
-    "cheerio": "catalog:",
-    "chromadb": "catalog:",
-    "pdf-parse": "catalog:",
+    "cheerio": "^1.1.2",
+    "chromadb": "^3.4.3",
+    "openai": "^4.104.0",
+    "pdf-parse": "^1.1.1",
     "pg": "catalog:"
   },
   "devDependencies": {

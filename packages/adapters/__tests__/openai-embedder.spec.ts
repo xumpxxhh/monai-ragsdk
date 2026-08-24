@@ -86,6 +86,7 @@ describe('OpenAIEmbedder', () => {
     expect(JSON.parse(String(init?.body))).toEqual({
       model: 'text-embedding-v3',
       input: ['one', 'two'],
+      encoding_format: 'float',
     });
     expect(vectors).toEqual([
       { id: 'c1', values: [0.1, 0.2], metadata: { sourceId: 'a' } },
