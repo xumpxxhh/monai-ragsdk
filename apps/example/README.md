@@ -15,13 +15,13 @@
 
 ## 示例
 
-| id | 说明 |
-| --- | --- |
-| `basic-stream` | 默认栈闭环：索引 → pgvector → 流式生成（无策略，含 observer） |
-| `pre-retrieval` | Rewrite + Multi-Query + FanOut |
-| `post-retrieval` | Rerank + Compression + Lost-in-the-Middle |
-| `full-pipeline` | Query Routing：LLM routeDecision + FanOut targets + pgvector searchType |
-| `observability` | 对照前后策略 + FanOut，重点看 trace 事件 |
+| id               | 说明                                                                    |
+| ---------------- | ----------------------------------------------------------------------- |
+| `basic-stream`   | 默认栈闭环：索引 → pgvector → 流式生成（无策略，含 observer）           |
+| `pre-retrieval`  | Rewrite + Multi-Query + FanOut                                          |
+| `post-retrieval` | Rerank + Compression + Lost-in-the-Middle                               |
+| `full-pipeline`  | Query Routing：LLM routeDecision + FanOut targets + pgvector searchType |
+| `observability`  | 对照前后策略 + FanOut，重点看 trace 事件                                |
 
 各示例会把 observer 接到 runtime：不传 `requestId` / `trace.traceId` 时内核用 UUID 生成关联键。完整策略链的事件形状可对照 `src/observability-trace.full-pipeline.json`。字段约定见 `packages/observability/README.md`。
 

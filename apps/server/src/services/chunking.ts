@@ -1,11 +1,12 @@
 import type { Chunker } from '@monai-ragsdk/indexing';
-import {
-  HeadingBasedChunker,
-  ParentChildChunker,
-  SimpleChunker,
-} from '@monai-ragsdk/indexing';
+import { HeadingBasedChunker, ParentChildChunker, SimpleChunker } from '@monai-ragsdk/indexing';
 
-import type { ChunkingConfig, ChunkingStrategy, IngestMode, IngestRecommendation } from '../types/api.js';
+import type {
+  ChunkingConfig,
+  ChunkingStrategy,
+  IngestMode,
+  IngestRecommendation,
+} from '../types/api.js';
 
 const DEFAULT_CHUNK_SIZE = 500;
 const DEFAULT_OVERLAP = 50;

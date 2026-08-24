@@ -5,13 +5,7 @@ import type { JsonValue } from '@monai-ragsdk/core';
  * 避免 adapters 经 RuntimeContext 解析 observability。
  */
 export type RuntimeObservationAction =
-  | 'receive'
-  | 'preprocess'
-  | 'start'
-  | 'complete'
-  | 'fail'
-  | 'select'
-  | 'drop';
+  'receive' | 'preprocess' | 'start' | 'complete' | 'fail' | 'select' | 'drop';
 
 /**
  * 编排器 / 自定义实现写入 context.observe 的记录。

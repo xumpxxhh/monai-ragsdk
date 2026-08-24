@@ -1,9 +1,5 @@
 import type { Embedder } from '@monai-ragsdk/indexing';
-import {
-  OpenAIEmbedder,
-  OpenAIRuntimeGenerator,
-  OpenAIStrategyModel,
-} from '@monai-ragsdk/adapters';
+import { OpenAIEmbedder, createOpenAIChatAdapters } from '@monai-ragsdk/adapters';
 import {
   createMemoryTraceExporter,
   createRAGObserver,
@@ -47,7 +43,8 @@ let shared: SharedStack | undefined;
 
 /**
  * 进程级共享模型与观测器。按知识库拆开的是 pgvector 表，而不是 embedding / chat 客户端。
- * 缺少 API Key 时在首次调用处失败，让 /health 与 /connection 仍能在未配置时启动。
+ * chat Generator 与 StrategyModel 共用同一 OpenAIChatClient，避免双 new。
+ * 缺少 API Key 时在首次调用处失败，让 /health 与 /collections 仍能在未配置时启动。
  */
 export function getSharedStack(): SharedStack {
   if (!shared) {
@@ -59,13 +56,7 @@ export function getSharedStack(): SharedStack {
       batchSize: 10,
     });
     const dotsFetch = createDotsChatFetch();
-    const generator = new OpenAIRuntimeGenerator({
-      model: config.chatModel,
-      baseUrl: config.chatBaseUrl,
-      apiKey: config.chatApiKey,
-      fetch: dotsFetch,
-    });
-    const strategyModel = new OpenAIStrategyModel({
+    const { generator, strategyModel } = createOpenAIChatAdapters({
       model: config.chatModel,
       baseUrl: config.chatBaseUrl,
       apiKey: config.chatApiKey,

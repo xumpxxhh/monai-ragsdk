@@ -42,7 +42,10 @@ describe('createRuntimeFromConfig', () => {
 
   it('keeps a strategies override in caller order', () => {
     const names = assemblePostRetrievalStrategies({
-      strategies: [createScoreThresholdStrategy({ scoreThreshold: 0.1 }), createLostInTheMiddleStrategy()],
+      strategies: [
+        createScoreThresholdStrategy({ scoreThreshold: 0.1 }),
+        createLostInTheMiddleStrategy(),
+      ],
     }).map((strategy) => strategy.name);
 
     expect(names).toEqual(['score-threshold', 'lost-in-the-middle']);

@@ -334,7 +334,9 @@ export function enforceRetrievalRequestFilters(
   const candidates = filterRetrievalCandidatesByIndexingFilters(result.candidates, filters);
   const unchanged =
     candidates.length === result.candidates.length &&
-    candidates.every((candidate, index) => candidate.chunk.id === result.candidates[index]?.chunk.id);
+    candidates.every(
+      (candidate, index) => candidate.chunk.id === result.candidates[index]?.chunk.id,
+    );
 
   if (unchanged) {
     return {
@@ -352,4 +354,3 @@ export function enforceRetrievalRequestFilters(
     },
   };
 }
-

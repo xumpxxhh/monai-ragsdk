@@ -99,12 +99,7 @@ documentsRouter.post(
     void (async () => {
       try {
         updateIngestTask(taskId, { current: 1, fileName });
-        const stats = await ingestDocuments(
-          collectionId,
-          documents,
-          body?.mode,
-          body?.chunking,
-        );
+        const stats = await ingestDocuments(collectionId, documents, body?.mode, body?.chunking);
         completeIngestTask(taskId, stats);
       } catch (error) {
         const message = error instanceof Error ? error.message : '入库失败';

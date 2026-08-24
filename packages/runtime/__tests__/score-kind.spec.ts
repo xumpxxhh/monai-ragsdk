@@ -117,9 +117,7 @@ describe('retrieval score kind', () => {
       retriever: {
         async retrieve() {
           return {
-            candidates: [
-              { chunk: { id: 'chunk-1', content: 'c' }, score: 0.03, scoreKind: 'rrf' },
-            ],
+            candidates: [{ chunk: { id: 'chunk-1', content: 'c' }, score: 0.03, scoreKind: 'rrf' }],
             retrievalMetadata: { provider: 'pgvector', fusedCandidateCount: 1 },
           };
         },

@@ -23,4 +23,3 @@ export interface RuntimeRetriever {
   /** 释放连接池等资源；runtime.close() 会调用。缺省视为无资源需要释放。 */
   close?(): Promise<void>;
 }
-

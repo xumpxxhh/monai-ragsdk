@@ -51,12 +51,12 @@ flowchart LR
 
 `RetrievalRequest` 携带 `effectiveQuery`、`subQueries`、`routeDecision`、`filters`、`budget`。retrieve 之后编排层会调用 `enforceRetrievalRequestFilters`；citations 按 post-retrieval 选出的 chunks 顺序编号。
 
-| 阶段 | 输入 | 输出 |
-| --- | --- | --- |
-| Pre-retrieval | `RuntimeQueryInput` | `RetrievalRequest` |
-| Retrieval | `RetrievalRequest` | `candidates` |
-| Post-retrieval | `candidates` | `chunks`（+ citations） |
-| Generation | `chunks` + request | `answer` |
+| 阶段           | 输入                | 输出                    |
+| -------------- | ------------------- | ----------------------- |
+| Pre-retrieval  | `RuntimeQueryInput` | `RetrievalRequest`      |
+| Retrieval      | `RetrievalRequest`  | `candidates`            |
+| Post-retrieval | `candidates`        | `chunks`（+ citations） |
+| Generation     | `chunks` + request  | `answer`                |
 
 三种运行入口共用前三阶段；差别只在是否调用 generator：
 
@@ -76,12 +76,12 @@ flowchart TB
 
 编排：`StrategyQueryPreprocessor` 按数组顺序执行 `QueryStrategy[]`。不配策略时走 `NoopQueryPreprocessor`。
 
-| 工厂 | 行为 | 下游怎么用 |
-| --- | --- | --- |
-| `createQueryRewriteStrategy` | 改写 `effectiveQuery` | 检索读 effectiveQuery |
-| `createQueryExpansionStrategy` | 相关查询写入 `subQueries` | FanOut 多路 |
-| `createQueryDecompositionStrategy` | 拆成可独立检索的子问题 | FanOut 多路 |
-| `createMultiQueryStrategy` | 同一意图多种措辞 | FanOut 多路 |
+| 工厂                                                          | 行为                                                                                   | 下游怎么用                                         |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `createQueryRewriteStrategy`                                  | 改写 `effectiveQuery`                                                                  | 检索读 effectiveQuery                              |
+| `createQueryExpansionStrategy`                                | 相关查询写入 `subQueries`                                                              | FanOut 多路                                        |
+| `createQueryDecompositionStrategy`                            | 拆成可独立检索的子问题                                                                 | FanOut 多路                                        |
+| `createMultiQueryStrategy`                                    | 同一意图多种措辞                                                                       | FanOut 多路                                        |
 | `createLlmRoutingStrategy` / `createRuleBasedRoutingStrategy` | 写入 `routeDecision`（targets / skip / searchType），以及可选 route / budget / filters | FanOut 消费 targets/skip；pgvector 消费 searchType |
 
 `createQueryRoutingStrategy` 仍可用（内部创建 `LlmRoutingResolver`），新代码请用上面两个工厂。
@@ -140,17 +140,17 @@ retriever: {
 
 `rerank` / `compression` / `lostInTheMiddle` 只有显式配置才插入。历史 `PassthroughRetrievalPostprocessor` 未改顺序（仍以 threshold 开头、不含 rerank）。传入 `postRetrieval.strategies` 则完全覆盖官方顺序。
 
-| 工厂 / 配置 | 行为 |
-| --- | --- |
-| `scoreThreshold` / `createScoreThresholdStrategy` | 按分数过滤 |
-| `predicate` / `createPredicateFilterStrategy` | 自定义谓词 |
-| `createNearDuplicateRemovalStrategy` | 近重复去除 |
-| `budget` / `createBudgetTrimStrategy` | 条数裁剪 |
-| `createSourceCoverageStrategy` | 来源覆盖 |
-| `createCandidateOrderingStrategy` | 排序 |
-| `rerank: createLlmRerankStrategy(...)` | 真实 LLM 重排序，写回分标 `llm` |
-| `compression: createContextCompressionStrategy(...)` | 上下文压缩 |
-| `lostInTheMiddle: true` | 高分居首尾，只重排不丢弃 |
+| 工厂 / 配置                                          | 行为                            |
+| ---------------------------------------------------- | ------------------------------- |
+| `scoreThreshold` / `createScoreThresholdStrategy`    | 按分数过滤                      |
+| `predicate` / `createPredicateFilterStrategy`        | 自定义谓词                      |
+| `createNearDuplicateRemovalStrategy`                 | 近重复去除                      |
+| `budget` / `createBudgetTrimStrategy`                | 条数裁剪                        |
+| `createSourceCoverageStrategy`                       | 来源覆盖                        |
+| `createCandidateOrderingStrategy`                    | 排序                            |
+| `rerank: createLlmRerankStrategy(...)`               | 真实 LLM 重排序，写回分标 `llm` |
+| `compression: createContextCompressionStrategy(...)` | 上下文压缩                      |
+| `lostInTheMiddle: true`                              | 高分居首尾，只重排不丢弃        |
 
 `RetrievalCandidate.scoreKind` 为 `retriever` | `rrf` | `llm`。阈值在无 kind、混口径、或 `expectedScoreKind` 不符时**拒绝比较、整批透传**，不会静默全丢。口径细节见 [runtime Wiki 第 4.3 节](../../docs/packages/runtime.md)。
 
@@ -171,11 +171,11 @@ postRetrieval: {
 
 `RuntimeGeneratorInput.grounding` 仅在 `chunks.length === 0` 时出现，让策略可表达「为何没有依据」；内置 generator **不改拒答策略**：
 
-| `chunksEmptyReason` | 含义 | runtime 会不会写 |
-| --- | --- | --- |
-| `no-hits` | 检索 0 条 | 会 |
-| `filtered` | 检索有条、post 滤光 | 会 |
-| `skipped` | 主动跳过检索 | 会（`retrievalMode: skip` 或 FanOut `retrievalMetadata.skipped`） |
+| `chunksEmptyReason` | 含义                | runtime 会不会写                                                  |
+| ------------------- | ------------------- | ----------------------------------------------------------------- |
+| `no-hits`           | 检索 0 条           | 会                                                                |
+| `filtered`          | 检索有条、post 滤光 | 会                                                                |
+| `skipped`           | 主动跳过检索        | 会（`retrievalMode: skip` 或 FanOut `retrievalMetadata.skipped`） |
 
 `run()` 允许空字符串答案；`runStream()` 对空答案抛错。这是刻意历史分叉，尚未统一。
 
@@ -247,11 +247,11 @@ const result = await runtime.run(
 
 `createCollection({ indexing, runtime })` 只做编排，不另开存储 / 查询路径：
 
-| 方法 | 行为 |
-| --- | --- |
-| `ingest(documents)` | 临时 in-memory Loader → `runIndexing` |
-| `search(query)` | retrieve-only（前三阶段） |
-| `ask(query)` | 完整 `runtime.run()` |
+| 方法                                              | 行为                                                 |
+| ------------------------------------------------- | ---------------------------------------------------- |
+| `ingest(documents)`                               | 临时 in-memory Loader → `runIndexing`                |
+| `search(query)`                                   | retrieve-only（前三阶段）                            |
+| `ask(query)`                                      | 完整 `runtime.run()`                                 |
 | `listSources()` / `deleteByFilters()` / `close()` | store 未实现对应方法时返回空 / `false`，不当错误抛出 |
 
 不要新开 kb 包，也不要在这里扩展完整文档生命周期。演示：[`demo/collection-demo.ts`](./demo/collection-demo.ts)。
@@ -270,11 +270,11 @@ const result = await runtime.run(
 
 `run()` / `runStream()` / `search()` 共用同一套关联键解析。ID 是不透明关联键，query 只出现在事件 attributes。
 
-| 调用方传入 | `requestId` | `traceId` | `traceIdSource` |
-| --- | --- | --- | --- |
-| 都不传 | 内核 UUID | 另一个 UUID | `generated` |
-| 只传 `requestId` | 用传入值 | 复用该值 | `requestId` |
-| 传了 `trace.traceId` | 缺省则新 UUID | 用传入值 | `provided` |
+| 调用方传入           | `requestId`   | `traceId`   | `traceIdSource` |
+| -------------------- | ------------- | ----------- | --------------- |
+| 都不传               | 内核 UUID     | 另一个 UUID | `generated`     |
+| 只传 `requestId`     | 用传入值      | 复用该值    | `requestId`     |
+| 传了 `trace.traceId` | 缺省则新 UUID | 用传入值    | `provided`      |
 
 生产环境应由网关传入 `requestId` 与 `trace.traceId`；内核兜底是为了 demo / 单测 / `createCollection().ask()` 在没有请求上下文时仍能成条 trace。
 

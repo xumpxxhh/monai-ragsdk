@@ -9,10 +9,7 @@ import {
   type Embedder,
 } from '@monai-ragsdk/indexing';
 
-import {
-  createCollection,
-  createDefaultRuntime,
-} from '../src/index.ts';
+import { createCollection, createDefaultRuntime } from '../src/index.ts';
 import {
   createIndexingRetrievalCandidate,
   filterRetrievalCandidatesByIndexingFilters,

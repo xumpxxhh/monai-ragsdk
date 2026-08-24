@@ -1,9 +1,9 @@
 import {
   OpenAIEmbedder,
   OpenAIRuntimeGenerator,
-  OpenAIStrategyModel,
   PgVectorRuntimeRetrieverAdapter,
   PgVectorStoreAdapter,
+  createOpenAIChatAdapters,
 } from '@monai-ragsdk/adapters';
 import type { RuntimeStrategyModel } from '@monai-ragsdk/runtime';
 
@@ -20,7 +20,7 @@ export type ExampleStack = {
   close: () => Promise<void>;
 };
 
-/** 创建示例默认栈：OpenAI 兼容 embedding / chat + pgvector；策略 LLM 与 chat 共用 baseUrl / model。 */
+/** 创建示例默认栈：OpenAI 兼容 embedding / chat + pgvector；策略 LLM 与 chat 共用同一 client。 */
 export function createExampleStack(config: ExampleConfig): ExampleStack {
   const embedder = new OpenAIEmbedder({
     model: config.embeddingModel,
@@ -40,11 +40,7 @@ export function createExampleStack(config: ExampleConfig): ExampleStack {
     tableName: config.tableName,
     embedQuery: async (query) => embedQuery(embedder, query),
   });
-  const generator = new OpenAIRuntimeGenerator({
-    model: config.chatModel,
-    baseUrl: config.chatBaseUrl,
-  });
-  const strategyModel = new OpenAIStrategyModel({
+  const { generator, strategyModel } = createOpenAIChatAdapters({
     model: config.chatModel,
     baseUrl: config.chatBaseUrl,
   });
