@@ -119,12 +119,12 @@ export type RoutingRule = {
 
 官方路径：`createRuntimeFromConfig` 默认包一层 FanOut。多库时调用方传入 `FanOutRetriever({ retrievers })` 并为每个子 retriever 设 `id`。
 
-| 条件 | 行为 |
-| --- | --- |
-| 无 `routeDecision` | 行为不变（无 `subQueries` 时仍只调 `#retrievers[0]`） |
+| 条件                                        | 行为                                                                  |
+| ------------------------------------------- | --------------------------------------------------------------------- |
+| 无 `routeDecision`                          | 行为不变（无 `subQueries` 时仍只调 `#retrievers[0]`）                 |
 | `retrievalMode === 'skip'` 或 `targets: []` | 不调子 retriever；`candidates: []`；`retrievalMetadata.skipped: true` |
-| `targets` 非空 | 按 `id` 过滤；单查询也召回全部匹配目标，不短路成 `[0]` |
-| `targets` 非空且无一匹配 | 同 skip；打 observation；禁止回退 `[0]` |
+| `targets` 非空                              | 按 `id` 过滤；单查询也召回全部匹配目标，不短路成 `[0]`                |
+| `targets` 非空且无一匹配                    | 同 skip；打 observation；禁止回退 `[0]`                               |
 
 ---
 
@@ -147,9 +147,8 @@ export type RoutingRule = {
 `buildRuntimeGeneratorInput`（`run` / `runStream` 共用）传入：
 
 ```ts
-retrievalSkipped:
-  request.routeDecision?.retrievalMode === 'skip' ||
-  retrievalResult.retrievalMetadata?.skipped === true
+retrievalSkipped: request.routeDecision?.retrievalMode === 'skip' ||
+  retrievalResult.retrievalMetadata?.skipped === true;
 ```
 
 空 chunks 时内置 generator 仍生成。不拆 `run-runtime.ts`，不改拒答。`runtime.search()` 不需要 grounding，skip 表现为 0 条候选。

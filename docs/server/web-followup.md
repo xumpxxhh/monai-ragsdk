@@ -10,12 +10,12 @@
 
 ## 必须改的 API 调用
 
-| 旧路径 | 新路径 | 说明 | 状态 |
-| --- | --- | --- | --- |
-| `POST /api/v1/collections/:id/ask` | `POST /api/v1/ask` | body 增加可选 `collectionIds` | ✅ |
-| `POST /api/v1/collections/:id/search` | `POST /api/v1/search` | 同上 | ✅ |
-| `GET /api/v1/collections/:id/strategy` | `GET /api/v1/strategy` | 全局唯一策略 | ✅ |
-| `PUT /api/v1/collections/:id/strategy` | `PUT /api/v1/strategy` | `collectionId` 固定为 `'global'` | ✅ |
+| 旧路径                                 | 新路径                 | 说明                             | 状态 |
+| -------------------------------------- | ---------------------- | -------------------------------- | ---- |
+| `POST /api/v1/collections/:id/ask`     | `POST /api/v1/ask`     | body 增加可选 `collectionIds`    | ✅   |
+| `POST /api/v1/collections/:id/search`  | `POST /api/v1/search`  | 同上                             | ✅   |
+| `GET /api/v1/collections/:id/strategy` | `GET /api/v1/strategy` | 全局唯一策略                     | ✅   |
+| `PUT /api/v1/collections/:id/strategy` | `PUT /api/v1/strategy` | `collectionId` 固定为 `'global'` | ✅   |
 
 ### 新请求体
 
@@ -33,23 +33,23 @@
 
 ### 新增 ingest 能力
 
-| 路径 | 说明 | 状态 |
-| --- | --- | --- |
-| `POST /api/v1/collections/:id/ingest/recommend` | 根据文档 metadata 返回推荐 `chunking` / `loaderHint` | ✅ |
-| `POST .../ingest` body 增加 `chunking?` | `strategy: fixed \| heading \| parent-child` + 可选 size/overlap | ✅ |
+| 路径                                            | 说明                                                             | 状态 |
+| ----------------------------------------------- | ---------------------------------------------------------------- | ---- |
+| `POST /api/v1/collections/:id/ingest/recommend` | 根据文档 metadata 返回推荐 `chunking` / `loaderHint`             | ✅   |
+| `POST .../ingest` body 增加 `chunking?`         | `strategy: fixed \| heading \| parent-child` + 可选 size/overlap | ✅   |
 
 ---
 
 ## 页面 / 交互调整
 
-| 区域 | 建议 | 落地 |
-| --- | --- | --- |
-| 问答入口 | 无需选库，直接进入全局问答 | ✅ 已移除顶栏知识库筛选 |
-| API client | `ask({ question, collectionIds? })` | ✅ `shared/api/documents.ts` |
-| 策略页 | 读写 `/api/v1/strategy`；独立路由 `/strategy` | ✅ `StrategyPage` |
-| 列表 presetLabel | 展示全局 preset，去掉 per-collection 预设 | ✅ `KnowledgeBasesPage` |
-| Ask 轨迹 | `collectionId === 'global'` 时展示「N 个知识库」 | ✅ `ObservePage` |
-| 入库 UI | 调 `ingest/recommend` 后再提交 | ✅ `IngestConfigModal` |
+| 区域             | 建议                                             | 落地                         |
+| ---------------- | ------------------------------------------------ | ---------------------------- |
+| 问答入口         | 无需选库，直接进入全局问答                       | ✅ 已移除顶栏知识库筛选      |
+| API client       | `ask({ question, collectionIds? })`              | ✅ `shared/api/documents.ts` |
+| 策略页           | 读写 `/api/v1/strategy`；独立路由 `/strategy`    | ✅ `StrategyPage`            |
+| 列表 presetLabel | 展示全局 preset，去掉 per-collection 预设        | ✅ `KnowledgeBasesPage`      |
+| Ask 轨迹         | `collectionId === 'global'` 时展示「N 个知识库」 | ✅ `ObservePage`             |
+| 入库 UI          | 调 `ingest/recommend` 后再提交                   | ✅ `IngestConfigModal`       |
 
 旧路由 `/knowledge-bases/:id/strategy` 重定向至 `/strategy`。
 

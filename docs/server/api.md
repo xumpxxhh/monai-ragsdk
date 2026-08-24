@@ -4,14 +4,14 @@
 
 ## 约定
 
-| 项 | 说明 |
-| --- | --- |
-| 默认基址 | `http://localhost:3000` |
-| 业务前缀 | `/api/v1` |
-| 健康检查 | `/health`（不在 `/api/v1` 下） |
-| 请求体 | JSON，`Content-Type: application/json`（上限约 10MB） |
-| 时间字段 | ISO 8601 字符串 |
-| 错误体 | `{ "message": string, "code"?: string }` |
+| 项       | 说明                                                                                                                                                       |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 默认基址 | `http://localhost:3000`                                                                                                                                    |
+| 业务前缀 | `/api/v1`                                                                                                                                                  |
+| 健康检查 | `/health`（不在 `/api/v1` 下）                                                                                                                             |
+| 请求体   | JSON，`Content-Type: application/json`（上限约 10MB）                                                                                                      |
+| 时间字段 | ISO 8601 字符串                                                                                                                                            |
+| 错误体   | `{ "message": string, "code"?: string }`                                                                                                                   |
 | 环境变量 | 见 [`apps/server/README.md`](../../apps/server/README.md)；Turbo Strict 下密钥须走 `globalPassThroughEnv` / 包内 `passThroughEnv`，或写 `apps/server/.env` |
 
 常见 HTTP 状态：`200` / `201` / `202` / `204`；业务错误 `400` / `404`；未捕获异常 `500`（`code: internal_error`）。
@@ -20,31 +20,31 @@
 
 ## 一览
 
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| GET | `/health` | 进程存活 |
-| GET | `/api/v1/collections` | 知识库列表（可选分页 / 搜索） |
-| POST | `/api/v1/collections` | 创建知识库 |
-| GET | `/api/v1/collections/:id` | 知识库详情 |
-| PUT | `/api/v1/collections/:id` | 更新名称 / 描述 |
-| DELETE | `/api/v1/collections/:id` | 删除知识库（含向量表） |
-| GET | `/api/v1/collections/:id/documents` | 文档源列表 |
-| POST | `/api/v1/collections/:id/ingest/recommend` | 入库配置推荐（chunking / loaderHint） |
-| POST | `/api/v1/collections/:id/ingest` | 启动入库（异步任务；可选 `chunking`） |
-| GET | `/api/v1/collections/:id/ingest/:taskId` | 轮询入库进度 |
-| GET | `/api/v1/collections/:id/ingest/latest` | 最近一次入库摘要 |
-| POST | `/api/v1/collections/:id/documents/:documentId/retry` | 按登记原文重试入库 |
-| DELETE | `/api/v1/collections/:id/documents/:documentId` | 删除文档源 |
-| POST | `/api/v1/search` | 全局检索（可选 `collectionIds`） |
-| POST | `/api/v1/ask` | 全局流式问答（SSE；可选 `collectionIds`） |
-| GET | `/api/v1/strategy` | 读取全局策略 |
-| PUT | `/api/v1/strategy` | 保存全局策略 |
-| GET | `/api/v1/collections/:id/dashboard` | 工作台统计 |
-| GET | `/api/v1/activities` | 最近活动 |
-| GET | `/api/v1/traces/ask` | 问答轨迹列表 |
-| GET | `/api/v1/traces/ask/:id` | 单条问答轨迹 |
-| GET | `/api/v1/traces/ingest` | 入库轨迹列表 |
-| GET | `/api/v1/connection` | Embedding / Chat / 向量库配置状态 |
+| 方法   | 路径                                                  | 说明                                      |
+| ------ | ----------------------------------------------------- | ----------------------------------------- |
+| GET    | `/health`                                             | 进程存活                                  |
+| GET    | `/api/v1/collections`                                 | 知识库列表（可选分页 / 搜索）             |
+| POST   | `/api/v1/collections`                                 | 创建知识库                                |
+| GET    | `/api/v1/collections/:id`                             | 知识库详情                                |
+| PUT    | `/api/v1/collections/:id`                             | 更新名称 / 描述                           |
+| DELETE | `/api/v1/collections/:id`                             | 删除知识库（含向量表）                    |
+| GET    | `/api/v1/collections/:id/documents`                   | 文档源列表                                |
+| POST   | `/api/v1/collections/:id/ingest/recommend`            | 入库配置推荐（chunking / loaderHint）     |
+| POST   | `/api/v1/collections/:id/ingest`                      | 启动入库（异步任务；可选 `chunking`）     |
+| GET    | `/api/v1/collections/:id/ingest/:taskId`              | 轮询入库进度                              |
+| GET    | `/api/v1/collections/:id/ingest/latest`               | 最近一次入库摘要                          |
+| POST   | `/api/v1/collections/:id/documents/:documentId/retry` | 按登记原文重试入库                        |
+| DELETE | `/api/v1/collections/:id/documents/:documentId`       | 删除文档源                                |
+| POST   | `/api/v1/search`                                      | 全局检索（可选 `collectionIds`）          |
+| POST   | `/api/v1/ask`                                         | 全局流式问答（SSE；可选 `collectionIds`） |
+| GET    | `/api/v1/strategy`                                    | 读取全局策略                              |
+| PUT    | `/api/v1/strategy`                                    | 保存全局策略                              |
+| GET    | `/api/v1/collections/:id/dashboard`                   | 工作台统计                                |
+| GET    | `/api/v1/activities`                                  | 最近活动                                  |
+| GET    | `/api/v1/traces/ask`                                  | 问答轨迹列表                              |
+| GET    | `/api/v1/traces/ask/:id`                              | 单条问答轨迹                              |
+| GET    | `/api/v1/traces/ingest`                               | 入库轨迹列表                              |
+| GET    | `/api/v1/connection`                                  | Embedding / Chat / 向量库配置状态         |
 
 ---
 
@@ -64,11 +64,11 @@
 
 ### `GET /api/v1/collections`
 
-| Query | 类型 | 说明 |
-| --- | --- | --- |
-| `q` | string | 按名称模糊过滤（可选） |
-| `page` | number | 有 `page` 时返回分页体；无则返回数组 |
-| `pageSize` | number | 默认 `12` |
+| Query      | 类型   | 说明                                 |
+| ---------- | ------ | ------------------------------------ |
+| `q`        | string | 按名称模糊过滤（可选）               |
+| `page`     | number | 有 `page` 时返回分页体；无则返回数组 |
+| `pageSize` | number | 默认 `12`                            |
 
 **响应 `200`（无 `page`）**：`CollectionSummary[]`
 
@@ -95,11 +95,11 @@
 }
 ```
 
-| 字段 | 说明 |
-| --- | --- |
-| `name` | 必填（空串会 400） |
-| `description` | 可选 |
-| `ingestMode` | `incremental` \| `full`，缺省 `incremental` |
+| 字段          | 说明                                        |
+| ------------- | ------------------------------------------- |
+| `name`        | 必填（空串会 400）                          |
+| `description` | 可选                                        |
+| `ingestMode`  | `incremental` \| `full`，缺省 `incremental` |
 
 **响应 `201`**：`CollectionDetail`
 
@@ -135,12 +135,12 @@
 
 ### `GET .../documents`
 
-| Query | 类型 | 说明 |
-| --- | --- | --- |
-| `q` | string | 匹配 `title` / `sourceId` |
-| `status` | string | `all` 或 `indexed` / `failed` / `unchanged` / `pending` |
-| `page` | number | 默认 `1` |
-| `pageSize` | number | 默认 `10` |
+| Query      | 类型   | 说明                                                    |
+| ---------- | ------ | ------------------------------------------------------- |
+| `q`        | string | 匹配 `title` / `sourceId`                               |
+| `status`   | string | `all` 或 `indexed` / `failed` / `unchanged` / `pending` |
+| `page`     | number | 默认 `1`                                                |
+| `pageSize` | number | 默认 `10`                                               |
 
 **响应 `200`**：`Paginated<DocumentSource>`（不含原文 `content`）
 
@@ -193,12 +193,12 @@
 }
 ```
 
-| 字段 | 说明 |
-| --- | --- |
-| `documents` | 文本文档数组；空内容会被过滤，全空则任务失败 |
-| `mode` | 可选，覆盖库默认 `ingestMode` |
-| `chunking.strategy` | 可选：`fixed`（默认）\| `heading` \| `parent-child` |
-| `chunking.chunkSize` / `overlap` | 仅 `strategy=fixed` 时有效；默认 500 / 50 |
+| 字段                             | 说明                                                |
+| -------------------------------- | --------------------------------------------------- |
+| `documents`                      | 文本文档数组；空内容会被过滤，全空则任务失败        |
+| `mode`                           | 可选，覆盖库默认 `ingestMode`                       |
+| `chunking.strategy`              | 可选：`fixed`（默认）\| `heading` \| `parent-child` |
+| `chunking.chunkSize` / `overlap` | 仅 `strategy=fixed` 时有效；默认 500 / 50           |
 
 **响应 `202`**
 
@@ -268,11 +268,11 @@
 }
 ```
 
-| 字段 | 说明 |
-| --- | --- |
-| `query` | 必填 |
-| `topK` | 可选；缺省用全局策略 `retrieval.topK` |
-| `collectionIds` | 可选；不传则检索全部已注册知识库 |
+| 字段            | 说明                                  |
+| --------------- | ------------------------------------- |
+| `query`         | 必填                                  |
+| `topK`          | 可选；缺省用全局策略 `retrieval.topK` |
+| `collectionIds` | 可选；不传则检索全部已注册知识库      |
 
 **响应 `200`**：`SearchResult`（与旧单库 search 同构）
 
@@ -289,21 +289,21 @@
 }
 ```
 
-| 字段 | 说明 |
-| --- | --- |
-| `question` | 必填 |
+| 字段            | 说明                           |
+| --------------- | ------------------------------ |
+| `question`      | 必填                           |
 | `collectionIds` | 可选；不传则跨全部已注册知识库 |
 
 **响应**：`text/event-stream`，每行形如 `data: <json>\n\n`。
 
-| 事件 `type` | 字段 | 说明 |
-| --- | --- | --- |
-| `token` | `content` | 增量 delta（前端自行累加） |
-| `meta` | `effectiveQuery` | 有效查询（若与原问题不同） |
-| `result` | `citations`、`noGrounding` | 引用列表；无召回且策略为 `explicit` 时 `noGrounding: true` |
-| `error` | `message` | 执行失败 |
-| `done` | — | 正常结束标记 |
-| — | `data: [DONE]` | 流结束哨兵（与 web `apiPostSse` 兼容） |
+| 事件 `type` | 字段                       | 说明                                                       |
+| ----------- | -------------------------- | ---------------------------------------------------------- |
+| `token`     | `content`                  | 增量 delta（前端自行累加）                                 |
+| `meta`      | `effectiveQuery`           | 有效查询（若与原问题不同）                                 |
+| `result`    | `citations`、`noGrounding` | 引用列表；无召回且策略为 `explicit` 时 `noGrounding: true` |
+| `error`     | `message`                  | 执行失败                                                   |
+| `done`      | —                          | 正常结束标记                                               |
+| —           | `data: [DONE]`             | 流结束哨兵（与 web `apiPostSse` 兼容）                     |
 
 `citations` 元素形如：
 
@@ -356,18 +356,18 @@
 
 ### `GET /api/v1/activities`
 
-| Query | 说明 |
-| --- | --- |
+| Query          | 说明                                                     |
+| -------------- | -------------------------------------------------------- |
 | `collectionId` | 可选；过滤某一库（无 `collectionId` 的全局活动仍会返回） |
 
 **响应 `200`**：`ActivityItem[]`（进程内环形缓冲，约最近 100 条）
 
 ### `GET /api/v1/traces/ask`
 
-| Query | 说明 |
-| --- | --- |
-| `collectionId` | 可选 |
-| `q` | 可选，按问题文本模糊过滤 |
+| Query          | 说明                     |
+| -------------- | ------------------------ |
+| `collectionId` | 可选                     |
+| `q`            | 可选，按问题文本模糊过滤 |
 
 **响应 `200`**：`AskTrace[]`
 
@@ -378,8 +378,8 @@
 
 ### `GET /api/v1/traces/ingest`
 
-| Query | 说明 |
-| --- | --- |
+| Query          | 说明 |
+| -------------- | ---- |
 | `collectionId` | 可选 |
 
 **响应 `200`**：`IngestTaskTrace[]`
@@ -408,25 +408,25 @@
 
 ### `CollectionSummary` / `CollectionDetail`
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `id` | string | 如 `kb-<uuid>` |
-| `name` / `description` | string | |
-| `documentCount` | number | 非 `failed` 文档数 |
-| `health` | `healthy` \| `warning` \| `empty` | |
-| `presetLabel` | string | 策略预设中文标签 |
-| `failedIngestCount` | number | |
-| `lastIngestAt` | string \| null | |
-| `createdAt` | string | 仅 Detail |
+| 字段                   | 类型                              | 说明               |
+| ---------------------- | --------------------------------- | ------------------ |
+| `id`                   | string                            | 如 `kb-<uuid>`     |
+| `name` / `description` | string                            |                    |
+| `documentCount`        | number                            | 非 `failed` 文档数 |
+| `health`               | `healthy` \| `warning` \| `empty` |                    |
+| `presetLabel`          | string                            | 策略预设中文标签   |
+| `failedIngestCount`    | number                            |                    |
+| `lastIngestAt`         | string \| null                    |                    |
+| `createdAt`            | string                            | 仅 Detail          |
 
 ### `DocumentSource`
 
-| 字段 | 类型 |
-| --- | --- |
-| `id` / `collectionId` / `sourceId` / `title` | string |
-| `status` | `indexed` \| `failed` \| `unchanged` \| `pending` |
-| `updatedAt` | string |
-| `failReason` | string? |
+| 字段                                         | 类型                                              |
+| -------------------------------------------- | ------------------------------------------------- |
+| `id` / `collectionId` / `sourceId` / `title` | string                                            |
+| `status`                                     | `indexed` \| `failed` \| `unchanged` \| `pending` |
+| `updatedAt`                                  | string                                            |
+| `failReason`                                 | string?                                           |
 
 ### `StrategyConfig`
 

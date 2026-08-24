@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -16,7 +16,9 @@
     <div class="app-shell flex min-h-screen">
       <aside class="app-aside w-60 shrink-0 bg-surface border-r border-line flex flex-col">
         <div class="h-14 flex items-center gap-2.5 px-5 border-b border-line">
-          <span class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm">
+          <span
+            class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm"
+          >
             <i class="fa-solid fa-leaf"></i>
           </span>
           <div>
@@ -25,23 +27,43 @@
           </div>
         </div>
         <nav class="flex-1 p-3 space-y-1 text-sm">
-          <a href="home.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="home.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-house w-4 text-center"></i> 工作台
           </a>
-          <a href="knowledge-bases.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium">
+          <a
+            href="knowledge-bases.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium"
+          >
             <i class="fa-solid fa-layer-group w-4 text-center"></i> 知识库
           </a>
-          <a href="ask.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="ask.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-regular fa-comments w-4 text-center"></i> 问答
           </a>
-          <a href="observe.html" data-admin-only class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="observe.html"
+            data-admin-only
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-timeline w-4 text-center"></i> 观测
           </a>
-          <a href="settings.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="settings.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-gear w-4 text-center"></i> 设置
           </a>
           <div class="pt-4 mt-2 border-t border-line">
-            <button type="button" onclick="showComingSoon('评测中心')" class="nav-soon w-full flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted text-left">
+            <button
+              type="button"
+              onclick="showComingSoon('评测中心')"
+              class="nav-soon w-full flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted text-left"
+            >
               <i class="fa-solid fa-flask w-4 text-center"></i>
               <span class="flex-1">评测</span>
               <span class="text-[10px] px-1.5 py-0.5 rounded bg-canvas">即将推出</span>
@@ -51,10 +73,16 @@
       </aside>
 
       <div class="flex-1 flex flex-col min-w-0">
-        <header class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-4 md:px-6">
+        <header
+          class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-4 md:px-6"
+        >
           <h1 class="text-sm font-medium">知识库</h1>
           <div class="flex items-center gap-3">
-            <img src="https://i.pravatar.cc/80?img=32" alt="用户头像" class="w-8 h-8 rounded-full object-cover" />
+            <img
+              src="https://i.pravatar.cc/80?img=32"
+              alt="用户头像"
+              class="w-8 h-8 rounded-full object-cover"
+            />
             <span class="text-sm" data-role-label>管理员</span>
           </div>
         </header>
@@ -67,81 +95,155 @@
             </div>
             <div class="flex flex-wrap items-center gap-2">
               <div class="relative">
-                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm"></i>
-                <input type="search" placeholder="搜索库名" class="h-9 w-48 pl-9 pr-3 rounded-ctrl border border-line text-sm" />
+                <i
+                  class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm"
+                ></i>
+                <input
+                  type="search"
+                  placeholder="搜索库名"
+                  class="h-9 w-48 pl-9 pr-3 rounded-ctrl border border-line text-sm"
+                />
               </div>
-              <button type="button" onclick="openModal('modal-create-kb')" class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm font-medium hover:bg-brand-hover">
+              <button
+                type="button"
+                onclick="openModal('modal-create-kb')"
+                class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm font-medium hover:bg-brand-hover"
+              >
                 <i class="fa-solid fa-plus mr-1"></i> 新建库
               </button>
             </div>
           </div>
 
           <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            <article class="bg-surface rounded-card shadow-card border border-line p-5 flex flex-col">
+            <article
+              class="bg-surface rounded-card shadow-card border border-line p-5 flex flex-col"
+            >
               <div class="flex items-start justify-between mb-3">
-                <div class="w-10 h-10 rounded-ctrl bg-brand-soft text-brand flex items-center justify-center">
+                <div
+                  class="w-10 h-10 rounded-ctrl bg-brand-soft text-brand flex items-center justify-center"
+                >
                   <i class="fa-solid fa-book-open"></i>
                 </div>
-                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success"
+                >
                   <i class="fa-solid fa-circle text-[6px]"></i> 健康
                 </span>
               </div>
               <h3 class="font-semibold">产品手册库</h3>
               <p class="text-sm text-muted mt-1">文档 128 · 默认策略：均衡</p>
-              <p class="text-xs text-muted mt-2 line-clamp-2">面向客服与运营的产品退换、运费与发票政策。</p>
+              <p class="text-xs text-muted mt-2 line-clamp-2">
+                面向客服与运营的产品退换、运费与发票政策。
+              </p>
               <div class="mt-auto pt-4 flex gap-2">
-                <a href="documents.html" class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl bg-brand text-white text-sm hover:bg-brand-hover">进入</a>
-                <a href="ask.html" class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl border border-line text-sm hover:border-brand hover:text-brand">问答</a>
+                <a
+                  href="documents.html"
+                  class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl bg-brand text-white text-sm hover:bg-brand-hover"
+                  >进入</a
+                >
+                <a
+                  href="ask.html"
+                  class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl border border-line text-sm hover:border-brand hover:text-brand"
+                  >问答</a
+                >
               </div>
             </article>
 
-            <article class="bg-surface rounded-card shadow-card border border-line p-5 flex flex-col">
+            <article
+              class="bg-surface rounded-card shadow-card border border-line p-5 flex flex-col"
+            >
               <div class="flex items-start justify-between mb-3">
-                <div class="w-10 h-10 rounded-ctrl bg-warning/10 text-warning flex items-center justify-center">
+                <div
+                  class="w-10 h-10 rounded-ctrl bg-warning/10 text-warning flex items-center justify-center"
+                >
                   <i class="fa-solid fa-building-columns"></i>
                 </div>
-                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning"
+                >
                   <i class="fa-solid fa-triangle-exclamation"></i> 有告警
                 </span>
               </div>
               <h3 class="font-semibold">内部制度库</h3>
               <p class="text-sm text-muted mt-1">文档 56 · 失败入库 2</p>
-              <p class="text-xs text-muted mt-2">考勤、报销与信息安全制度；两份 PDF 解析失败待重试。</p>
+              <p class="text-xs text-muted mt-2">
+                考勤、报销与信息安全制度；两份 PDF 解析失败待重试。
+              </p>
               <div class="mt-auto pt-4 flex gap-2">
-                <a href="documents.html" class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl bg-brand text-white text-sm hover:bg-brand-hover">进入</a>
-                <a href="ask.html" class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl border border-line text-sm hover:border-brand hover:text-brand">问答</a>
+                <a
+                  href="documents.html"
+                  class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl bg-brand text-white text-sm hover:bg-brand-hover"
+                  >进入</a
+                >
+                <a
+                  href="ask.html"
+                  class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl border border-line text-sm hover:border-brand hover:text-brand"
+                  >问答</a
+                >
               </div>
             </article>
 
-            <article class="bg-surface rounded-card shadow-card border border-line p-5 flex flex-col">
+            <article
+              class="bg-surface rounded-card shadow-card border border-line p-5 flex flex-col"
+            >
               <div class="flex items-start justify-between mb-3">
-                <div class="w-10 h-10 rounded-ctrl bg-brand-soft text-brand flex items-center justify-center">
+                <div
+                  class="w-10 h-10 rounded-ctrl bg-brand-soft text-brand flex items-center justify-center"
+                >
                   <i class="fa-solid fa-headset"></i>
                 </div>
-                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">健康</span>
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success"
+                  >健康</span
+                >
               </div>
               <h3 class="font-semibold">售后话术库</h3>
               <p class="text-sm text-muted mt-1">文档 84 · 默认策略：高召回</p>
               <p class="text-xs text-muted mt-2">客服话术与异议处理模板，适合多路查询预设。</p>
               <div class="mt-auto pt-4 flex gap-2">
-                <a href="documents.html" class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl bg-brand text-white text-sm">进入</a>
-                <a href="ask.html" class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl border border-line text-sm">问答</a>
+                <a
+                  href="documents.html"
+                  class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl bg-brand text-white text-sm"
+                  >进入</a
+                >
+                <a
+                  href="ask.html"
+                  class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl border border-line text-sm"
+                  >问答</a
+                >
               </div>
             </article>
 
-            <article class="bg-surface rounded-card shadow-card border border-line p-5 flex flex-col">
+            <article
+              class="bg-surface rounded-card shadow-card border border-line p-5 flex flex-col"
+            >
               <div class="flex items-start justify-between mb-3">
-                <div class="w-10 h-10 rounded-ctrl bg-brand-mist text-brand-deep flex items-center justify-center">
+                <div
+                  class="w-10 h-10 rounded-ctrl bg-brand-mist text-brand-deep flex items-center justify-center"
+                >
                   <i class="fa-solid fa-truck"></i>
                 </div>
-                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-canvas text-muted">空库</span>
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-canvas text-muted"
+                  >空库</span
+                >
               </div>
               <h3 class="font-semibold">物流履约库</h3>
               <p class="text-sm text-muted mt-1">文档 0 · 尚未入库</p>
               <p class="text-xs text-muted mt-2">仓配时效与异常件处理，待上传首批文档。</p>
               <div class="mt-auto pt-4 flex gap-2">
-                <a href="documents.html" class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl bg-brand text-white text-sm">去入库</a>
-                <button type="button" disabled class="flex-1 h-9 rounded-ctrl border border-line text-sm text-muted cursor-not-allowed">问答</button>
+                <a
+                  href="documents.html"
+                  class="flex-1 h-9 inline-flex items-center justify-center rounded-ctrl bg-brand text-white text-sm"
+                  >去入库</a
+                >
+                <button
+                  type="button"
+                  disabled
+                  class="flex-1 h-9 rounded-ctrl border border-line text-sm text-muted cursor-not-allowed"
+                >
+                  问答
+                </button>
               </div>
             </article>
 
@@ -162,19 +264,36 @@
     <!-- 新建知识库 -->
     <div id="modal-create-kb" class="fixed inset-0 z-50 hidden">
       <div class="absolute inset-0 bg-black/40" onclick="closeModal('modal-create-kb')"></div>
-      <div class="relative mx-auto mt-20 w-[480px] max-w-[92vw] bg-surface rounded-card shadow-soft">
+      <div
+        class="relative mx-auto mt-20 w-[480px] max-w-[92vw] bg-surface rounded-card shadow-soft"
+      >
         <div class="flex items-center justify-between px-5 h-14 border-b border-line">
           <h3 class="font-medium">新建知识库</h3>
-          <button type="button" onclick="closeModal('modal-create-kb')" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+          <button
+            type="button"
+            onclick="closeModal('modal-create-kb')"
+            class="text-muted hover:text-ink"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
         </div>
         <div class="p-5 space-y-4">
           <label class="block text-sm">
             <span class="font-medium">名称</span>
-            <input id="kb-name" type="text" placeholder="例如：门店培训库" class="mt-1.5 w-full h-9 px-3 rounded-ctrl border border-line text-sm" />
+            <input
+              id="kb-name"
+              type="text"
+              placeholder="例如：门店培训库"
+              class="mt-1.5 w-full h-9 px-3 rounded-ctrl border border-line text-sm"
+            />
           </label>
           <label class="block text-sm">
             <span class="font-medium">说明</span>
-            <textarea rows="2" placeholder="简要说明用途与受众" class="mt-1.5 w-full px-3 py-2 rounded-ctrl border border-line text-sm"></textarea>
+            <textarea
+              rows="2"
+              placeholder="简要说明用途与受众"
+              class="mt-1.5 w-full px-3 py-2 rounded-ctrl border border-line text-sm"
+            ></textarea>
           </label>
           <fieldset class="text-sm">
             <legend class="font-medium mb-2">入库模式</legend>
@@ -197,10 +316,27 @@
           </fieldset>
         </div>
         <div class="px-5 h-14 border-t border-line flex items-center justify-end gap-3">
-          <button type="button" onclick="closeModal('modal-create-kb')" class="h-9 px-4 rounded-ctrl border border-line text-sm">取消</button>
           <button
             type="button"
-            onclick="(function(){var n=document.getElementById('kb-name').value.trim(); if(!n){toast('请填写知识库名称');return;} closeModal('modal-create-kb'); toast('已创建「'+n+'」'); location.href='documents.html';})()"
+            onclick="closeModal('modal-create-kb')"
+            class="h-9 px-4 rounded-ctrl border border-line text-sm"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onclick="
+              (function () {
+                var n = document.getElementById('kb-name').value.trim();
+                if (!n) {
+                  toast('请填写知识库名称');
+                  return;
+                }
+                closeModal('modal-create-kb');
+                toast('已创建「' + n + '」');
+                location.href = 'documents.html';
+              })()
+            "
             class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm"
           >
             创建并去入库
@@ -211,14 +347,31 @@
 
     <div id="modal-coming-soon" class="fixed inset-0 z-50 hidden">
       <div class="absolute inset-0 bg-black/40" onclick="closeModal('modal-coming-soon')"></div>
-      <div class="relative mx-auto mt-28 w-[420px] max-w-[92vw] bg-surface rounded-card shadow-soft">
+      <div
+        class="relative mx-auto mt-28 w-[420px] max-w-[92vw] bg-surface rounded-card shadow-soft"
+      >
         <div class="flex items-center justify-between px-5 h-14 border-b border-line">
           <h3 class="font-medium">规划中</h3>
-          <button type="button" onclick="closeModal('modal-coming-soon')" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+          <button
+            type="button"
+            onclick="closeModal('modal-coming-soon')"
+            class="text-muted hover:text-ink"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
         </div>
-        <div class="p-5 text-sm text-muted"><span id="coming-soon-title" class="text-ink font-medium">评测中心</span> 规划中，不影响当前问答。</div>
+        <div class="p-5 text-sm text-muted">
+          <span id="coming-soon-title" class="text-ink font-medium">评测中心</span>
+          规划中，不影响当前问答。
+        </div>
         <div class="px-5 h-14 border-t border-line flex justify-end">
-          <button type="button" onclick="closeModal('modal-coming-soon')" class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm">知道了</button>
+          <button
+            type="button"
+            onclick="closeModal('modal-coming-soon')"
+            class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm"
+          >
+            知道了
+          </button>
         </div>
       </div>
     </div>

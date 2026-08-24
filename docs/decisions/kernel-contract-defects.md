@@ -42,15 +42,15 @@ flowchart TD
 
 结果是相当一部分字段只被 debug / observability / audit 消费，对检索-生成行为零影响：
 
-| 字段 | 写入方 | 行为性消费方 | 仅记录消费 |
-| --- | --- | --- | --- |
-| `route` | `NoopQueryPreprocessor`、`query-routing` | **无** | debug、observation、audit |
-| `strategy` | `NoopQueryPreprocessor`、`query-rewrite`、`build-sub-queries`、`query-routing` | **无** | debug、audit、candidate 记录字段 |
-| `topK` | `NoopQueryPreprocessor` | **无**（两个 adapter 都不读） | `isQueryStrategyPassthrough`、audit |
-| `indexingMode` | `NoopQueryPreprocessor` | **无** | debug、audit |
-| `metadata` | `NoopQueryPreprocessor` | **无**（全 `packages/` 无读取点） | 无 |
-| `rerank.topK` | **无写入方** | **无** | audit |
-| `filters` | `NoopQueryPreprocessor`、`query-routing` | **无强制点**（见病根 2） | debug、observation、audit |
+| 字段           | 写入方                                                                         | 行为性消费方                      | 仅记录消费                          |
+| -------------- | ------------------------------------------------------------------------------ | --------------------------------- | ----------------------------------- |
+| `route`        | `NoopQueryPreprocessor`、`query-routing`                                       | **无**                            | debug、observation、audit           |
+| `strategy`     | `NoopQueryPreprocessor`、`query-rewrite`、`build-sub-queries`、`query-routing` | **无**                            | debug、audit、candidate 记录字段    |
+| `topK`         | `NoopQueryPreprocessor`                                                        | **无**（两个 adapter 都不读）     | `isQueryStrategyPassthrough`、audit |
+| `indexingMode` | `NoopQueryPreprocessor`                                                        | **无**                            | debug、audit                        |
+| `metadata`     | `NoopQueryPreprocessor`                                                        | **无**（全 `packages/` 无读取点） | 无                                  |
+| `rerank.topK`  | **无写入方**                                                                   | **无**                            | audit                               |
+| `filters`      | `NoopQueryPreprocessor`、`query-routing`                                       | **无强制点**（见病根 2）          | debug、observation、audit           |
 
 `PostRetrievalResult.postRetrievalMetadata`（`post-retrieval-result.ts:17`）同样没有任何写入方，是个悬空扩展点。
 
@@ -200,13 +200,13 @@ export type RuntimeGeneratorInput = {
 
 ### 3. 两个内置 adapter 对同一份 request 有不同行为
 
-| 维度 | pgvector | langchain（默认路径） |
-| --- | --- | --- |
-| 条数限制 | 读 `budget.maxChunks ?? 3`，filter 后 `.slice(0, topK)` | **不读** topK/budget，不截断 |
-| RRF 融合 | 向量 + 关键词双路 + RRF | 无，单次 `invoke` |
-| score 口径 | RRF 分（≈0.016–0.033） | 底层 `document.score`（口径未知） |
-| `retrievalMetadata` | 结构化返回，含 `searchType` | 默认 `undefined` |
-| filters | 强制应用 | 可用 `filterByRequest: false` 关闭 |
+| 维度                | pgvector                                                | langchain（默认路径）              |
+| ------------------- | ------------------------------------------------------- | ---------------------------------- |
+| 条数限制            | 读 `budget.maxChunks ?? 3`，filter 后 `.slice(0, topK)` | **不读** topK/budget，不截断       |
+| RRF 融合            | 向量 + 关键词双路 + RRF                                 | 无，单次 `invoke`                  |
+| score 口径          | RRF 分（≈0.016–0.033）                                  | 底层 `document.score`（口径未知）  |
+| `retrievalMetadata` | 结构化返回，含 `searchType`                             | 默认 `undefined`                   |
+| filters             | 强制应用                                                | 可用 `filterByRequest: false` 关闭 |
 
 证据：`pg-vector-runtime-retriever-adapter.ts:112-148`；`langchain-runtime-retriever-adapter.ts:123-177`。
 
@@ -323,16 +323,16 @@ LLM 调用失败并 passthrough 时（`:198-206`），重排根本没发生，�
 
 优先级依据「是否影响正确性」与「是否需要破坏性变更」两个维度。
 
-| 级别 | 内容 | 是否需破坏 export 面 |
-| --- | --- | --- |
-| **P0** | score 口径：给 `RetrievalCandidate` 补口径信息，让 `score-threshold` 能按口径判断或拒绝执行；修正 `retrievalScoreKind` 对 pgvector 的误判 | 否（加字段） |
-| **P0** | `llm-rerank`：mutate 移入成功分支、零候选短路 | 否 |
-| **P1** | 缺口 1：给 `RuntimeGeneratorInput` 补「无依据成因」信号，使 grounding 策略可表达 | 否（加字段） |
-| **P1** | `RetrievalRequest` 字段收敛：三套条数语义统一、死字段清理或明确标注为纯观测字段 | 是 |
-| **P1** | `RuntimeRetriever` 契约补全：身份标识、能力声明、生命周期、`filters` 强制点 | 是 |
-| **P2** | 缺口 2：提供官方装配层，把策略顺序知识收敛到内核一处 | 否（新增 API） |
-| **P2** | 契约工具独立分层，收窄 runtime export 面 | 是（须先改 `exports.spec.ts`） |
-| **P2** | 拆分 `run-runtime.ts`；统一 core/runtime 双份接口；消除 Filters/Budget 双份定义 | 部分 |
+| 级别   | 内容                                                                                                                                      | 是否需破坏 export 面           |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| **P0** | score 口径：给 `RetrievalCandidate` 补口径信息，让 `score-threshold` 能按口径判断或拒绝执行；修正 `retrievalScoreKind` 对 pgvector 的误判 | 否（加字段）                   |
+| **P0** | `llm-rerank`：mutate 移入成功分支、零候选短路                                                                                             | 否                             |
+| **P1** | 缺口 1：给 `RuntimeGeneratorInput` 补「无依据成因」信号，使 grounding 策略可表达                                                          | 否（加字段）                   |
+| **P1** | `RetrievalRequest` 字段收敛：三套条数语义统一、死字段清理或明确标注为纯观测字段                                                           | 是                             |
+| **P1** | `RuntimeRetriever` 契约补全：身份标识、能力声明、生命周期、`filters` 强制点                                                               | 是                             |
+| **P2** | 缺口 2：提供官方装配层，把策略顺序知识收敛到内核一处                                                                                      | 否（新增 API）                 |
+| **P2** | 契约工具独立分层，收窄 runtime export 面                                                                                                  | 是（须先改 `exports.spec.ts`） |
+| **P2** | 拆分 `run-runtime.ts`；统一 core/runtime 双份接口；消除 Filters/Budget 双份定义                                                           | 部分                           |
 
 **P0 的选择理由**：这两项都能在不动公开 API 面的前提下完成，且修的是正确性问题而非整洁度问题。先做 P0 可以在不触发高危项 7 那道测试墙的情况下拿到实际收益。
 

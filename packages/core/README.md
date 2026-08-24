@@ -15,13 +15,13 @@
 
 ## 公开能力
 
-| 分组 | 内容 |
-| --- | --- |
-| 类型 | `Query`、`Document`、`Chunk`、`Vector`、`RAGResponse`、`RAGCitation` 等 |
-| Schema | 同名 `*Schema`，用于 parse / safeParse |
-| 接口 | `Retriever.retrieve()`、`Generator.generate()` |
-| 错误 | `RAGCoreError`、`ValidationError`、`RetrievalError`、`GenerationError` |
-| Pipeline | `RAGPipeline = (query) => Promise<RAGResponse>` |
+| 分组     | 内容                                                                    |
+| -------- | ----------------------------------------------------------------------- |
+| 类型     | `Query`、`Document`、`Chunk`、`Vector`、`RAGResponse`、`RAGCitation` 等 |
+| Schema   | 同名 `*Schema`，用于 parse / safeParse                                  |
+| 接口     | `Retriever.retrieve()`、`Generator.generate()`                          |
+| 错误     | `RAGCoreError`、`ValidationError`、`RetrievalError`、`GenerationError`  |
+| Pipeline | `RAGPipeline = (query) => Promise<RAGResponse>`                         |
 
 `Retriever` / `Generator` 只描述最小形状。在线编排请用 `runtime` 的 `RuntimeRetriever` / `RuntimeGenerator`，不要在 `core` 里加阶段语义。
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -16,7 +16,9 @@
     <div class="app-shell flex min-h-screen">
       <aside class="app-aside w-60 shrink-0 bg-surface border-r border-line flex flex-col">
         <div class="h-14 flex items-center gap-2.5 px-5 border-b border-line">
-          <span class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm">
+          <span
+            class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm"
+          >
             <i class="fa-solid fa-leaf"></i>
           </span>
           <div>
@@ -25,121 +27,287 @@
           </div>
         </div>
         <nav class="flex-1 p-3 space-y-1 text-sm">
-          <a href="home.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="home.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-house w-4 text-center"></i> 工作台
           </a>
-          <a href="knowledge-bases.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium">
+          <a
+            href="knowledge-bases.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium"
+          >
             <i class="fa-solid fa-layer-group w-4 text-center"></i> 知识库
           </a>
-          <a href="ask.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="ask.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-regular fa-comments w-4 text-center"></i> 问答
           </a>
-          <a href="observe.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="observe.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-timeline w-4 text-center"></i> 观测
           </a>
-          <a href="settings.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="settings.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-gear w-4 text-center"></i> 设置
           </a>
         </nav>
       </aside>
 
       <div class="flex-1 flex flex-col min-w-0">
-        <header class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-4 md:px-6 gap-2">
+        <header
+          class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-4 md:px-6 gap-2"
+        >
           <div class="text-sm">
-            <a href="documents.html" class="text-muted hover:text-brand" data-kb-label>产品手册库</a>
+            <a href="documents.html" class="text-muted hover:text-brand" data-kb-label
+              >产品手册库</a
+            >
             <i class="fa-solid fa-angle-right text-[10px] mx-1 text-muted"></i>
             <span class="font-medium">策略</span>
           </div>
           <div class="flex items-center gap-2">
-            <select id="preset" class="h-8 px-2 rounded-ctrl border border-line text-sm" onchange="toast('已套用预设：' + this.options[this.selectedIndex].text)">
+            <select
+              id="preset"
+              class="h-8 px-2 rounded-ctrl border border-line text-sm"
+              onchange="toast('已套用预设：' + this.options[this.selectedIndex].text)"
+            >
               <option selected>均衡</option>
               <option>高召回</option>
               <option>低成本</option>
               <option>严谨引用</option>
             </select>
-            <button type="button" onclick="showComingSoon('策略预设另存')" class="h-8 px-3 rounded-ctrl border border-line text-sm">另存为</button>
+            <button
+              type="button"
+              onclick="showComingSoon('策略预设另存')"
+              class="h-8 px-3 rounded-ctrl border border-line text-sm"
+            >
+              另存为
+            </button>
           </div>
         </header>
 
         <main class="flex-1 p-4 md:p-6 overflow-auto max-w-3xl">
-          <p class="text-sm text-muted mb-5 bg-brand-soft/60 border border-brand/20 rounded-ctrl px-4 py-3">
-            预设说明：<strong class="text-brand-deep">均衡</strong> = 改写开 + 多路查询关 + 轻量重排 + 压缩开（适合日常）
+          <p
+            class="text-sm text-muted mb-5 bg-brand-soft/60 border border-brand/20 rounded-ctrl px-4 py-3"
+          >
+            预设说明：<strong class="text-brand-deep">均衡</strong> = 改写开 + 多路查询关 + 轻量重排
+            + 压缩开（适合日常）
           </p>
 
           <!-- 1 提问预处理 -->
-          <section class="bg-surface rounded-card shadow-card border border-line mb-4 overflow-hidden">
+          <section
+            class="bg-surface rounded-card shadow-card border border-line mb-4 overflow-hidden"
+          >
             <div class="px-4 py-3 border-b border-line flex items-center gap-2">
-              <span class="w-6 h-6 rounded-full bg-brand text-white text-xs flex items-center justify-center">1</span>
+              <span
+                class="w-6 h-6 rounded-full bg-brand text-white text-xs flex items-center justify-center"
+                >1</span
+              >
               <h2 class="font-medium text-sm">提问预处理</h2>
             </div>
             <div class="p-4 space-y-3 text-sm">
-              <label class="flex items-start gap-3"><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span><strong>查询改写</strong><span class="block text-xs text-muted">把口语问法改成更利于检索的表述</span></span></label>
-              <label class="flex items-start gap-3"><input type="checkbox" class="mt-0.5 rounded text-brand" /><span><strong>查询扩展</strong><span class="block text-xs text-muted">补充相关说法（可能增加召回与耗时）</span></span></label>
-              <label class="flex items-start gap-3"><input type="checkbox" class="mt-0.5 rounded text-brand" /><span><strong>问题拆解</strong><span class="block text-xs text-muted">复杂问题拆成多个子问题</span></span></label>
-              <label class="flex items-start gap-3"><input type="checkbox" class="mt-0.5 rounded text-brand" /><span><strong>多路查询</strong><span class="block text-xs text-muted">同一意图多种措辞并行检索后融合</span></span></label>
-              <label class="flex items-start gap-3 opacity-60"><input type="checkbox" class="mt-0.5 rounded text-brand" /><span><strong>查询路由</strong> <span class="text-[10px] px-1.5 py-0.5 rounded bg-canvas">高级</span><span class="block text-xs text-muted">按问题类型调整召回量 / 过滤</span></span></label>
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span
+                  ><strong>查询改写</strong
+                  ><span class="block text-xs text-muted"
+                    >把口语问法改成更利于检索的表述</span
+                  ></span
+                ></label
+              >
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" class="mt-0.5 rounded text-brand" /><span
+                  ><strong>查询扩展</strong
+                  ><span class="block text-xs text-muted"
+                    >补充相关说法（可能增加召回与耗时）</span
+                  ></span
+                ></label
+              >
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" class="mt-0.5 rounded text-brand" /><span
+                  ><strong>问题拆解</strong
+                  ><span class="block text-xs text-muted">复杂问题拆成多个子问题</span></span
+                ></label
+              >
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" class="mt-0.5 rounded text-brand" /><span
+                  ><strong>多路查询</strong
+                  ><span class="block text-xs text-muted"
+                    >同一意图多种措辞并行检索后融合</span
+                  ></span
+                ></label
+              >
+              <label class="flex items-start gap-3 opacity-60"
+                ><input type="checkbox" class="mt-0.5 rounded text-brand" /><span
+                  ><strong>查询路由</strong>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-canvas">高级</span
+                  ><span class="block text-xs text-muted">按问题类型调整召回量 / 过滤</span></span
+                ></label
+              >
             </div>
           </section>
 
           <!-- 2 检索 -->
-          <section class="bg-surface rounded-card shadow-card border border-line mb-4 overflow-hidden">
+          <section
+            class="bg-surface rounded-card shadow-card border border-line mb-4 overflow-hidden"
+          >
             <div class="px-4 py-3 border-b border-line flex items-center gap-2">
-              <span class="w-6 h-6 rounded-full bg-brand text-white text-xs flex items-center justify-center">2</span>
+              <span
+                class="w-6 h-6 rounded-full bg-brand text-white text-xs flex items-center justify-center"
+                >2</span
+              >
               <h2 class="font-medium text-sm">检索</h2>
             </div>
             <div class="p-4 space-y-3 text-sm">
               <label class="flex items-center gap-3">
                 召回数量 topK
-                <input type="number" value="8" min="1" max="50" class="w-16 h-8 px-2 rounded-ctrl border border-line text-sm" />
+                <input
+                  type="number"
+                  value="8"
+                  min="1"
+                  max="50"
+                  class="w-16 h-8 px-2 rounded-ctrl border border-line text-sm"
+                />
               </label>
               <p class="text-xs text-muted">混合检索 / 稀疏检索：后续 · 元数据过滤：预留</p>
             </div>
           </section>
 
           <!-- 3 检索后处理 -->
-          <section class="bg-surface rounded-card shadow-card border border-line mb-4 overflow-hidden">
+          <section
+            class="bg-surface rounded-card shadow-card border border-line mb-4 overflow-hidden"
+          >
             <div class="px-4 py-3 border-b border-line flex items-center gap-2">
-              <span class="w-6 h-6 rounded-full bg-brand text-white text-xs flex items-center justify-center">3</span>
+              <span
+                class="w-6 h-6 rounded-full bg-brand text-white text-xs flex items-center justify-center"
+                >3</span
+              >
               <h2 class="font-medium text-sm">检索后处理</h2>
             </div>
             <div class="p-4 space-y-3 text-sm">
-              <label class="flex items-start gap-3"><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span><strong>分数阈值过滤</strong> 低于 <input type="number" value="0.20" step="0.01" class="w-16 h-7 mx-1 px-1 rounded border border-line text-xs" /> 丢弃</span></label>
-              <label class="flex items-start gap-3"><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span><strong>近重复去除</strong></span></label>
-              <label class="flex items-start gap-3"><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span><strong>上下文预算</strong> 最多保留 <input type="number" value="5" class="w-14 h-7 mx-1 px-1 rounded border border-line text-xs" /> 段</span></label>
-              <label class="flex items-start gap-3"><input type="checkbox" class="mt-0.5 rounded text-brand" /><span><strong>来源覆盖增强</strong><span class="block text-xs text-muted">尽量覆盖更多不同文档</span></span></label>
-              <label class="flex items-start gap-3"><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span><strong>智能重排序</strong><span class="block text-xs text-muted">用模型对候选再排序（更准，更慢更贵）</span></span></label>
-              <label class="flex items-start gap-3"><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span><strong>上下文压缩</strong><span class="block text-xs text-muted">压缩后再生成，减少噪音</span></span></label>
-              <label class="flex items-start gap-3"><input type="checkbox" class="mt-0.5 rounded text-brand" /><span><strong>首尾重排</strong><span class="block text-xs text-muted">重要段落放开头与结尾（缓解中间遗忘）</span></span></label>
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span
+                  ><strong>分数阈值过滤</strong> 低于
+                  <input
+                    type="number"
+                    value="0.20"
+                    step="0.01"
+                    class="w-16 h-7 mx-1 px-1 rounded border border-line text-xs"
+                  />
+                  丢弃</span
+                ></label
+              >
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span
+                  ><strong>近重复去除</strong></span
+                ></label
+              >
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span
+                  ><strong>上下文预算</strong> 最多保留
+                  <input
+                    type="number"
+                    value="5"
+                    class="w-14 h-7 mx-1 px-1 rounded border border-line text-xs"
+                  />
+                  段</span
+                ></label
+              >
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" class="mt-0.5 rounded text-brand" /><span
+                  ><strong>来源覆盖增强</strong
+                  ><span class="block text-xs text-muted">尽量覆盖更多不同文档</span></span
+                ></label
+              >
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span
+                  ><strong>智能重排序</strong
+                  ><span class="block text-xs text-muted"
+                    >用模型对候选再排序（更准，更慢更贵）</span
+                  ></span
+                ></label
+              >
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span
+                  ><strong>上下文压缩</strong
+                  ><span class="block text-xs text-muted">压缩后再生成，减少噪音</span></span
+                ></label
+              >
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" class="mt-0.5 rounded text-brand" /><span
+                  ><strong>首尾重排</strong
+                  ><span class="block text-xs text-muted"
+                    >重要段落放开头与结尾（缓解中间遗忘）</span
+                  ></span
+                ></label
+              >
             </div>
           </section>
 
           <!-- 4 生成 -->
-          <section class="bg-surface rounded-card shadow-card border border-line mb-6 overflow-hidden">
+          <section
+            class="bg-surface rounded-card shadow-card border border-line mb-6 overflow-hidden"
+          >
             <div class="px-4 py-3 border-b border-line flex items-center gap-2">
-              <span class="w-6 h-6 rounded-full bg-brand text-white text-xs flex items-center justify-center">4</span>
+              <span
+                class="w-6 h-6 rounded-full bg-brand text-white text-xs flex items-center justify-center"
+                >4</span
+              >
               <h2 class="font-medium text-sm">生成</h2>
             </div>
             <div class="p-4 space-y-3 text-sm">
-              <label class="flex items-start gap-3"><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span><strong>引用溯源</strong><span class="block text-xs text-muted">答案附带出处编号（推荐常开）</span></span></label>
+              <label class="flex items-start gap-3"
+                ><input type="checkbox" checked class="mt-0.5 rounded text-brand" /><span
+                  ><strong>引用溯源</strong
+                  ><span class="block text-xs text-muted">答案附带出处编号（推荐常开）</span></span
+                ></label
+              >
               <label class="flex items-start gap-3 opacity-50 cursor-not-allowed">
                 <input type="checkbox" disabled class="mt-0.5 rounded" />
                 <span>
                   <strong>Active RAG</strong>
-                  <span class="text-[10px] ml-1 px-1.5 py-0.5 rounded bg-canvas text-muted">后续 · 暂不可用</span>
+                  <span class="text-[10px] ml-1 px-1.5 py-0.5 rounded bg-canvas text-muted"
+                    >后续 · 暂不可用</span
+                  >
                   <span class="block text-xs text-muted">答不稳时自动再检索</span>
                 </span>
               </label>
               <fieldset class="pt-2">
                 <legend class="text-xs text-muted mb-2">兜底：无依据时</legend>
-                <label class="flex items-center gap-2 mb-1"><input type="radio" name="fallback" checked class="text-brand" /> 明确说「知识库未覆盖」</label>
-                <label class="flex items-center gap-2"><input type="radio" name="fallback" class="text-brand" /> 仍尝试泛化回答</label>
+                <label class="flex items-center gap-2 mb-1"
+                  ><input type="radio" name="fallback" checked class="text-brand" />
+                  明确说「知识库未覆盖」</label
+                >
+                <label class="flex items-center gap-2"
+                  ><input type="radio" name="fallback" class="text-brand" /> 仍尝试泛化回答</label
+                >
               </fieldset>
             </div>
           </section>
 
           <div class="flex justify-end gap-2 sticky bottom-4">
-            <button type="button" onclick="toast('已恢复默认（均衡）')" class="h-9 px-4 rounded-ctrl border border-line text-sm bg-surface">恢复默认</button>
-            <button type="button" onclick="toast('策略已保存'); location.href='search-debug.html'" class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm hover:bg-brand-hover">保存</button>
+            <button
+              type="button"
+              onclick="toast('已恢复默认（均衡）')"
+              class="h-9 px-4 rounded-ctrl border border-line text-sm bg-surface"
+            >
+              恢复默认
+            </button>
+            <button
+              type="button"
+              onclick="
+                toast('策略已保存');
+                location.href = 'search-debug.html';
+              "
+              class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm hover:bg-brand-hover"
+            >
+              保存
+            </button>
           </div>
         </main>
       </div>
@@ -147,14 +315,31 @@
 
     <div id="modal-coming-soon" class="fixed inset-0 z-50 hidden">
       <div class="absolute inset-0 bg-black/40" onclick="closeModal('modal-coming-soon')"></div>
-      <div class="relative mx-auto mt-28 w-[420px] max-w-[92vw] bg-surface rounded-card shadow-soft">
+      <div
+        class="relative mx-auto mt-28 w-[420px] max-w-[92vw] bg-surface rounded-card shadow-soft"
+      >
         <div class="flex items-center justify-between px-5 h-14 border-b border-line">
           <h3 class="font-medium">规划中</h3>
-          <button type="button" onclick="closeModal('modal-coming-soon')" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+          <button
+            type="button"
+            onclick="closeModal('modal-coming-soon')"
+            class="text-muted hover:text-ink"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
         </div>
-        <div class="p-5 text-sm text-muted"><span id="coming-soon-title" class="text-ink font-medium">能力</span> 规划中，不影响当前问答。</div>
+        <div class="p-5 text-sm text-muted">
+          <span id="coming-soon-title" class="text-ink font-medium">能力</span>
+          规划中，不影响当前问答。
+        </div>
         <div class="px-5 h-14 border-t border-line flex justify-end">
-          <button type="button" onclick="closeModal('modal-coming-soon')" class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm">知道了</button>
+          <button
+            type="button"
+            onclick="closeModal('modal-coming-soon')"
+            class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm"
+          >
+            知道了
+          </button>
         </div>
       </div>
     </div>

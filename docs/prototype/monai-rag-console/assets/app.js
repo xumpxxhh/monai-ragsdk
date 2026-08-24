@@ -89,13 +89,7 @@
     var total = 48;
     var current = 0;
     var stats = { add: 0, skip: 0, fail: 0 };
-    var files = [
-      '退货政策.md',
-      'FAQ.md',
-      '运费说明.md',
-      '发票开具指引.md',
-      '会员积分规则.md',
-    ];
+    var files = ['退货政策.md', 'FAQ.md', '运费说明.md', '发票开具指引.md', '会员积分规则.md'];
 
     if (window.__ingestTimer) clearInterval(window.__ingestTimer);
     window.__ingestTimer = setInterval(function () {
@@ -179,8 +173,7 @@
     if (box) {
       box.classList.remove('stream-cursor');
       if (!box.textContent.includes('已中断')) {
-        box.innerHTML +=
-          ' <span class="text-xs text-warning font-medium">（已中断）</span>';
+        box.innerHTML += ' <span class="text-xs text-warning font-medium">（已中断）</span>';
       }
     }
     var sendBtn = document.getElementById('btn-send');
@@ -258,7 +251,7 @@
         var draft = document.getElementById('ask-input');
         if (draft && draft.value.trim()) {
           var keep = window.confirm(
-            '切换知识库后，输入框草稿将标注所属库变更。是否保留草稿？\n（取消则清空）'
+            '切换知识库后，输入框草稿将标注所属库变更。是否保留草稿？\n（取消则清空）',
           );
           if (!keep) draft.value = '';
         }

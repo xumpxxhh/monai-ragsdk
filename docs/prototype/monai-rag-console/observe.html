@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -16,7 +16,9 @@
     <div class="app-shell flex min-h-screen">
       <aside class="app-aside w-60 shrink-0 bg-surface border-r border-line flex flex-col">
         <div class="h-14 flex items-center gap-2.5 px-5 border-b border-line">
-          <span class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm">
+          <span
+            class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm"
+          >
             <i class="fa-solid fa-leaf"></i>
           </span>
           <div>
@@ -25,31 +27,77 @@
           </div>
         </div>
         <nav class="flex-1 p-3 space-y-1 text-sm">
-          <a href="home.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="home.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-house w-4 text-center"></i> 工作台
           </a>
-          <a href="knowledge-bases.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="knowledge-bases.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-layer-group w-4 text-center"></i> 知识库
           </a>
-          <a href="ask.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="ask.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-regular fa-comments w-4 text-center"></i> 问答
           </a>
-          <a href="observe.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium">
+          <a
+            href="observe.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium"
+          >
             <i class="fa-solid fa-timeline w-4 text-center"></i> 观测
           </a>
-          <a href="settings.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="settings.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-gear w-4 text-center"></i> 设置
           </a>
         </nav>
       </aside>
 
       <div class="flex-1 flex flex-col min-w-0">
-        <header class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-4 md:px-6">
+        <header
+          class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-4 md:px-6"
+        >
           <h1 class="text-sm font-medium">观测</h1>
           <div class="flex items-center gap-1 text-sm bg-canvas rounded-ctrl p-0.5">
-            <button type="button" class="px-3 h-7 rounded-ctrl bg-surface shadow-sm text-brand font-medium" data-tab="qa">问答轨迹</button>
-            <button type="button" class="px-3 h-7 rounded-ctrl text-muted" data-tab="ingest" onclick="document.getElementById('panel-qa').classList.add('hidden'); document.getElementById('panel-ingest').classList.remove('hidden'); this.classList.add('bg-surface','shadow-sm','text-brand','font-medium'); this.previousElementSibling.classList.remove('bg-surface','shadow-sm','text-brand','font-medium')">入库任务</button>
-            <button type="button" onclick="showComingSoon('轨迹导出')" class="px-3 h-7 rounded-ctrl text-muted">导出(后续)</button>
+            <button
+              type="button"
+              class="px-3 h-7 rounded-ctrl bg-surface shadow-sm text-brand font-medium"
+              data-tab="qa"
+            >
+              问答轨迹
+            </button>
+            <button
+              type="button"
+              class="px-3 h-7 rounded-ctrl text-muted"
+              data-tab="ingest"
+              onclick="
+                document.getElementById('panel-qa').classList.add('hidden');
+                document.getElementById('panel-ingest').classList.remove('hidden');
+                this.classList.add('bg-surface', 'shadow-sm', 'text-brand', 'font-medium');
+                this.previousElementSibling.classList.remove(
+                  'bg-surface',
+                  'shadow-sm',
+                  'text-brand',
+                  'font-medium',
+                );
+              "
+            >
+              入库任务
+            </button>
+            <button
+              type="button"
+              onclick="showComingSoon('轨迹导出')"
+              class="px-3 h-7 rounded-ctrl text-muted"
+            >
+              导出(后续)
+            </button>
           </div>
         </header>
 
@@ -62,27 +110,41 @@
                   <option>近 7 日</option>
                   <option>近 30 日</option>
                 </select>
-                <input type="search" placeholder="搜索问题关键词" class="w-full h-8 px-2 rounded-ctrl border border-line text-xs" />
+                <input
+                  type="search"
+                  placeholder="搜索问题关键词"
+                  class="w-full h-8 px-2 rounded-ctrl border border-line text-xs"
+                />
               </div>
               <ul class="flex-1 overflow-auto text-sm divide-y divide-line">
                 <li class="px-3 py-3 bg-brand-soft/50 border-l-2 border-brand cursor-pointer">
-                  <div class="flex justify-between text-xs text-muted mb-0.5"><span>10:05</span><span class="text-success">成功 · 2.4s</span></div>
+                  <div class="flex justify-between text-xs text-muted mb-0.5">
+                    <span>10:05</span><span class="text-success">成功 · 2.4s</span>
+                  </div>
                   <p class="font-medium truncate">退货时效是多久？</p>
                 </li>
                 <li class="px-3 py-3 hover:bg-canvas cursor-pointer">
-                  <div class="flex justify-between text-xs text-muted mb-0.5"><span>10:01</span><span>成功 · 1.9s</span></div>
+                  <div class="flex justify-between text-xs text-muted mb-0.5">
+                    <span>10:01</span><span>成功 · 1.9s</span>
+                  </div>
                   <p class="truncate">发票怎么改抬头？</p>
                 </li>
                 <li class="px-3 py-3 hover:bg-canvas cursor-pointer">
-                  <div class="flex justify-between text-xs text-muted mb-0.5"><span>09:40</span><span>成功 · 2.1s</span></div>
+                  <div class="flex justify-between text-xs text-muted mb-0.5">
+                    <span>09:40</span><span>成功 · 2.1s</span>
+                  </div>
                   <p class="truncate">运费谁承担？</p>
                 </li>
                 <li class="px-3 py-3 hover:bg-canvas cursor-pointer">
-                  <div class="flex justify-between text-xs text-muted mb-0.5"><span>09:12</span><span class="text-warning">部分跳过</span></div>
+                  <div class="flex justify-between text-xs text-muted mb-0.5">
+                    <span>09:12</span><span class="text-warning">部分跳过</span>
+                  </div>
                   <p class="truncate">会员积分能抵运费吗？</p>
                 </li>
                 <li class="px-3 py-3 hover:bg-canvas cursor-pointer">
-                  <div class="flex justify-between text-xs text-muted mb-0.5"><span>昨日</span><span>成功 · 3.0s</span></div>
+                  <div class="flex justify-between text-xs text-muted mb-0.5">
+                    <span>昨日</span><span>成功 · 3.0s</span>
+                  </div>
                   <p class="truncate">保修和退货有什么区别？</p>
                 </li>
               </ul>
@@ -94,12 +156,20 @@
                   <span class="font-mono text-xs text-muted">Trace #a3f2</span>
                   <span class="text-xs text-muted">· 10:05</span>
                   <span class="text-xs text-muted">· 耗时 2.4s</span>
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">成功</span>
+                  <span
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-success/10 text-success"
+                    >成功</span
+                  >
                 </div>
                 <p class="text-sm mb-1"><span class="text-muted">原问题：</span>退货时效是多久？</p>
-                <p class="text-sm mb-5"><span class="text-muted">有效问题：</span><span class="text-brand font-medium">商品退货申请时限</span></p>
+                <p class="text-sm mb-5">
+                  <span class="text-muted">有效问题：</span
+                  ><span class="text-brand font-medium">商品退货申请时限</span>
+                </p>
 
-                <ol class="space-y-4 relative before:absolute before:left-[0.28rem] before:top-2 before:bottom-2 before:w-px before:bg-line">
+                <ol
+                  class="space-y-4 relative before:absolute before:left-[0.28rem] before:top-2 before:bottom-2 before:w-px before:bg-line"
+                >
                   <li class="flex gap-3 relative">
                     <span class="trace-dot mt-1.5 shrink-0 z-10"></span>
                     <div>
@@ -139,14 +209,26 @@
                     <span class="trace-dot trace-dot--warn mt-1.5 shrink-0 z-10"></span>
                     <div class="bg-warning/5 border border-warning/20 rounded-ctrl px-3 py-2">
                       <p class="text-sm font-medium text-warning">警告：扩展策略失败已跳过</p>
-                      <p class="text-xs text-muted mt-0.5">未影响回答 · 管理员可关闭该项或排查连接</p>
+                      <p class="text-xs text-muted mt-0.5">
+                        未影响回答 · 管理员可关闭该项或排查连接
+                      </p>
                     </div>
                   </li>
                 </ol>
 
                 <div class="mt-6 flex flex-wrap gap-2">
-                  <a href="ask.html" class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm inline-flex items-center hover:bg-brand-hover">查看引用片段</a>
-                  <button type="button" onclick="showComingSoon('用相同策略重放')" class="h-9 px-4 rounded-ctrl border border-line text-sm text-muted">用相同策略重放(后续)</button>
+                  <a
+                    href="ask.html"
+                    class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm inline-flex items-center hover:bg-brand-hover"
+                    >查看引用片段</a
+                  >
+                  <button
+                    type="button"
+                    onclick="showComingSoon('用相同策略重放')"
+                    class="h-9 px-4 rounded-ctrl border border-line text-sm text-muted"
+                  >
+                    用相同策略重放(后续)
+                  </button>
                 </div>
               </div>
             </section>
@@ -193,7 +275,16 @@
                 </tbody>
               </table>
             </div>
-            <button type="button" class="mt-3 text-xs text-brand" onclick="document.getElementById('panel-ingest').classList.add('hidden'); document.getElementById('panel-qa').classList.remove('hidden')">← 返回问答轨迹</button>
+            <button
+              type="button"
+              class="mt-3 text-xs text-brand"
+              onclick="
+                document.getElementById('panel-ingest').classList.add('hidden');
+                document.getElementById('panel-qa').classList.remove('hidden');
+              "
+            >
+              ← 返回问答轨迹
+            </button>
           </div>
         </main>
       </div>
@@ -201,14 +292,31 @@
 
     <div id="modal-coming-soon" class="fixed inset-0 z-50 hidden">
       <div class="absolute inset-0 bg-black/40" onclick="closeModal('modal-coming-soon')"></div>
-      <div class="relative mx-auto mt-28 w-[420px] max-w-[92vw] bg-surface rounded-card shadow-soft">
+      <div
+        class="relative mx-auto mt-28 w-[420px] max-w-[92vw] bg-surface rounded-card shadow-soft"
+      >
         <div class="flex items-center justify-between px-5 h-14 border-b border-line">
           <h3 class="font-medium">规划中</h3>
-          <button type="button" onclick="closeModal('modal-coming-soon')" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+          <button
+            type="button"
+            onclick="closeModal('modal-coming-soon')"
+            class="text-muted hover:text-ink"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
         </div>
-        <div class="p-5 text-sm text-muted"><span id="coming-soon-title" class="text-ink font-medium">能力</span> 规划中，不影响当前问答。</div>
+        <div class="p-5 text-sm text-muted">
+          <span id="coming-soon-title" class="text-ink font-medium">能力</span>
+          规划中，不影响当前问答。
+        </div>
         <div class="px-5 h-14 border-t border-line flex justify-end">
-          <button type="button" onclick="closeModal('modal-coming-soon')" class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm">知道了</button>
+          <button
+            type="button"
+            onclick="closeModal('modal-coming-soon')"
+            class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm"
+          >
+            知道了
+          </button>
         </div>
       </div>
     </div>
@@ -219,7 +327,8 @@
         document.getElementById('panel-ingest').classList.add('hidden');
         this.classList.add('bg-surface', 'shadow-sm', 'text-brand', 'font-medium');
         var ingestBtn = document.querySelector('[data-tab="ingest"]');
-        if (ingestBtn) ingestBtn.classList.remove('bg-surface', 'shadow-sm', 'text-brand', 'font-medium');
+        if (ingestBtn)
+          ingestBtn.classList.remove('bg-surface', 'shadow-sm', 'text-brand', 'font-medium');
       });
     </script>
   </body>

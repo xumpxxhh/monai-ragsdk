@@ -10,7 +10,7 @@
 
 **策略与编排不在本包。** 库不再依赖 adapters，把厂商锁在最外一层。
 
-依赖：`core`、`indexing`、`runtime`；第三方 `@langchain/*`、`pg`、`chromadb`。
+依赖：`core`、`indexing`、`runtime`；第三方 `@langchain/*`、`openai`、`pg`、`chromadb`。
 
 被谁用：只有应用层（`apps/cli`、`apps/example`、`apps/server`）。
 
@@ -27,22 +27,22 @@
 
 密钥不要写进配置文件：
 
-| 用途 | 环境变量 | 类 |
-| --- | --- | --- |
-| embedding | `EMBEDDING_API_KEY` | `OpenAIEmbedder` |
-| ask / 策略模型 | `OPENAI_API_KEY` | `OpenAIRuntimeGenerator`、`OpenAIStrategyModel` |
+| 用途           | 环境变量            | 类                                                                           |
+| -------------- | ------------------- | ---------------------------------------------------------------------------- |
+| embedding      | `EMBEDDING_API_KEY` | `OpenAIEmbedder`                                                             |
+| ask / 策略模型 | `OPENAI_API_KEY`    | `OpenAIRuntimeGenerator`、`OpenAIStrategyModel`（经共享 `OpenAIChatClient`） |
 
-两套 key 分开，避免和 embedding 混用。
+两套 key 分开，避免和 embedding 混用。同一套 chat 配置应优先用 `createOpenAIChatAdapters()`，让 Generator 与 StrategyModel 共用一个 client。
 
 ## 3. 适配一览
 
-| 分组 | 接到哪一层 | 现状 |
-| --- | --- | --- |
-| OpenAI 兼容 | indexing `Embedder`；runtime `Generator` / `StrategyModel` | `OpenAIEmbedder`、`OpenAIRuntimeGenerator`、`OpenAIStrategyModel` |
-| Ollama | 同上 | `OllamaEmbedder`、`OllamaRuntimeGenerator`、`OllamaStrategyModel` |
-| pgvector | indexing `VectorStore`；runtime `Retriever` | **默认查询路径**；默认向量 + 关键词 + RRF；`searchType: vector/keyword` 时单路；`id` 默认 `pgvector`，`searchTypes: ['vector', 'keyword', 'hybrid']`，有 `close` |
-| LangChain | indexing loader / chunker / embedder / metadata / chunk-transformer；runtime retriever / generator | 文档加载与切分的主路径 |
-| Chroma | 仅 `VectorStore.upsert` | **只写不查** |
+| 分组        | 接到哪一层                                                                                         | 现状                                                                                                                                                             |
+| ----------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OpenAI 兼容 | indexing `Embedder`；runtime `Generator` / `StrategyModel`                                         | 官方 `openai` SDK；`OpenAIChatClient` + `createOpenAIChatAdapters`；类名 `OpenAIEmbedder` / `OpenAIRuntimeGenerator` / `OpenAIStrategyModel` 保持兼容            |
+| Ollama      | 同上                                                                                               | `OllamaEmbedder`、`OllamaRuntimeGenerator`、`OllamaStrategyModel`（仍自研 HTTP）                                                                                 |
+| pgvector    | indexing `VectorStore`；runtime `Retriever`                                                        | **默认查询路径**；默认向量 + 关键词 + RRF；`searchType: vector/keyword` 时单路；`id` 默认 `pgvector`，`searchTypes: ['vector', 'keyword', 'hybrid']`，有 `close` |
+| LangChain   | indexing loader / chunker / embedder / metadata / chunk-transformer；runtime retriever / generator | 文档加载与切分的主路径                                                                                                                                           |
+| Chroma      | 仅 `VectorStore.upsert`                                                                            | **只写不查**                                                                                                                                                     |
 
 默认栈：**OpenAI 兼容 embedding / chat + pgvector**。Ollama 仍可选。
 
@@ -50,12 +50,12 @@
 
 这是契约诊断里的高危项 3，**部分被 runtime 编排层盖住，adapter 自身分叉仍在**：
 
-| 维度 | pgvector | langchain（默认路径） |
-| --- | --- | --- |
-| 条数限制 | 读 `budget.maxChunks ?? 3`，filter 后 slice | **不读** topK/budget，不截断 |
-| 融合 | 缺省 / `hybrid`：向量 + 关键词 + RRF，`scoreKind: rrf`；`vector` / `keyword` 单路为 `retriever` | 无，单次 invoke；有 `document.score` 时 `scoreKind: retriever`。请求的 `searchType` 不在能力内则忽略，不假装切换 |
-| filters | adapter 内预过滤 + runtime 再强制（幂等） | `filterByRequest: false` 时 adapter 不预过滤；**runtime 仍强制** |
-| `retrievalMetadata` | 结构化，含 `searchType` | 默认可能 `undefined` |
+| 维度                | pgvector                                                                                        | langchain（默认路径）                                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 条数限制            | 读 `budget.maxChunks ?? 3`，filter 后 slice                                                     | **不读** topK/budget，不截断                                                                                     |
+| 融合                | 缺省 / `hybrid`：向量 + 关键词 + RRF，`scoreKind: rrf`；`vector` / `keyword` 单路为 `retriever` | 无，单次 invoke；有 `document.score` 时 `scoreKind: retriever`。请求的 `searchType` 不在能力内则忽略，不假装切换 |
+| filters             | adapter 内预过滤 + runtime 再强制（幂等）                                                       | `filterByRequest: false` 时 adapter 不预过滤；**runtime 仍强制**                                                 |
+| `retrievalMetadata` | 结构化，含 `searchType`                                                                         | 默认可能 `undefined`                                                                                             |
 
 换 adapter 后面条数、排序、分数口径仍可能对不上。langchain 按 `maxChunks` 截断是 P2，尚未做。
 
@@ -75,17 +75,18 @@ PDF / Web loader 运行时分别依赖 `pdf-parse` 与网络访问；Cheerio loa
 
 ## 6. 关键入口
 
-| 路径 | 职责 |
-| --- | --- |
-| `src/openai/` | 兼容 HTTP embedding / chat / strategy model |
-| `src/ollama/` | 本地模型三条同样角色 |
-| `src/pgvector/` | store + runtime retriever |
-| `src/langchain/` | 加载 / 切分 / 检索 / 生成 |
-| `src/chroma/` | 只写 store |
+| 路径                 | 职责                                                          |
+| -------------------- | ------------------------------------------------------------- |
+| `src/openai/shared/` | 官方 SDK 工厂、`OpenAIChatClient`、`createOpenAIChatAdapters` |
+| `src/openai/`        | Embedder / Generator / StrategyModel 薄适配                   |
+| `src/ollama/`        | 本地模型三条同样角色                                          |
+| `src/pgvector/`      | store + runtime retriever                                     |
+| `src/langchain/`     | 加载 / 切分 / 检索 / 生成                                     |
+| `src/chroma/`        | 只写 store                                                    |
 
 ## 7. 测试与脚本
 
-- 单测约 74（改 runtime 契约后需先 `pnpm --filter @monai-ragsdk/runtime build`）
+- 单测约 75（改 runtime 契约后需先 `pnpm --filter @monai-ragsdk/runtime build`）
 - `pnpm --filter @monai-ragsdk/adapters test`
 - demo：`demo:openai-adapters`、`demo:ollama-adapters`、`demo:pgvector-store`、`demo:pgvector-runtime`、`demo:chroma-store`、`demo:langchain-runtime`、`demo:langchain-extensions`
 

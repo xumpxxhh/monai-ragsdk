@@ -39,17 +39,17 @@
 
 ## 内置组件
 
-| 角色 | 实现 |
-| --- | --- |
-| Chunker | `SimpleChunker` |
-| Chunker | `HeadingBasedChunker`（按 Markdown 标题） |
-| Chunker | `ParentChildChunker`（parent section + child 小块） |
-| Embedder | `MockEmbedder`（离线回退，默认 8 维） |
-| Store | `MemoryVectorStore` |
-| Transformer | `ContentCleanupTransformer` |
-| ChunkTransformer | `ContextualHeaderTransformer` |
-| Filter | `HashDedupChunkFilter` |
-| Metadata | `BasicMetadataExtractor` |
+| 角色             | 实现                                                |
+| ---------------- | --------------------------------------------------- |
+| Chunker          | `SimpleChunker`                                     |
+| Chunker          | `HeadingBasedChunker`（按 Markdown 标题）           |
+| Chunker          | `ParentChildChunker`（parent section + child 小块） |
+| Embedder         | `MockEmbedder`（离线回退，默认 8 维）               |
+| Store            | `MemoryVectorStore`                                 |
+| Transformer      | `ContentCleanupTransformer`                         |
+| ChunkTransformer | `ContextualHeaderTransformer`                       |
+| Filter           | `HashDedupChunkFilter`                              |
+| Metadata         | `BasicMetadataExtractor`                            |
 
 Loader 只有接口，没有内置实现；PDF / Web / 目录 / Markdown 加载用 `@monai-ragsdk/adapters` 的 LangChain 适配。
 

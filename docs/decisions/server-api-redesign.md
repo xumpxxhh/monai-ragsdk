@@ -81,11 +81,11 @@ export type FanOutRetrieverOptions = {
 
 [query-routing-upgrade.md](./query-routing-upgrade.md) **已落地**。`query-routing` 策略经 `RoutingResolver` 写出结构化 `request.routeDecision`：
 
-| 字段 | 含义 | 消费方 |
-| --- | --- | --- |
-| `targets?: string[]` | 匹配子 retriever 的 `id` | FanOut 过滤召回目标 |
-| `retrievalMode?: 'skip' \| 'single'` | 是否跳过检索 | FanOut；generation 写 `grounding.chunksEmptyReason: 'skipped'` |
-| `searchType?: 'vector' \| 'keyword' \| 'hybrid'` | 召回形态 | pgvector adapter 切换向量 / 关键词 / 双路 RRF |
+| 字段                                             | 含义                     | 消费方                                                         |
+| ------------------------------------------------ | ------------------------ | -------------------------------------------------------------- |
+| `targets?: string[]`                             | 匹配子 retriever 的 `id` | FanOut 过滤召回目标                                            |
+| `retrievalMode?: 'skip' \| 'single'`             | 是否跳过检索             | FanOut；generation 写 `grounding.chunksEmptyReason: 'skipped'` |
+| `searchType?: 'vector' \| 'keyword' \| 'hybrid'` | 召回形态                 | pgvector adapter 切换向量 / 关键词 / 双路 RRF                  |
 
 附加产出仍保留：`budget` / `filters`；`request.route` 仅为 debug，**不是**选路键。
 
@@ -101,11 +101,11 @@ export type FanOutRetrieverOptions = {
 
 **indexing 内置**（[indexing.md](../packages/indexing.md) §4）：
 
-| 角色 | 内置实现 |
-| --- | --- |
-| Chunker | `SimpleChunker`（默认 500 / 50）、`HeadingBasedChunker`、`ParentChildChunker` |
-| ChunkTransformer | `ContextualHeaderTransformer` |
-| Loader | **无**（仅契约：`packages/indexing/src/stages/load/loader.ts`） |
+| 角色             | 内置实现                                                                      |
+| ---------------- | ----------------------------------------------------------------------------- |
+| Chunker          | `SimpleChunker`（默认 500 / 50）、`HeadingBasedChunker`、`ParentChildChunker` |
+| ChunkTransformer | `ContextualHeaderTransformer`                                                 |
+| Loader           | **无**（仅契约：`packages/indexing/src/stages/load/loader.ts`）               |
 
 **adapters LangChain**（[adapters.md](../packages/adapters.md) §5）——应用层接入，indexing 不重复实现：
 
@@ -200,12 +200,12 @@ ask / search 统一走**全局策略**；不再按 URL 中的 collectionId 加�
 
 与 server 同期交付，不另开兼容期：
 
-| 现状 | 目标 |
-| --- | --- |
-| 必须先进入某 collection 再 ask | 默认全局问答；`collectionIds` 为可选收窄范围 |
+| 现状                            | 目标                                                    |
+| ------------------------------- | ------------------------------------------------------- |
+| 必须先进入某 collection 再 ask  | 默认全局问答；`collectionIds` 为可选收窄范围            |
 | API 调用 `/collections/:id/ask` | 改为 `POST /api/v1/ask`，必要时 body 传 `collectionIds` |
-| 选库作为主路径 UI | 降为高级选项 / 筛选器，或交给 routing 自动选库 |
-| 策略页绑定单库 | 对齐全局 `PUT /api/v1/strategy` |
+| 选库作为主路径 UI               | 降为高级选项 / 筛选器，或交给 routing 自动选库          |
+| 策略页绑定单库                  | 对齐全局 `PUT /api/v1/strategy`                         |
 
 ### SSE 实现
 
@@ -282,18 +282,18 @@ POST /api/v1/collections/:id/ingest/recommend
 
 > 仅列出预期变更范围，本文档不执行具体代码改动。
 
-| 文件 | 操作 |
-| --- | --- |
-| `apps/server/src/routes/ask.ts` | 新建：`POST /api/v1/ask`（SSE） |
-| `apps/server/src/routes/search.ts` | 新建：`POST /api/v1/search` |
-| `apps/server/src/routes/documents.ts` | **删除** ask/search 路由；ingest 等文档接口保留 |
-| `apps/server/src/services/ask-stream.ts`（或同等） | 从 documents 提取 SSE + trace 共享逻辑 |
-| `apps/server/src/services/collection-registry.ts` | 新增 `buildGlobalRuntime`；retriever 设 `id`；`ingestDocuments` 接受 `chunking` 参数 |
-| `apps/server/src/services/pipeline-factory.ts` | 可选：评估迁到 `createRuntimeFromConfig`；本次至少保证 FanOut 多 retriever 可传入 |
-| `apps/server/src/app.ts` | 挂载新路由；移除旧 ask/search 挂载 |
-| `apps/server/src/types/api.ts` | 新增 `ChunkingConfig` / `IngestRecommendation` 等类型 |
-| `apps/web/**` | API client、问答页、策略页对齐全局接口（破坏性） |
-| `docs/server/api.md` | 新接口文档；标注已删除的旧 path |
+| 文件                                               | 操作                                                                                 |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `apps/server/src/routes/ask.ts`                    | 新建：`POST /api/v1/ask`（SSE）                                                      |
+| `apps/server/src/routes/search.ts`                 | 新建：`POST /api/v1/search`                                                          |
+| `apps/server/src/routes/documents.ts`              | **删除** ask/search 路由；ingest 等文档接口保留                                      |
+| `apps/server/src/services/ask-stream.ts`（或同等） | 从 documents 提取 SSE + trace 共享逻辑                                               |
+| `apps/server/src/services/collection-registry.ts`  | 新增 `buildGlobalRuntime`；retriever 设 `id`；`ingestDocuments` 接受 `chunking` 参数 |
+| `apps/server/src/services/pipeline-factory.ts`     | 可选：评估迁到 `createRuntimeFromConfig`；本次至少保证 FanOut 多 retriever 可传入    |
+| `apps/server/src/app.ts`                           | 挂载新路由；移除旧 ask/search 挂载                                                   |
+| `apps/server/src/types/api.ts`                     | 新增 `ChunkingConfig` / `IngestRecommendation` 等类型                                |
+| `apps/web/**`                                      | API client、问答页、策略页对齐全局接口（破坏性）                                     |
+| `docs/server/api.md`                               | 新接口文档；标注已删除的旧 path                                                      |
 
 ---
 
@@ -321,12 +321,12 @@ POST /api/v1/collections/:id/ingest/recommend
 
 ### 对本次 server 改造的影响
 
-| 场景 | 行为 |
-| --- | --- |
-| 用户显式传 `collectionIds` | server 层 `resolveTargetCollections` 决定 FanOut 成员；与 routing 无关 |
-| 不传 `collectionIds`，routing 关闭 | FanOut 召回全部已注册库（当前默认策略 `routing: false`） |
+| 场景                               | 行为                                                                                                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 用户显式传 `collectionIds`         | server 层 `resolveTargetCollections` 决定 FanOut 成员；与 routing 无关                                                                                        |
+| 不传 `collectionIds`，routing 关闭 | FanOut 召回全部已注册库（当前默认策略 `routing: false`）                                                                                                      |
 | 不传 `collectionIds`，routing 开启 | 若各库 retriever `id === collectionId` 且 resolver 配置了 `availableTargets`，LLM 可通过 `routeDecision.targets` **自动选库**；server 需同步维护 targets 列表 |
-| 单库收窄 | `collectionIds: [id]`，与旧 path 单库语义等价，但策略仍走全局配置 |
+| 单库收窄                           | `collectionIds: [id]`，与旧 path 单库语义等价，但策略仍走全局配置                                                                                             |
 
 **本次 server 改造不依赖 routing 做库级分发也能交付**（`collectionIds` + FanOut 全库召回即可），但 retriever `id` 与全局 routing 配置应一并设计，避免后续再接 routing 时返工。
 

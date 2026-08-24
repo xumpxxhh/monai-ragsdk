@@ -22,15 +22,15 @@
 
 ## 切片顺序
 
-| 切片 | 对应诊断 | 破坏 export 面 | 本轮是否做 |
-| --- | --- | --- | --- |
-| **A. score 口径 + llm-rerank 正确性** | P0 两项 | 否（加字段） | **已完成** |
-| **B. generation 无依据成因** | P1 缺口 1 | 否（加字段） | **已完成** |
-| **C. RetrievalRequest 字段收敛** | P1 | 否（JSDoc + 新导出 helper；未删字段、未改 `toEqual`） | **已完成** |
-| **D. RuntimeRetriever 契约补全** | P1 | 否（接口加可选字段 + 新导出） | **已完成** |
-| **E. 官方装配层** | P2 缺口 2 | 否（新增 API） | **已完成** |
-| **F. 契约工具分层 + 收窄 export** | P2 / 高危项 7 | 是（改断言清单；`toEqual` 仍比 src/dist 键） | **已完成** |
-| **G. 中低严重项打包** | 中等 / 低 | 否 | **已完成** |
+| 切片                                  | 对应诊断      | 破坏 export 面                                        | 本轮是否做 |
+| ------------------------------------- | ------------- | ----------------------------------------------------- | ---------- |
+| **A. score 口径 + llm-rerank 正确性** | P0 两项       | 否（加字段）                                          | **已完成** |
+| **B. generation 无依据成因**          | P1 缺口 1     | 否（加字段）                                          | **已完成** |
+| **C. RetrievalRequest 字段收敛**      | P1            | 否（JSDoc + 新导出 helper；未删字段、未改 `toEqual`） | **已完成** |
+| **D. RuntimeRetriever 契约补全**      | P1            | 否（接口加可选字段 + 新导出）                         | **已完成** |
+| **E. 官方装配层**                     | P2 缺口 2     | 否（新增 API）                                        | **已完成** |
+| **F. 契约工具分层 + 收窄 export**     | P2 / 高危项 7 | 是（改断言清单；`toEqual` 仍比 src/dist 键）          | **已完成** |
+| **G. 中低严重项打包**                 | 中等 / 低     | 否                                                    | **已完成** |
 
 切片 A 做完即可让 `score-threshold` 与观测口径可信，并堵住 rerank 的脏审计 / 空调用。B 可与 A 并行（仅加字段），但**不要塞进同一 PR**，避免 generator 输入变更与阈值语义搅在一起。
 
@@ -71,13 +71,13 @@ export type RetrievalCandidate = {
 
 写入点（必须盖到）：
 
-| 生产者 | 应写的 kind |
-| --- | --- |
-| `fuseByReciprocalRankFusion` / FanOut 融合结果 | `rrf` |
-| `PgVectorRuntimeRetrieverAdapter` 融合后候选 | `rrf`（融合函数写即可，adapter 勿再猜） |
-| `LangchainRuntimeRetrieverAdapter` 的 `document.score` | `retriever` |
-| `llm-rerank` 写回 LLM 分 | `llm`（其余未写回的候选保持原 `score` + 原 `scoreKind`） |
-| demo / 测试里手写 candidate | 有 score 就写 kind；旧测试补字段 |
+| 生产者                                                 | 应写的 kind                                              |
+| ------------------------------------------------------ | -------------------------------------------------------- |
+| `fuseByReciprocalRankFusion` / FanOut 融合结果         | `rrf`                                                    |
+| `PgVectorRuntimeRetrieverAdapter` 融合后候选           | `rrf`（融合函数写即可，adapter 勿再猜）                  |
+| `LangchainRuntimeRetrieverAdapter` 的 `document.score` | `retriever`                                              |
+| `llm-rerank` 写回 LLM 分                               | `llm`（其余未写回的候选保持原 `score` + 原 `scoreKind`） |
+| demo / 测试里手写 candidate                            | 有 score 就写 kind；旧测试补字段                         |
 
 删除（或降为兜底）`run-runtime.ts` 的 `retrievalScoreKind()`：`summarizeCandidates` **优先读** `candidate.scoreKind`；仅当整批都缺 kind 时才允许按 metadata 推断，且 **pgvector 不得再被当成 retriever**。推断规则若仍保留：`provider === 'fan-out'` → `rrf`；`provider === 'pgvector'` 且存在融合计数类 metadata → `rrf`；其它 → 不写 kind（未知优于写错）。
 
@@ -147,21 +147,21 @@ pnpm --filter @monai-ragsdk/adapters test
 
 ## 关键文件地图
 
-| 路径 | 切片 A 角色 |
-| --- | --- |
-| `packages/runtime/src/types/retrieval-candidate.ts` | 加 `scoreKind` |
-| `packages/runtime/src/indexing/query-protocol.ts` | factory 透传 kind |
-| `packages/runtime/src/stages/retrieval/fuse-by-rrf.ts` | 融合分标 `rrf` |
-| `packages/runtime/src/stages/retrieval/fan-out-retriever.ts` | 确认走 fuse，不必重复猜 provider |
-| `packages/runtime/src/stages/post-retrieval/strategies/post-retrieval-strategies.ts` | 阈值按口径 / 拒绝 |
-| `packages/runtime/src/stages/post-retrieval/strategies/score-threshold-strategy.ts` | 可选 `expectedScoreKind` |
-| `packages/runtime/src/stages/post-retrieval/strategies/llm-rerank-strategy.ts` | 短路 + 成功才写 rerank + `llm` 口径 |
-| `packages/runtime/src/pipeline/run-runtime.ts` | 删掉错误的 `retrievalScoreKind` 推断 |
-| `packages/runtime/src/observation/emit-runtime-observation.ts` | `summarizeCandidates` 读 candidate.scoreKind |
-| `packages/adapters/src/pgvector/.../pg-vector-runtime-retriever-adapter.ts` | 确认融合后带 `rrf` |
-| `packages/adapters/src/langchain/.../langchain-runtime-retriever-adapter.ts` | 写入 `retriever` |
-| `packages/runtime/src/types/runtime-generator-input.ts` | **不要动**（属切片 B） |
-| `packages/runtime/__tests__/exports.spec.ts` | **不要为收窄面改 toEqual**；若新导出类型被 barrel 带出，只需与 src/dist 键集合仍然一致 |
+| 路径                                                                                 | 切片 A 角色                                                                            |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `packages/runtime/src/types/retrieval-candidate.ts`                                  | 加 `scoreKind`                                                                         |
+| `packages/runtime/src/indexing/query-protocol.ts`                                    | factory 透传 kind                                                                      |
+| `packages/runtime/src/stages/retrieval/fuse-by-rrf.ts`                               | 融合分标 `rrf`                                                                         |
+| `packages/runtime/src/stages/retrieval/fan-out-retriever.ts`                         | 确认走 fuse，不必重复猜 provider                                                       |
+| `packages/runtime/src/stages/post-retrieval/strategies/post-retrieval-strategies.ts` | 阈值按口径 / 拒绝                                                                      |
+| `packages/runtime/src/stages/post-retrieval/strategies/score-threshold-strategy.ts`  | 可选 `expectedScoreKind`                                                               |
+| `packages/runtime/src/stages/post-retrieval/strategies/llm-rerank-strategy.ts`       | 短路 + 成功才写 rerank + `llm` 口径                                                    |
+| `packages/runtime/src/pipeline/run-runtime.ts`                                       | 删掉错误的 `retrievalScoreKind` 推断                                                   |
+| `packages/runtime/src/observation/emit-runtime-observation.ts`                       | `summarizeCandidates` 读 candidate.scoreKind                                           |
+| `packages/adapters/src/pgvector/.../pg-vector-runtime-retriever-adapter.ts`          | 确认融合后带 `rrf`                                                                     |
+| `packages/adapters/src/langchain/.../langchain-runtime-retriever-adapter.ts`         | 写入 `retriever`                                                                       |
+| `packages/runtime/src/types/runtime-generator-input.ts`                              | **不要动**（属切片 B）                                                                 |
+| `packages/runtime/__tests__/exports.spec.ts`                                         | **不要为收窄面改 toEqual**；若新导出类型被 barrel 带出，只需与 src/dist 键集合仍然一致 |
 
 中文注释：公开函数与「拒绝执行阈值 / 失败不 mutate / 空列表短路」必须写清**为什么**，不要复述标识符。
 
@@ -282,26 +282,26 @@ pnpm --filter @monai-ragsdk/adapters test
 
 ### Export 面
 
-| 决策 | 结论 |
-| --- | --- |
+| 决策                                                        | 结论                                                         |
+| ----------------------------------------------------------- | ------------------------------------------------------------ |
 | `exports.spec.ts` 第 19 行 `Object.keys(src).toEqual(dist)` | **不改语义**：仍要求 src/dist 键集合一致。C 不删公开值导出。 |
-| 新增 `applyRetrievalTopKAlias` | 已导出；`exports.spec.ts` 加 `toBeDefined()`。 |
-| 收窄 `export *` / 把内部工具移出包根 | **不做**（切片 F）。 |
-| `RetrievalRequest` 类型形状 | **不删字段**；只加 JSDoc + 别名补齐。 |
+| 新增 `applyRetrievalTopKAlias`                              | 已导出；`exports.spec.ts` 加 `toBeDefined()`。               |
+| 收窄 `export *` / 把内部工具移出包根                        | **不做**（切片 F）。                                         |
+| `RetrievalRequest` 类型形状                                 | **不删字段**；只加 JSDoc + 别名补齐。                        |
 
 ### 字段处置
 
-| 字段 | 处置 |
-| --- | --- |
-| `budget.maxChunks` | 权威条数 |
-| `request.topK` | `@deprecated` 别名；缺省时单向补齐 maxChunks |
-| `rerank.topK` | debug/reserved，内核不读 |
-| `rerank.minScore` / `rerank.strategy` | 行为字段 |
-| `route` / `strategy` | debug-only |
-| `indexingMode` | query-time unused |
-| `metadata` | 内核不消费的透传袋 |
-| `filters` / `subQueries` / `appliedStrategies` | 不动 |
-| `routeDecision` | 未新增 |
+| 字段                                           | 处置                                         |
+| ---------------------------------------------- | -------------------------------------------- |
+| `budget.maxChunks`                             | 权威条数                                     |
+| `request.topK`                                 | `@deprecated` 别名；缺省时单向补齐 maxChunks |
+| `rerank.topK`                                  | debug/reserved，内核不读                     |
+| `rerank.minScore` / `rerank.strategy`          | 行为字段                                     |
+| `route` / `strategy`                           | debug-only                                   |
+| `indexingMode`                                 | query-time unused                            |
+| `metadata`                                     | 内核不消费的透传袋                           |
+| `filters` / `subQueries` / `appliedStrategies` | 不动                                         |
+| `routeDecision`                                | 未新增                                       |
 
 **行为**
 

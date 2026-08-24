@@ -6,14 +6,14 @@
 
 ## 1. 定位与原则
 
-| 原则 | 说明 |
-|---|---|
-| **Feature 优先** | 按业务域划分 `features/`，页面、局部逻辑、域内工具放在同一目录 |
-| **Shared 沉淀** | 跨域复用的 API、UI、Hooks、类型放在 `shared/` |
-| **薄入口** | `App.tsx` 只维护路由表；布局在 `layouts/`；启动逻辑在 `main.tsx` |
-| **轻量状态** | 默认用页面内 `useState` 与模块级单例；不预设全局状态库 |
-| **类型与 API 对齐** | 请求/响应类型集中在 `shared/types`，与后端契约一致 |
-| **原语 + 自研 UI** | 交互无障碍原语（如 Radix）负责行为；视觉与组合在 `shared/ui` 统一 |
+| 原则                | 说明                                                              |
+| ------------------- | ----------------------------------------------------------------- |
+| **Feature 优先**    | 按业务域划分 `features/`，页面、局部逻辑、域内工具放在同一目录    |
+| **Shared 沉淀**     | 跨域复用的 API、UI、Hooks、类型放在 `shared/`                     |
+| **薄入口**          | `App.tsx` 只维护路由表；布局在 `layouts/`；启动逻辑在 `main.tsx`  |
+| **轻量状态**        | 默认用页面内 `useState` 与模块级单例；不预设全局状态库            |
+| **类型与 API 对齐** | 请求/响应类型集中在 `shared/types`，与后端契约一致                |
+| **原语 + 自研 UI**  | 交互无障碍原语（如 Radix）负责行为；视觉与组合在 `shared/ui` 统一 |
 
 适用：REST 为主、按需接入 WebSocket 或 SSE 的后台应用。
 
@@ -21,16 +21,16 @@
 
 ## 2. 技术栈
 
-| 类别 | 选型 | 说明 |
-|---|---|---|
-| 运行时 | React + TypeScript | 函数组件 + Hooks |
-| 构建 | Vite | 通过 `envPrefix` 控制注入浏览器的环境变量前缀 |
-| 路由 | react-router-dom | `BrowserRouter` + 可配置 `basename` |
-| 样式 | Tailwind CSS | 语义 token 映射到 CSS 变量 |
-| 组件原语 | Radix UI | Dialog、Select、Tabs 等无样式交互组件 |
-| 通知 | sonner 或同类库 | 在 `shared/ui` 做薄封装 |
-| 测试 | Vitest + Testing Library + jsdom | 测试文件与源码同目录，后缀 `*.test.ts(x)` |
-| 规范 | ESLint + Prettier | 按仓库统一配置 |
+| 类别     | 选型                             | 说明                                          |
+| -------- | -------------------------------- | --------------------------------------------- |
+| 运行时   | React + TypeScript               | 函数组件 + Hooks                              |
+| 构建     | Vite                             | 通过 `envPrefix` 控制注入浏览器的环境变量前缀 |
+| 路由     | react-router-dom                 | `BrowserRouter` + 可配置 `basename`           |
+| 样式     | Tailwind CSS                     | 语义 token 映射到 CSS 变量                    |
+| 组件原语 | Radix UI                         | Dialog、Select、Tabs 等无样式交互组件         |
+| 通知     | sonner 或同类库                  | 在 `shared/ui` 做薄封装                       |
+| 测试     | Vitest + Testing Library + jsdom | 测试文件与源码同目录，后缀 `*.test.ts(x)`     |
+| 规范     | ESLint + Prettier                | 按仓库统一配置                                |
 
 以下为**按需引入**，不属于骨架必需：
 
@@ -113,12 +113,12 @@
 
 ### 3.2 Feature 与 Shared 的边界
 
-| 放入 `features/` | 放入 `shared/` |
-|---|---|
-| 某条路由对应的页面 | 被两个及以上 feature 使用的组件 |
-| 仅本域使用的 Panel、Modal | HTTP 封装、通用 Modal、Form |
-| 域内校验与转换逻辑 | 主题、Toast、通用 Status 展示 |
-| 页面级状态编排 | WebSocket 单例客户端 |
+| 放入 `features/`          | 放入 `shared/`                  |
+| ------------------------- | ------------------------------- |
+| 某条路由对应的页面        | 被两个及以上 feature 使用的组件 |
+| 仅本域使用的 Panel、Modal | HTTP 封装、通用 Modal、Form     |
+| 域内校验与转换逻辑        | 主题、Toast、通用 Status 展示   |
+| 页面级状态编排            | WebSocket 单例客户端            |
 
 ---
 
@@ -165,10 +165,10 @@ createRoot(document.getElementById('root')!).render(
 
 ### 4.3 两种布局
 
-| 布局 | 结构 | 典型用途 |
-|---|---|---|
-| **AppShell** | 侧栏 + 顶栏 + `<main><Outlet /></main>` | 带导航的后台页 |
-| **FullscreenLayout** | 顶栏（返回、标题、操作）+ 全高内容区 | 编辑器、沉浸式详情 |
+| 布局                 | 结构                                    | 典型用途           |
+| -------------------- | --------------------------------------- | ------------------ |
+| **AppShell**         | 侧栏 + 顶栏 + `<main><Outlet /></main>` | 带导航的后台页     |
+| **FullscreenLayout** | 顶栏（返回、标题、操作）+ 全高内容区    | 编辑器、沉浸式详情 |
 
 AppShell 可在此层加载侧栏需要的公共数据（如最近记录），并通过 pub/sub 或 props 向下传递。
 
@@ -181,7 +181,7 @@ AppShell 可在此层加载侧栏需要的公共数据（如最近记录），�
 ```ts
 export default defineConfig({
   plugins: [react()],
-  envPrefix: 'APP_',   // 只有 APP_ 前缀的变量会进入 import.meta.env
+  envPrefix: 'APP_', // 只有 APP_ 前缀的变量会进入 import.meta.env
 });
 ```
 
@@ -189,11 +189,11 @@ export default defineConfig({
 
 环境变量在此集中读取和派生，业务代码不直接拼接 URL。
 
-| 变量 | 用途 |
-|---|---|
-| `APP_BASE_PATH` | 路由 `basename`；值为 `/` 时规范化为空字符串 |
-| `APP_API_BASE_URL` | REST、SSE 的请求根路径 |
-| 派生函数 | 例如由 HTTP(S) 地址推导 WebSocket 地址 |
+| 变量               | 用途                                         |
+| ------------------ | -------------------------------------------- |
+| `APP_BASE_PATH`    | 路由 `basename`；值为 `/` 时规范化为空字符串 |
+| `APP_API_BASE_URL` | REST、SSE 的请求根路径                       |
+| 派生函数           | 例如由 HTTP(S) 地址推导 WebSocket 地址       |
 
 ```ts
 function toRouterBasename(basePath: string): string {
@@ -220,7 +220,7 @@ export const apiBaseUrl = import.meta.env.APP_API_BASE_URL ?? '';
 - 请求路径相对于 `apiBaseUrl`，不在各模块重复写前缀
 - 提供 `apiGet`、`apiPost`、`apiPut`、`apiDelete`
 - 非 2xx 响应统一抛出 `ApiError`，携带 `status` 与解析后的 `body`
-- 若后端提供 SSE：可增加 `apiPostSse`，用 `fetch` + `ReadableStream` 按行解析 `data:`  payload
+- 若后端提供 SSE：可增加 `apiPostSse`，用 `fetch` + `ReadableStream` 按行解析 `data:` payload
 
 ```ts
 export class ApiError extends Error {
@@ -323,12 +323,12 @@ tailwind.config   将 token 映射为 Tailwind 类名
 
 ### 7.3 组件组织
 
-| 层级 | 位置 | 职责 |
-|---|---|---|
-| 交互原语 | Radix 等 | 焦点、键盘、ARIA |
-| 表单 | `shared/ui/form` | Input、Select、Field、Switch 等，共用样式与错误展示 |
-| 复合组件 | `shared/ui` | Modal、Drawer、Tabs、EmptyState、DropdownMenu |
-| 领域组件 | feature 内或 `shared` 子目录 | 仅当复用面足够大再放入 shared |
+| 层级     | 位置                         | 职责                                                |
+| -------- | ---------------------------- | --------------------------------------------------- |
+| 交互原语 | Radix 等                     | 焦点、键盘、ARIA                                    |
+| 表单     | `shared/ui/form`             | Input、Select、Field、Switch 等，共用样式与错误展示 |
+| 复合组件 | `shared/ui`                  | Modal、Drawer、Tabs、EmptyState、DropdownMenu       |
+| 领域组件 | feature 内或 `shared` 子目录 | 仅当复用面足够大再放入 shared                       |
 
 Dialog 的外部点击、嵌套层级等横切逻辑，可抽成 hook 或 util，避免在每个 Modal 重复实现。
 
@@ -341,14 +341,14 @@ Dialog 的外部点击、嵌套层级等横切逻辑，可抽成 hook 或 util�
 
 ## 8. 状态管理
 
-| 场景 | 建议做法 |
-|---|---|
-| 列表筛选、分页、表单草稿 | 页面内 `useState` / `useReducer` |
-| 复杂编辑器本地态 | 页面级 state + feature 内纯函数 |
-| 实时推送 | WebSocket 客户端 + 专用 Hook |
-| 壳层公共列表 | AppShell 内 fetch + pub/sub 触发刷新 |
-| 可缓存的配置或 schema | 模块级 `Map` + 显式 preload |
-| 主题 | `localStorage` + `applyTheme` |
+| 场景                     | 建议做法                             |
+| ------------------------ | ------------------------------------ |
+| 列表筛选、分页、表单草稿 | 页面内 `useState` / `useReducer`     |
+| 复杂编辑器本地态         | 页面级 state + feature 内纯函数      |
+| 实时推送                 | WebSocket 客户端 + 专用 Hook         |
+| 壳层公共列表             | AppShell 内 fetch + pub/sub 触发刷新 |
+| 可缓存的配置或 schema    | 模块级 `Map` + 显式 preload          |
+| 主题                     | `localStorage` + `applyTheme`        |
 
 默认不引入 Redux、Zustand 等。出现跨多路由、多层 prop drilling 且 pub/sub 不够用时，再评估轻量 store。
 
@@ -386,13 +386,13 @@ export default defineConfig({
 }
 ```
 
-| 脚本 | 作用 |
-|---|---|
-| `dev` | 开发服务器 |
-| `build` | TypeScript 项目引用构建检查后打包 |
-| `check-types` | 仅类型检查，供 CI 使用 |
-| `preview` | 本地预览生产构建 |
-| `test` | 单次运行 Vitest |
+| 脚本          | 作用                              |
+| ------------- | --------------------------------- |
+| `dev`         | 开发服务器                        |
+| `build`       | TypeScript 项目引用构建检查后打包 |
+| `check-types` | 仅类型检查，供 CI 使用            |
+| `preview`     | 本地预览生产构建                  |
+| `test`        | 单次运行 Vitest                   |
 
 ### TypeScript 项目引用
 

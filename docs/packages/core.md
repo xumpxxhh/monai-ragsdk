@@ -19,26 +19,26 @@
 
 ## 3. 当前能力
 
-| 分组 | 现状 |
-| --- | --- |
-| 类型 | `Query`、`Document`、`Chunk`、`Vector`、`RAGResponse`、`RAGCitation` |
-| Schema | 同名 `*Schema`；空 query、空 `chunk.id`、缺 citations 等审计字段会拒绝 |
-| 接口 | `Retriever.retrieve(query): Promise<Chunk[]>`；`Generator.generate(...)` |
-| 错误 | `RAGCoreError`、`ValidationError`、`RetrievalError`、`GenerationError` |
-| Pipeline 类型 | `RAGPipeline = (query) => Promise<RAGResponse>`（形状，不是执行器） |
+| 分组          | 现状                                                                     |
+| ------------- | ------------------------------------------------------------------------ |
+| 类型          | `Query`、`Document`、`Chunk`、`Vector`、`RAGResponse`、`RAGCitation`     |
+| Schema        | 同名 `*Schema`；空 query、空 `chunk.id`、缺 citations 等审计字段会拒绝   |
+| 接口          | `Retriever.retrieve(query): Promise<Chunk[]>`；`Generator.generate(...)` |
+| 错误          | `RAGCoreError`、`ValidationError`、`RetrievalError`、`GenerationError`   |
+| Pipeline 类型 | `RAGPipeline = (query) => Promise<RAGResponse>`（形状，不是执行器）      |
 
 `chunk.id` 会被 citation / selectionTrace 引用，不能是空字符串。
 
 ## 4. 关键入口
 
-| 路径 | 职责 |
-| --- | --- |
-| `src/index.ts` | 包根 barrel |
-| `src/spec/` | Zod schema |
-| `src/types/` | 与 schema 对齐的 TS 类型 |
-| `src/interfaces/` | 最小 Retriever / Generator |
-| `src/errors/` | 错误基类 |
-| `src/pipeline/types.ts` | `RAGPipeline` 别名 |
+| 路径                    | 职责                       |
+| ----------------------- | -------------------------- |
+| `src/index.ts`          | 包根 barrel                |
+| `src/spec/`             | Zod schema                 |
+| `src/types/`            | 与 schema 对齐的 TS 类型   |
+| `src/interfaces/`       | 最小 Retriever / Generator |
+| `src/errors/`           | 错误基类                   |
+| `src/pipeline/types.ts` | `RAGPipeline` 别名         |
 
 被谁用：`observability`、`indexing`、`runtime`、`adapters`、`apps/cli`（以及其它 apps）。
 

@@ -38,9 +38,9 @@
 
 `mode`：
 
-| 模式 | 行为 |
-| --- | --- |
-| `full` | 每份文档都 embed / upsert |
+| 模式          | 行为                                                                                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `full`        | 每份文档都 embed / upsert                                                                                                                              |
 | `incremental` | 按 `sourceId` + `fingerprint` 对比。未变化 skip；同一 source 多个 fingerprint 视为脏状态，走 replace。stale cleanup 需要 store 实现 `deleteByFilter()` |
 
 缺少 `sourceId` 或 `fingerprint` 时无法跨运行定位旧向量，只能当新文档写入。
@@ -51,18 +51,18 @@
 
 ## 4. 内置组件 vs 接口
 
-| 角色 | 内置 | 说明 |
-| --- | --- | --- |
-| Chunker | `SimpleChunker` | 固定大小 + overlap |
-| Chunker | `HeadingBasedChunker` | 按 Markdown 标题切 section（纯 TS） |
-| Chunker | `ParentChildChunker` | 标题 section 为 parent，section 内再切 child；metadata 含 `chunkRole` / `parentChunkId` |
-| Embedder | `MockEmbedder` | 离线回退，默认 8 维 |
-| Store | `MemoryVectorStore` | 进程内 |
-| Transformer | `ContentCleanupTransformer` | 文档清洗 |
-| ChunkTransformer | `ContextualHeaderTransformer` | 上下文感知 / 标题注入 |
-| Filter | `HashDedupChunkFilter` | 哈希去重 |
-| Metadata | `BasicMetadataExtractor` | 基础抽取 |
-| Loader | **无** | PDF / Web / 目录 / Markdown 用 [adapters](./adapters.md) 的 LangChain 适配 |
+| 角色             | 内置                          | 说明                                                                                    |
+| ---------------- | ----------------------------- | --------------------------------------------------------------------------------------- |
+| Chunker          | `SimpleChunker`               | 固定大小 + overlap                                                                      |
+| Chunker          | `HeadingBasedChunker`         | 按 Markdown 标题切 section（纯 TS）                                                     |
+| Chunker          | `ParentChildChunker`          | 标题 section 为 parent，section 内再切 child；metadata 含 `chunkRole` / `parentChunkId` |
+| Embedder         | `MockEmbedder`                | 离线回退，默认 8 维                                                                     |
+| Store            | `MemoryVectorStore`           | 进程内                                                                                  |
+| Transformer      | `ContentCleanupTransformer`   | 文档清洗                                                                                |
+| ChunkTransformer | `ContextualHeaderTransformer` | 上下文感知 / 标题注入                                                                   |
+| Filter           | `HashDedupChunkFilter`        | 哈希去重                                                                                |
+| Metadata         | `BasicMetadataExtractor`      | 基础抽取                                                                                |
+| Loader           | **无**                        | PDF / Web / 目录 / Markdown 用 [adapters](./adapters.md) 的 LangChain 适配              |
 
 `VectorStore` 已声明可选 `deleteByFilter?` / `listSourceRecords?` / `close?`。runtime 的 `createCollection` 直接探测这些方法。
 
@@ -85,12 +85,12 @@ src/
   errors/
 ```
 
-| 路径 | 职责 |
-| --- | --- |
-| `src/pipeline/run-indexing.ts` | 主流程 |
-| `src/pipeline/incremental.ts` | skip / replace / stale |
-| `src/stages/store/vector-store.ts` | 存储契约 |
-| `src/stages/load/loader.ts` | 加载契约（无默认实现） |
+| 路径                               | 职责                   |
+| ---------------------------------- | ---------------------- |
+| `src/pipeline/run-indexing.ts`     | 主流程                 |
+| `src/pipeline/incremental.ts`      | skip / replace / stale |
+| `src/stages/store/vector-store.ts` | 存储契约               |
+| `src/stages/load/loader.ts`        | 加载契约（无默认实现） |
 
 ## 6. 测试与脚本
 
@@ -100,16 +100,16 @@ src/
 
 ## 7. 对照能力地图（refer.md）
 
-| 条目 | 现状 |
-| --- | --- |
-| 文档清洗、元数据、固定切分、稠密向量、增量、元数据关联 | **已落地** |
-| 递归 / 语义 / Markdown / 代码 / 句子切分 | **在 adapters**（LangChain），本包不重复实现 |
-| 按标题结构切分（无 LangChain） | **已落地**（`HeadingBasedChunker`） |
-| 上下文感知 embedding（header 注入） | **已落地**（`ContextualHeaderTransformer`） |
-| 混合索引 / 稀疏编码 | **不在本包**；查询期 hybrid 在 pgvector adapter |
-| 多模态解析 | **未做** |
-| 父子/分级块 | **已落地**（`ParentChildChunker`；召回侧按 `chunkRole` / hierarchy 过滤由 app 或 runtime filter 消费） |
-| 向量索引策略（HNSW 等） | 交给底层 store，本包不抽象 |
+| 条目                                                   | 现状                                                                                                   |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| 文档清洗、元数据、固定切分、稠密向量、增量、元数据关联 | **已落地**                                                                                             |
+| 递归 / 语义 / Markdown / 代码 / 句子切分               | **在 adapters**（LangChain），本包不重复实现                                                           |
+| 按标题结构切分（无 LangChain）                         | **已落地**（`HeadingBasedChunker`）                                                                    |
+| 上下文感知 embedding（header 注入）                    | **已落地**（`ContextualHeaderTransformer`）                                                            |
+| 混合索引 / 稀疏编码                                    | **不在本包**；查询期 hybrid 在 pgvector adapter                                                        |
+| 多模态解析                                             | **未做**                                                                                               |
+| 父子/分级块                                            | **已落地**（`ParentChildChunker`；召回侧按 `chunkRole` / hierarchy 过滤由 app 或 runtime filter 消费） |
+| 向量索引策略（HNSW 等）                                | 交给底层 store，本包不抽象                                                                             |
 
 ## 8. 已知缺口
 

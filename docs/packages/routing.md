@@ -12,18 +12,18 @@
 
 ## 按问题选文档
 
-| 你想查什么 | 去哪 |
-| --- | --- |
-| 包依赖方向、整体就绪度、已知缺口与优先级 | 本页下方 |
-| Query / Chunk / RAGResponse schema、最小 Retriever | [core.md](./core.md) |
-| 离线 ingest、增量 skip/replace、VectorStore | [indexing.md](./indexing.md) |
-| 在线四段 pipeline、策略、Collection、契约 | [runtime.md](./runtime.md) |
-| 事件名、traceId、exporter、失败隔离 | [observability.md](./observability.md) |
-| OpenAI / Ollama / pgvector / LangChain / Chroma | [adapters.md](./adapters.md) |
-| 评测是否已开工 | [eval.md](./eval.md) |
-| 公共工具函数是否已开工 | [utils.md](./utils.md) |
-| score 口径、死字段、filters 行为 | [runtime.md](./runtime.md) §4；病根归档 [kernel-contract-defects.md](../decisions/kernel-contract-defects.md) |
-| Query Routing 行为与消费点 | [runtime.md](./runtime.md) §4.1–4.2；设计见 [query-routing-upgrade.md](../decisions/query-routing-upgrade.md) |
+| 你想查什么                                         | 去哪                                                                                                          |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 包依赖方向、整体就绪度、已知缺口与优先级           | 本页下方                                                                                                      |
+| Query / Chunk / RAGResponse schema、最小 Retriever | [core.md](./core.md)                                                                                          |
+| 离线 ingest、增量 skip/replace、VectorStore        | [indexing.md](./indexing.md)                                                                                  |
+| 在线四段 pipeline、策略、Collection、契约          | [runtime.md](./runtime.md)                                                                                    |
+| 事件名、traceId、exporter、失败隔离                | [observability.md](./observability.md)                                                                        |
+| OpenAI / Ollama / pgvector / LangChain / Chroma    | [adapters.md](./adapters.md)                                                                                  |
+| 评测是否已开工                                     | [eval.md](./eval.md)                                                                                          |
+| 公共工具函数是否已开工                             | [utils.md](./utils.md)                                                                                        |
+| score 口径、死字段、filters 行为                   | [runtime.md](./runtime.md) §4；病根归档 [kernel-contract-defects.md](../decisions/kernel-contract-defects.md) |
+| Query Routing 行为与消费点                         | [runtime.md](./runtime.md) §4.1–4.2；设计见 [query-routing-upgrade.md](../decisions/query-routing-upgrade.md) |
 
 ---
 
@@ -47,15 +47,15 @@ core
 
 ## 现状一览
 
-| 包 | npm 名 | 角色 | 状态 | 就绪判断 |
-| --- | --- | --- | --- | --- |
-| [core](./core.md) | `@monai-ragsdk/core` | 共享契约 | **稳定** | schema / 错误基类可用；与 runtime 双份 Retriever 未收敛 |
-| [observability](./observability.md) | `@monai-ragsdk/observability` | 观测协议 | **稳定** | 事件 + JSONL/console/memory 可用；不接 OTLP |
-| [indexing](./indexing.md) | `@monai-ragsdk/indexing` | 离线索引内核 | **可用** | full / incremental 完整；Loader 无内置实现 |
-| [runtime](./runtime.md) | `@monai-ragsdk/runtime` | 在线 RAG 内核 | **可用** | 四段编排 + 官方装配；generation 无策略层；routing 消费 `routeDecision` |
-| [adapters](./adapters.md) | `@monai-ragsdk/adapters` | 厂商适配 | **可用** | 默认栈 OpenAI 兼容 + pgvector；Chroma 只写不查 |
-| [eval](./eval.md) | `@monai-ragsdk/eval` | 评测占位 | **空包** | `export {}`，未授权实现 |
-| [utils](./utils.md) | `@monai-ragsdk/utils` | 工具占位 | **空包** | `export {}`，未授权实现 |
+| 包                                  | npm 名                        | 角色          | 状态     | 就绪判断                                                               |
+| ----------------------------------- | ----------------------------- | ------------- | -------- | ---------------------------------------------------------------------- |
+| [core](./core.md)                   | `@monai-ragsdk/core`          | 共享契约      | **稳定** | schema / 错误基类可用；与 runtime 双份 Retriever 未收敛                |
+| [observability](./observability.md) | `@monai-ragsdk/observability` | 观测协议      | **稳定** | 事件 + JSONL/console/memory 可用；不接 OTLP                            |
+| [indexing](./indexing.md)           | `@monai-ragsdk/indexing`      | 离线索引内核  | **可用** | full / incremental 完整；Loader 无内置实现                             |
+| [runtime](./runtime.md)             | `@monai-ragsdk/runtime`       | 在线 RAG 内核 | **可用** | 四段编排 + 官方装配；generation 无策略层；routing 消费 `routeDecision` |
+| [adapters](./adapters.md)           | `@monai-ragsdk/adapters`      | 厂商适配      | **可用** | 默认栈官方 openai SDK + pgvector；Chroma 只写不查                      |
+| [eval](./eval.md)                   | `@monai-ragsdk/eval`          | 评测占位      | **空包** | `export {}`，未授权实现                                                |
+| [utils](./utils.md)                 | `@monai-ragsdk/utils`         | 工具占位      | **空包** | `export {}`，未授权实现                                                |
 
 版本均为 `0.1.0`，`private: true`。
 
@@ -73,14 +73,14 @@ core
 
 入口：
 
-| 需求 | API | 包 |
-| --- | --- | --- |
-| 按配置编译 Runtime（推荐） | `createRuntimeFromConfig()` | runtime |
-| 原子拼装 | `createDefaultRuntime()` / `createRuntime()` | runtime |
-| 只检索不生成 | `runtime.search()` | runtime |
-| 知识库门面 MVP | `createCollection()` | runtime（ingest 调 indexing） |
-| 离线索引 | `runIndexing()` | indexing |
-| 实现 Retriever 的契约工具 | `@monai-ragsdk/runtime/contract` | runtime |
+| 需求                       | API                                          | 包                            |
+| -------------------------- | -------------------------------------------- | ----------------------------- |
+| 按配置编译 Runtime（推荐） | `createRuntimeFromConfig()`                  | runtime                       |
+| 原子拼装                   | `createDefaultRuntime()` / `createRuntime()` | runtime                       |
+| 只检索不生成               | `runtime.search()`                           | runtime                       |
+| 知识库门面 MVP             | `createCollection()`                         | runtime（ingest 调 indexing） |
+| 离线索引                   | `runIndexing()`                              | indexing                      |
+| 实现 Retriever 的契约工具  | `@monai-ragsdk/runtime/contract`             | runtime                       |
 
 默认查询栈在 **adapters**：OpenAI 兼容 embedding / chat + pgvector。Ollama 可选。Chroma 不是查询路径。
 
@@ -102,12 +102,12 @@ core
 
 ## 已知缺口与优先级（packages）
 
-| 优先级 | 事项 | 落点 |
-| --- | --- | --- |
-| P1 产品 | 内置 generator 消费 `grounding`（无依据拒答 vs 用模型知识） | runtime 信号已有；行为在 adapters generator |
-| P2 工程 | 拆 `run-runtime.ts`；收敛 core/runtime 双接口；`mergeSelectionTrace` 保留历史 | runtime / core |
-| P2 工程 | langchain retriever 读取 `budget.maxChunks` | adapters |
-| 冻结 | Active RAG、eval 实现、Chroma 查询、utils 预堆工具 | — |
+| 优先级  | 事项                                                                          | 落点                                        |
+| ------- | ----------------------------------------------------------------------------- | ------------------------------------------- |
+| P1 产品 | 内置 generator 消费 `grounding`（无依据拒答 vs 用模型知识）                   | runtime 信号已有；行为在 adapters generator |
+| P2 工程 | 拆 `run-runtime.ts`；收敛 core/runtime 双接口；`mergeSelectionTrace` 保留历史 | runtime / core                              |
+| P2 工程 | langchain retriever 读取 `budget.maxChunks`                                   | adapters                                    |
+| 冻结    | Active RAG、eval 实现、Chroma 查询、utils 预堆工具                            | —                                           |
 
 `apps/server` 的 `pipeline-factory` 仍手拼且 rerank 在 threshold 之后——那是应用层，不在本 Wiki 范围，但改它应调用 runtime 的 `createRuntimeFromConfig`，不要在 apps 再发明顺序。
 

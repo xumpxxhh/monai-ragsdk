@@ -25,14 +25,14 @@
 
 ## 3. 运行入口
 
-| API | 行为 |
-| --- | --- |
-| `createRuntimeFromConfig()` | **推荐。** 从 query / postRetrieval / retriever / generator 编译 Runtime；默认包一层 FanOut；官方 post 顺序 |
-| `createDefaultRuntime()` / `createRuntime()` | 原子拼装。缺省 preprocessor = `NoopQueryPreprocessor`，postprocessor = `PassthroughRetrievalPostprocessor` |
-| `runtime.run()` | 完整问答 |
-| `runtime.search()` | 只跑前三阶段，无 answer |
-| `runtime.runStream()` | 检索一次性完成，只对流式 generation；无 `generateStream` 时回退为单段答案 |
-| `runtime.close()` | 调 `retriever.close?.()` |
+| API                                          | 行为                                                                                                        |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `createRuntimeFromConfig()`                  | **推荐。** 从 query / postRetrieval / retriever / generator 编译 Runtime；默认包一层 FanOut；官方 post 顺序 |
+| `createDefaultRuntime()` / `createRuntime()` | 原子拼装。缺省 preprocessor = `NoopQueryPreprocessor`，postprocessor = `PassthroughRetrievalPostprocessor`  |
+| `runtime.run()`                              | 完整问答                                                                                                    |
+| `runtime.search()`                           | 只跑前三阶段，无 answer                                                                                     |
+| `runtime.runStream()`                        | 检索一次性完成，只对流式 generation；无 `generateStream` 时回退为单段答案                                   |
+| `runtime.close()`                            | 调 `retriever.close?.()`                                                                                    |
 
 `createRuntimeFromConfig` 的官方 post 顺序：
 
@@ -50,13 +50,13 @@
 
 经 `StrategyQueryPreprocessor` 串联 `QueryStrategy`：
 
-| 策略 | 行为 | 消费情况 |
-| --- | --- | --- |
-| `query-rewrite` | 改写 `effectiveQuery`，不改 `originalQuery` | 下游检索读 effectiveQuery |
-| `query-expansion` | 相关查询写入 `subQueries` | FanOut 多路 |
-| `query-decomposition` | 拆成可独立检索的子问题 | FanOut 多路 |
-| `multi-query` | 同一意图多种措辞 | FanOut 多路 |
-| `query-routing` | 写出 `routeDecision`（targets / skip / searchType）以及可选 `route` / budget / filters | FanOut 消费 targets/skip；pgvector 消费 searchType；`route` 仍是 debug |
+| 策略                  | 行为                                                                                   | 消费情况                                                               |
+| --------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `query-rewrite`       | 改写 `effectiveQuery`，不改 `originalQuery`                                            | 下游检索读 effectiveQuery                                              |
+| `query-expansion`     | 相关查询写入 `subQueries`                                                              | FanOut 多路                                                            |
+| `query-decomposition` | 拆成可独立检索的子问题                                                                 | FanOut 多路                                                            |
+| `multi-query`         | 同一意图多种措辞                                                                       | FanOut 多路                                                            |
+| `query-routing`       | 写出 `routeDecision`（targets / skip / searchType）以及可选 `route` / budget / filters | FanOut 消费 targets/skip；pgvector 消费 searchType；`route` 仍是 debug |
 
 LLM 策略默认失败透传（`onError: 'throw'` 可硬失败）。空 `effectiveQuery` 不调模型。routing 没有可用 route **且没有** `routeDecision` 时整单透传，不写 `rewriteReason`。工厂：`createLlmRoutingStrategy` / `createRuleBasedRoutingStrategy`；`createQueryRoutingStrategy` 仍可用（内部 `LlmRoutingResolver`）。
 
@@ -85,11 +85,11 @@ LLM 策略默认失败透传（`onError: 'throw'` 可硬失败）。空 `effecti
 
 `RuntimeGeneratorInput.grounding?` 仅在 `chunks.length === 0` 时出现：
 
-| `chunksEmptyReason` | 含义 | runtime 会不会写 |
-| --- | --- | --- |
-| `no-hits` | 检索 0 条 | 会 |
-| `filtered` | 检索有条、post 滤光 | 会 |
-| `skipped` | 主动跳过检索 | **会**（`retrievalMode: skip` 或 FanOut `retrievalMetadata.skipped`） |
+| `chunksEmptyReason` | 含义                | runtime 会不会写                                                      |
+| ------------------- | ------------------- | --------------------------------------------------------------------- |
+| `no-hits`           | 检索 0 条           | 会                                                                    |
+| `filtered`          | 检索有条、post 滤光 | 会                                                                    |
+| `skipped`           | 主动跳过检索        | **会**（`retrievalMode: skip` 或 FanOut `retrievalMetadata.skipped`） |
 
 内置 openai / langchain / ollama generator **不改拒答策略**；字段只让策略可表达。控制台 `noGroundingPolicy` 目前不会在内核生效。
 
@@ -107,18 +107,18 @@ LLM 策略默认失败透传（`onError: 'throw'` 可硬失败）。空 `effecti
 
 ## 6. 关键入口
 
-| 路径 | 职责 |
-| --- | --- |
-| `src/pipeline/create-runtime-from-config.ts` | 官方装配 |
-| `src/pipeline/run-runtime.ts` | 三路径编排（仍约 890 行，职责过载） |
-| `src/contract/index.ts` | adapter 契约工具 |
-| `src/stages/pre-retrieval/strategies/` | QueryStrategy |
-| `src/stages/pre-retrieval/strategies/routing/` | LLM / 规则 RoutingResolver |
-| `src/stages/post-retrieval/strategies/` | PostRetrievalStrategy |
-| `src/stages/retrieval/fan-out-retriever.ts` | 多路 + RRF |
-| `src/stages/generation/resolve-generation-grounding.ts` | 空依据成因 |
-| `src/collection/create-collection.ts` | 门面 MVP |
-| `src/observation/` | 内部打点（不从包根泄漏） |
+| 路径                                                    | 职责                                |
+| ------------------------------------------------------- | ----------------------------------- |
+| `src/pipeline/create-runtime-from-config.ts`            | 官方装配                            |
+| `src/pipeline/run-runtime.ts`                           | 三路径编排（仍约 890 行，职责过载） |
+| `src/contract/index.ts`                                 | adapter 契约工具                    |
+| `src/stages/pre-retrieval/strategies/`                  | QueryStrategy                       |
+| `src/stages/pre-retrieval/strategies/routing/`          | LLM / 规则 RoutingResolver          |
+| `src/stages/post-retrieval/strategies/`                 | PostRetrievalStrategy               |
+| `src/stages/retrieval/fan-out-retriever.ts`             | 多路 + RRF                          |
+| `src/stages/generation/resolve-generation-grounding.ts` | 空依据成因                          |
+| `src/collection/create-collection.ts`                   | 门面 MVP                            |
+| `src/observation/`                                      | 内部打点（不从包根泄漏）            |
 
 ## 7. 测试
 

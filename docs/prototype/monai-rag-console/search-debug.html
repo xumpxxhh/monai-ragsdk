@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -16,7 +16,9 @@
     <div class="app-shell flex min-h-screen">
       <aside class="app-aside w-60 shrink-0 bg-surface border-r border-line flex flex-col">
         <div class="h-14 flex items-center gap-2.5 px-5 border-b border-line">
-          <span class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm">
+          <span
+            class="w-8 h-8 rounded-ctrl bg-brand text-white flex items-center justify-center text-sm"
+          >
             <i class="fa-solid fa-leaf"></i>
           </span>
           <div>
@@ -25,28 +27,48 @@
           </div>
         </div>
         <nav class="flex-1 p-3 space-y-1 text-sm">
-          <a href="home.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="home.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-house w-4 text-center"></i> 工作台
           </a>
-          <a href="knowledge-bases.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="knowledge-bases.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-layer-group w-4 text-center"></i> 知识库
           </a>
-          <a href="ask.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium">
+          <a
+            href="ask.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl bg-brand-soft text-brand font-medium"
+          >
             <i class="fa-regular fa-comments w-4 text-center"></i> 问答
           </a>
-          <a href="observe.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="observe.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-timeline w-4 text-center"></i> 观测
           </a>
-          <a href="settings.html" class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink">
+          <a
+            href="settings.html"
+            class="flex items-center gap-3 px-3 py-2 rounded-ctrl text-muted hover:bg-canvas hover:text-ink"
+          >
             <i class="fa-solid fa-gear w-4 text-center"></i> 设置
           </a>
         </nav>
       </aside>
 
       <div class="flex-1 flex flex-col min-w-0">
-        <header class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-4 md:px-6">
+        <header
+          class="h-14 shrink-0 bg-surface border-b border-line flex items-center justify-between px-4 md:px-6"
+        >
           <h1 class="text-sm font-medium">仅检索调试 · <span data-kb-label>产品手册库</span></h1>
-          <a href="ask.html" class="h-8 px-3 rounded-ctrl border border-line text-sm inline-flex items-center hover:border-brand hover:text-brand">
+          <a
+            href="ask.html"
+            class="h-8 px-3 rounded-ctrl border border-line text-sm inline-flex items-center hover:border-brand hover:text-brand"
+          >
             切回完整问答
           </a>
         </header>
@@ -54,14 +76,27 @@
         <main class="flex-1 p-4 md:p-6 overflow-auto">
           <div class="bg-surface rounded-card shadow-card border border-line p-4 mb-4">
             <div class="flex flex-col lg:flex-row gap-2">
-              <input id="search-q" type="text" value="退货时效" placeholder="输入查询" class="flex-1 h-10 px-3 rounded-ctrl border border-line text-sm" />
+              <input
+                id="search-q"
+                type="text"
+                value="退货时效"
+                placeholder="输入查询"
+                class="flex-1 h-10 px-3 rounded-ctrl border border-line text-sm"
+              />
               <select class="h-10 px-3 rounded-ctrl border border-line text-sm">
                 <option>topK 10</option>
                 <option>topK 5</option>
                 <option selected>topK 8</option>
                 <option>topK 20</option>
               </select>
-              <button type="button" onclick="document.getElementById('search-results').classList.remove('hidden'); toast('检索完成：8 条')" class="h-10 px-5 rounded-ctrl bg-brand text-white text-sm font-medium hover:bg-brand-hover">
+              <button
+                type="button"
+                onclick="
+                  document.getElementById('search-results').classList.remove('hidden');
+                  toast('检索完成：8 条');
+                "
+                class="h-10 px-5 rounded-ctrl bg-brand text-white text-sm font-medium hover:bg-brand-hover"
+              >
                 检索
               </button>
             </div>
@@ -71,7 +106,11 @@
                 <option>退货政策.md</option>
                 <option>FAQ.md</option>
               </select>
-              <button type="button" onclick="showComingSoon('元数据标签过滤')" class="h-8 px-2 rounded-ctrl border border-dashed border-line text-xs text-muted">
+              <button
+                type="button"
+                onclick="showComingSoon('元数据标签过滤')"
+                class="h-8 px-2 rounded-ctrl border border-dashed border-line text-xs text-muted"
+              >
                 元数据标签 ▾（后续）
               </button>
             </div>
@@ -93,13 +132,17 @@
                   <tr class="hover:bg-canvas/50">
                     <td class="px-4 py-3 text-muted">1</td>
                     <td class="px-4 py-3 font-medium">退货政策</td>
-                    <td class="px-4 py-3"><span class="font-mono text-brand font-medium">0.86</span></td>
+                    <td class="px-4 py-3">
+                      <span class="font-mono text-brand font-medium">0.86</span>
+                    </td>
                     <td class="px-4 py-3 text-muted">自签收之日起 7 日内可申请退货，商品需保持…</td>
                   </tr>
                   <tr class="hover:bg-canvas/50">
                     <td class="px-4 py-3 text-muted">2</td>
                     <td class="px-4 py-3 font-medium">FAQ</td>
-                    <td class="px-4 py-3"><span class="font-mono text-brand font-medium">0.81</span></td>
+                    <td class="px-4 py-3">
+                      <span class="font-mono text-brand font-medium">0.81</span>
+                    </td>
                     <td class="px-4 py-3 text-muted">特殊品类除外，包括定制件、鲜活易腐…</td>
                   </tr>
                   <tr class="hover:bg-canvas/50">
@@ -112,7 +155,9 @@
                     <td class="px-4 py-3 text-muted">4</td>
                     <td class="px-4 py-3 font-medium">保修服务条款</td>
                     <td class="px-4 py-3"><span class="font-mono">0.68</span></td>
-                    <td class="px-4 py-3 text-muted">质量问题 15 日内可换货，与无理由退货时效不同…</td>
+                    <td class="px-4 py-3 text-muted">
+                      质量问题 15 日内可换货，与无理由退货时效不同…
+                    </td>
                   </tr>
                   <tr class="hover:bg-canvas/50">
                     <td class="px-4 py-3 text-muted">5</td>
@@ -142,7 +187,10 @@
               </table>
             </div>
             <div class="mt-4">
-              <a href="ask.html" class="inline-flex items-center gap-2 h-9 px-4 rounded-ctrl bg-brand text-white text-sm hover:bg-brand-hover">
+              <a
+                href="ask.html"
+                class="inline-flex items-center gap-2 h-9 px-4 rounded-ctrl bg-brand text-white text-sm hover:bg-brand-hover"
+              >
                 用该查询发起完整问答 <i class="fa-solid fa-arrow-right"></i>
               </a>
             </div>
@@ -153,14 +201,31 @@
 
     <div id="modal-coming-soon" class="fixed inset-0 z-50 hidden">
       <div class="absolute inset-0 bg-black/40" onclick="closeModal('modal-coming-soon')"></div>
-      <div class="relative mx-auto mt-28 w-[420px] max-w-[92vw] bg-surface rounded-card shadow-soft">
+      <div
+        class="relative mx-auto mt-28 w-[420px] max-w-[92vw] bg-surface rounded-card shadow-soft"
+      >
         <div class="flex items-center justify-between px-5 h-14 border-b border-line">
           <h3 class="font-medium">规划中</h3>
-          <button type="button" onclick="closeModal('modal-coming-soon')" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+          <button
+            type="button"
+            onclick="closeModal('modal-coming-soon')"
+            class="text-muted hover:text-ink"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
         </div>
-        <div class="p-5 text-sm text-muted"><span id="coming-soon-title" class="text-ink font-medium">能力</span> 规划中，不影响当前问答。</div>
+        <div class="p-5 text-sm text-muted">
+          <span id="coming-soon-title" class="text-ink font-medium">能力</span>
+          规划中，不影响当前问答。
+        </div>
         <div class="px-5 h-14 border-t border-line flex justify-end">
-          <button type="button" onclick="closeModal('modal-coming-soon')" class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm">知道了</button>
+          <button
+            type="button"
+            onclick="closeModal('modal-coming-soon')"
+            class="h-9 px-4 rounded-ctrl bg-brand text-white text-sm"
+          >
+            知道了
+          </button>
         </div>
       </div>
     </div>

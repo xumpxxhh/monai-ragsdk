@@ -21,11 +21,11 @@
 
 ## 3. 当前能力
 
-| 分组 | 现状 |
-| --- | --- |
-| 协议 | `RAGObserver`：`onEvent` / `onError` / `onTraceEnd` / `flush` / `shutdown` |
-| 工厂 | `createRAGObserver({ exporters })` |
-| Observer | `NoopObserver`、`createConsoleObserver()` |
+| 分组     | 现状                                                                           |
+| -------- | ------------------------------------------------------------------------------ |
+| 协议     | `RAGObserver`：`onEvent` / `onError` / `onTraceEnd` / `flush` / `shutdown`     |
+| 工厂     | `createRAGObserver({ exporters })`                                             |
+| Observer | `NoopObserver`、`createConsoleObserver()`                                      |
 | Exporter | `createConsoleExporter()`、`MemoryTraceExporter`、`createJsonlTraceExporter()` |
 
 exporter 失败会被隔离，默认不拖死主链路。
@@ -40,12 +40,12 @@ runtime 侧还有策略步进事件（`query_strategy.*`、`retrieval_fanout.*`�
 
 ## 4. 关键入口
 
-| 路径 | 职责 |
-| --- | --- |
-| `src/observer/` | 协议、工厂、noop / console |
-| `src/exporters/` | console / memory / jsonl |
-| `src/types/` | Event / Trace / Error / Attributes |
-| `src/utils/invoke-observer-safely.ts` | 观测失败隔离 |
+| 路径                                  | 职责                               |
+| ------------------------------------- | ---------------------------------- |
+| `src/observer/`                       | 协议、工厂、noop / console         |
+| `src/exporters/`                      | console / memory / jsonl           |
+| `src/types/`                          | Event / Trace / Error / Attributes |
+| `src/utils/invoke-observer-safely.ts` | 观测失败隔离                       |
 
 被谁用：`indexing`、`runtime`、`apps/cli`、`apps/example`（及 server 观测 API）。
 
