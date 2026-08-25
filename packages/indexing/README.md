@@ -13,7 +13,7 @@
 ## 依赖
 
 - workspace：`core`、`observability`
-- 被谁用：`runtime`（`createCollection` 调用 `runIndexing`）、`adapters`、`apps/cli`、`apps/example`
+- 被谁用：`runtime`（`createCollection` 调用 `runIndexing`）、`adapters`、`apps/example`
 
 ## 流水线
 

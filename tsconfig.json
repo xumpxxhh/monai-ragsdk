@@ -30,7 +30,6 @@
     { "path": "./packages/observability" },
     { "path": "./packages/eval" },
     { "path": "./packages/utils" },
-    { "path": "./apps/cli" },
     { "path": "./apps/example" },
     { "path": "./apps/server" }
   ]

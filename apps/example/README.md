@@ -48,4 +48,4 @@ pnpm --filter @monai-ragsdk/example start all
 
 - 不要为了示例体验回头改 SDK 边界。
 - 不要在示例里引入第二套存储 / 查询路径。
-- `apps/web` 尚未实现；本地验证也可用 `apps/cli`。
+- 可运行应用见 `apps/web`、`apps/server`。

@@ -10,7 +10,7 @@
 
 - workspace：`core`、`indexing`、`runtime`
 - 第三方：`openai`、`@langchain/*`、`pg`、`chromadb`、`pdf-parse`、`cheerio`
-- 被谁用：只有应用层（`apps/cli`、`apps/example`、`apps/server`）。库不再依赖 adapters，把厂商锁在最外一层。
+- 被谁用：只有应用层（`apps/example`、`apps/server`、`apps/web`）。库不再依赖 adapters，把厂商锁在最外一层。
 
 不直接依赖 `observability`：适配器只做事，trace 由 indexing / runtime 上报。
 

@@ -7,7 +7,7 @@
 ## 依赖
 
 - workspace：`@monai-ragsdk/core`（主要是 `JsonValue`）
-- 被谁用：`indexing`、`runtime`、`apps/cli`、`apps/example`
+- 被谁用：`indexing`、`runtime`、`apps/example`
 
 `adapters` 不直接依赖本包。厂商适配只做事；trace 由 indexing / runtime 在流水线里通知 observer。
 

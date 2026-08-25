@@ -11,7 +11,7 @@
 - workspace：无
 - 第三方：`zod`
 
-被谁用：`observability`、`indexing`、`runtime`、`adapters`、`apps/cli`。
+被谁用：`observability`、`indexing`、`runtime`、`adapters`。
 
 ## 公开能力
 
