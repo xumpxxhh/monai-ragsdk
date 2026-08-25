@@ -1,6 +1,6 @@
 # `@monai-ragsdk/adapters` — 现状
 
-> 快照：**2026-08-20** · 状态：**可用**
+> 快照：**2026-08-24** · 状态：**可用**
 > 源码：`packages/adapters/` · 用法：[README](../../packages/adapters/README.md)
 > 回：[routing.md](./routing.md)
 
@@ -12,7 +12,7 @@
 
 依赖：`core`、`indexing`、`runtime`；第三方 `@langchain/*`、`openai`、`pg`、`chromadb`。
 
-被谁用：只有应用层（`apps/cli`、`apps/example`、`apps/server`）。
+被谁用：只有应用层（`apps/example`、`apps/server`、`apps/web`）。
 
 不直接依赖 `observability`：适配器只做事，trace 由 indexing / runtime 上报。
 
@@ -94,7 +94,7 @@ PDF / Web loader 运行时分别依赖 `pdf-parse` 与网络访问；Cheerio loa
 
 - Chroma 查询：按边界不做。
 - pgvector 已按 `routeDecision.searchType` 分路；langchain 无双路，不切换。
-- Generator 忽略 `RuntimeGeneratorInput.grounding`，空 chunks 照样生成。
+- Generator **不**消费 `RuntimeGeneratorInput.grounding`（拒答/泛化在 runtime 的 `createGroundingPolicyRuntimeGenerator`）。空 chunks 时厂商实现仍可能调 LLM——这是预期；产品路径应在装配层包包装器。
 - 自定义 / demo retriever 若只给裸 candidate、不走 `createIndexingRetrievalCandidate`，后续 filter 与 citation 会缺字段——正确写法见 runtime `/contract`。
 
 ## 9. 关联

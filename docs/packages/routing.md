@@ -1,6 +1,6 @@
 # packages 现状 Wiki — 路由
 
-> 快照日期：**2026-08-20**
+> 快照日期：**2026-08-24**
 > 范围：仅 `packages/*`（`@monai-ragsdk/*` 库）。不含 `apps/`。
 > 用法：先查本页「按问题选文档」，再进对应包页。用法示例仍以各包 README 为准。
 
@@ -20,10 +20,11 @@
 | 在线四段 pipeline、策略、Collection、契约          | [runtime.md](./runtime.md)                                                                                    |
 | 事件名、traceId、exporter、失败隔离                | [observability.md](./observability.md)                                                                        |
 | OpenAI / Ollama / pgvector / LangChain / Chroma    | [adapters.md](./adapters.md)                                                                                  |
-| 评测是否已开工                                     | [eval.md](./eval.md)                                                                                          |
+| 评测 dataset / 检索指标 / diff / 生成 judge / unscorable | [eval.md](./eval.md)；设计 [rag-eval-architecture.md](../decisions/rag-eval-architecture.md)；对接 [eval-handoff.md](../context/eval-handoff.md) |
 | 公共工具函数是否已开工                             | [utils.md](./utils.md)                                                                                        |
 | score 口径、死字段、filters 行为                   | [runtime.md](./runtime.md) §4；病根归档 [kernel-contract-defects.md](../decisions/kernel-contract-defects.md) |
 | Query Routing 行为与消费点                         | [runtime.md](./runtime.md) §4.1–4.2；设计见 [query-routing-upgrade.md](../decisions/query-routing-upgrade.md) |
+| 无依据拒答 / 泛化（grounding policy）              | [runtime.md](./runtime.md) §4.4；[generation-grounding-policy.md](../decisions/generation-grounding-policy.md) |
 
 ---
 
@@ -39,7 +40,7 @@ core
 
 - `eval`、`utils`：无 workspace 依赖，也没有任何包依赖它们。
 - `adapters` 不依赖 `observability`：厂商适配只做事，trace 由 indexing / runtime 上报。
-- 应用层（`apps/cli`、`apps/example`、`apps/server`）可以依赖以上任意包；**本 Wiki 不跟踪 apps。**
+- 应用层（`apps/example`、`apps/server`、`apps/web`）可以依赖以上任意包；**本 Wiki 不跟踪 apps。**
 
 循环依赖：**未发现**。
 
@@ -52,9 +53,9 @@ core
 | [core](./core.md)                   | `@monai-ragsdk/core`          | 共享契约      | **稳定** | schema / 错误基类可用；与 runtime 双份 Retriever 未收敛                |
 | [observability](./observability.md) | `@monai-ragsdk/observability` | 观测协议      | **稳定** | 事件 + JSONL/console/memory 可用；不接 OTLP                            |
 | [indexing](./indexing.md)           | `@monai-ragsdk/indexing`      | 离线索引内核  | **可用** | full / incremental 完整；Loader 无内置实现                             |
-| [runtime](./runtime.md)             | `@monai-ragsdk/runtime`       | 在线 RAG 内核 | **可用** | 四段编排 + 官方装配；generation 无策略层；routing 消费 `routeDecision` |
+| [runtime](./runtime.md)             | `@monai-ragsdk/runtime`       | 在线 RAG 内核 | **可用** | 四段编排 + 官方装配；generation 无策略链，有 grounding policy 包装器；routing 消费 `routeDecision` |
 | [adapters](./adapters.md)           | `@monai-ragsdk/adapters`      | 厂商适配      | **可用** | 默认栈官方 openai SDK + pgvector；Chroma 只写不查                      |
-| [eval](./eval.md)                   | `@monai-ragsdk/eval`          | 评测占位      | **空包** | `export {}`，未授权实现                                                |
+| [eval](./eval.md)                   | `@monai-ragsdk/eval`          | 评测算子      | **可用** | golden + 检索指标 + diff + 生成 judge 协议；在线抽样 harness 在 apps，见 [eval-handoff.md](../context/eval-handoff.md) |
 | [utils](./utils.md)                 | `@monai-ragsdk/utils`         | 工具占位      | **空包** | `export {}`，未授权实现                                                |
 
 版本均为 `0.1.0`，`private: true`。
@@ -92,11 +93,11 @@ core
 2. **filters**：retrieve 之后编排层强制 `enforceRetrievalRequestFilters`；adapter 可不预过滤，runtime 仍会丢弃不匹配候选。详见 [runtime.md](./runtime.md) §4.2。
 3. **装配与导出**：推荐 `createRuntimeFromConfig`；官方 post-retrieval 顺序见 runtime §3；Retriever 契约工具在 `@monai-ragsdk/runtime/contract`，不在包根。
 4. **Query routing**：`query-routing` 写入 `routeDecision`（`targets` / `skip` / `searchType`）；FanOut 消费 targets/skip；pgvector 按 searchType 切换召回；`request.route` 仅 debug。不配 routing 策略则行为与以前相同。
-5. **generation**：无策略层；`grounding.chunksEmptyReason` 为信号，内置 generator 不拒答。
+5. **generation**：无完整策略链；`grounding.chunksEmptyReason` 为信号；产品拒答/泛化用 `createGroundingPolicyRuntimeGenerator`（runtime），adapters 厂商 generator 不消费。
 6. **Active RAG / 答案内标记解析 / 第二查询路径 / OTLP** 是边界，不是欠债。
-7. **eval / utils 保持空。** 可复用逻辑先落在已授权的五个包里。
+7. **eval 为零依赖叶子包**：golden 契约、检索指标、diff 与生成 judge 协议在 `packages/eval`；批量跑分与在线抽样 harness 在 `apps/server`（见 [eval-handoff.md](../context/eval-handoff.md)）。`utils` 仍保持空。
 
-历史修复记录（可选）：[ai-handoff.md](../context/ai-handoff.md)。
+历史修复记录（可选）：[ai-handoff.md](../context/ai-handoff.md)（内核契约）、[eval-handoff.md](../context/eval-handoff.md)（评测）。
 
 ---
 
@@ -104,10 +105,9 @@ core
 
 | 优先级  | 事项                                                                          | 落点                                        |
 | ------- | ----------------------------------------------------------------------------- | ------------------------------------------- |
-| P1 产品 | 内置 generator 消费 `grounding`（无依据拒答 vs 用模型知识）                   | runtime 信号已有；行为在 adapters generator |
 | P2 工程 | 拆 `run-runtime.ts`；收敛 core/runtime 双接口；`mergeSelectionTrace` 保留历史 | runtime / core                              |
 | P2 工程 | langchain retriever 读取 `budget.maxChunks`                                   | adapters                                    |
-| 冻结    | Active RAG、eval 实现、Chroma 查询、utils 预堆工具                            | —                                           |
+| 冻结    | Active RAG、Chroma 查询、utils 预堆工具                                        | —                                           |
 
 `apps/server` 的 `pipeline-factory` 仍手拼且 rerank 在 threshold 之后——那是应用层，不在本 Wiki 范围，但改它应调用 runtime 的 `createRuntimeFromConfig`，不要在 apps 再发明顺序。
 
@@ -120,7 +120,7 @@ core
 - [indexing — 离线索引内核](./indexing.md)
 - [runtime — 在线 RAG 内核](./runtime.md)
 - [adapters — 外部适配](./adapters.md)
-- [eval — 评测占位](./eval.md)
+- [eval — 评测算子](./eval.md)（对接：[eval-handoff.md](../context/eval-handoff.md)）
 - [utils — 工具占位](./utils.md)
 
 能力地图原文（「应该有什么」，不是「已经有什么」）：[refer.md](../refer.md)。

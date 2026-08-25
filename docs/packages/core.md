@@ -15,7 +15,7 @@
 - 不跑索引，不编排检索 / 生成。
 - 不接 LLM、向量库或文件加载器。
 - 不往本包加 runtime 阶段语义（pre/post-retrieval、budget、scoreKind）。
-- 不提前扩散 eval / utils 实现。
+- 评测在 `@monai-ragsdk/eval`，工具在 `@monai-ragsdk/utils`（仍空）；不要往 core 堆 eval / utils 实现。
 
 ## 3. 当前能力
 
@@ -40,7 +40,7 @@
 | `src/errors/`           | 错误基类                   |
 | `src/pipeline/types.ts` | `RAGPipeline` 别名         |
 
-被谁用：`observability`、`indexing`、`runtime`、`adapters`、`apps/cli`（以及其它 apps）。
+被谁用：`observability`、`indexing`、`runtime`、`adapters`（以及其它 apps）。
 
 ## 5. 测试与脚本
 

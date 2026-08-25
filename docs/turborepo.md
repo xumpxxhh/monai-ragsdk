@@ -44,7 +44,7 @@
 
 ```
 <repo>/
-├── apps/                 # 可独立运行的应用（web / api / cli / docs 站点）
+├── apps/                 # 可独立运行的应用（web / api / docs 站点）
 │   ├── web/
 │   └── api/
 ├── packages/             # 被多个 app 引用的库（不可单独「上线」）

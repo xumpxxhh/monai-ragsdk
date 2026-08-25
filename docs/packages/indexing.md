@@ -12,7 +12,7 @@
 
 依赖：`core`、`observability`。**不依赖 runtime**（反向泄漏不存在）。
 
-被谁用：`runtime`（`createCollection().ingest()` 调 `runIndexing`）、`adapters`、`apps/cli`、`apps/example`。
+被谁用：`runtime`（`createCollection().ingest()` 调 `runIndexing`）、`adapters`、`apps/example`。
 
 ## 2. 边界
 

@@ -47,7 +47,7 @@ runtime 侧还有策略步进事件（`query_strategy.*`、`retrieval_fanout.*`�
 | `src/types/`                          | Event / Trace / Error / Attributes |
 | `src/utils/invoke-observer-safely.ts` | 观测失败隔离                       |
 
-被谁用：`indexing`、`runtime`、`apps/cli`、`apps/example`（及 server 观测 API）。
+被谁用：`indexing`、`runtime`、`apps/example`（及 server 观测 API）。
 
 ## 5. 测试与脚本
 

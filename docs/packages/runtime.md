@@ -1,6 +1,6 @@
 # `@monai-ragsdk/runtime` — 现状
 
-> 快照：**2026-08-20** · 状态：**可用**（四段 pipeline、routeDecision、官方装配）
+> 快照：**2026-08-24** · 状态：**可用**（四段 pipeline、routeDecision、官方装配、grounding policy 包装器）
 > 源码：`packages/runtime/` · 用法：[README](../../packages/runtime/README.md)
 > 回：[routing.md](./routing.md)
 > 历史修复记录（可选）：[ai-handoff.md](../context/ai-handoff.md)
@@ -13,7 +13,7 @@
 
 依赖：`core`、`observability`、`indexing`（`createCollection().ingest()` 调 `runIndexing`；另提供 indexing 查询协议）。不是误引。
 
-被谁用：`adapters`、`apps/cli`、`apps/example`、`apps/server`。
+被谁用：`adapters`、`apps/example`、`apps/server`。
 
 ## 2. 边界
 
@@ -81,7 +81,7 @@ LLM 策略默认失败透传（`onError: 'throw'` 可硬失败）。空 `effecti
 
 ### 4.4 Generation
 
-**没有策略层。** 接口是 `generate` / 可选 `generateStream`。
+**没有完整 GenerationStrategy 链。** 接口是 `generate` / 可选 `generateStream`。
 
 `RuntimeGeneratorInput.grounding?` 仅在 `chunks.length === 0` 时出现：
 
@@ -91,7 +91,14 @@ LLM 策略默认失败透传（`onError: 'throw'` 可硬失败）。空 `effecti
 | `filtered`          | 检索有条、post 滤光 | 会                                                                    |
 | `skipped`           | 主动跳过检索        | **会**（`retrievalMode: skip` 或 FanOut `retrievalMetadata.skipped`） |
 
-内置 openai / langchain / ollama generator **不改拒答策略**；字段只让策略可表达。控制台 `noGroundingPolicy` 目前不会在内核生效。
+产品拒答 / 泛化由官方包装器消费，**不**写进厂商 generator：
+
+- `createGroundingPolicyRuntimeGenerator(inner, { policy })`：`explicit` 对 `no-hits` / `filtered` 模板短路（不调 inner）；`generalize` 注入 `promptContext` 后委托；`skipped` 始终调 LLM（豁免 `explicit`）
+- 拒答时 `generationMetadata` 带 `groundingRefusal: true`、`chunksEmptyReason`、`noGroundingPolicy`
+- adapters 内 OpenAI / Ollama / LangChain generator 可继续忽略 `grounding`；调用方在装配时包一层即可
+- 决策见 [generation-grounding-policy.md](../decisions/generation-grounding-policy.md)
+
+`createRuntimeFromConfig` **本轮不**内建 `noGroundingPolicy`。
 
 `run()` 允许空字符串答案；`runStream()` 对空答案抛错。这是刻意历史分叉，尚未统一。
 
@@ -117,6 +124,8 @@ LLM 策略默认失败透传（`onError: 'throw'` 可硬失败）。空 `effecti
 | `src/stages/post-retrieval/strategies/`                 | PostRetrievalStrategy               |
 | `src/stages/retrieval/fan-out-retriever.ts`             | 多路 + RRF                          |
 | `src/stages/generation/resolve-generation-grounding.ts` | 空依据成因                          |
+| `src/stages/generation/grounding-policy.ts`             | 拒答 / 泛化决策                     |
+| `src/stages/generation/create-grounding-policy-runtime-generator.ts` | 官方 grounding 包装器      |
 | `src/collection/create-collection.ts`                   | 门面 MVP                            |
 | `src/observation/`                                      | 内部打点（不从包根泄漏）            |
 
@@ -143,7 +152,6 @@ adapters 依赖 runtime 的 `/contract` 类型，改 runtime 后需先 build 再
 ## 9. 已知缺口
 
 1. 工程：拆 `run-runtime.ts`；与 core 双接口；selectionTrace 历史
-2. 产品：内置 generator 消费 `grounding`（无依据拒答 vs 用模型知识）
 
 Active RAG 仍在冻结范围，不作为默认改进项。
 
@@ -151,4 +159,5 @@ Active RAG 仍在冻结范围，不作为默认改进项。
 
 - [kernel-contract-defects.md](../decisions/kernel-contract-defects.md) — 病根归档（部分症状已修，文档状态仍可能写「草案」）
 - [query-routing-semantics.md](../decisions/query-routing-semantics.md)
+- [generation-grounding-policy.md](../decisions/generation-grounding-policy.md)
 - [indexing.md](./indexing.md) · [adapters.md](./adapters.md) · [observability.md](./observability.md)

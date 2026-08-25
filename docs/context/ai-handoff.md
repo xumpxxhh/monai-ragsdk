@@ -425,4 +425,6 @@ pnpm --filter @monai-ragsdk/adapters test
 
 ## 下一刀（复制给下一个 Agent 的任务句）
 
-内核契约缺陷切片 A–G 已收口。[query-routing-upgrade.md](../decisions/query-routing-upgrade.md) 已落地（`routeDecision` + FanOut skip/targets + pgvector searchType）。剩余项：拆 `run-runtime.ts`、core/runtime 双接口、`mergeSelectionTrace` 历史、indexing 概念泄漏。要把 server 的 rerank/threshold 顺序修好，用 `createRuntimeFromConfig` 改 `apps/server` 的 `pipeline-factory`。内置 generator 消费 `grounding` 仍未做。
+**内核契约（A–G）** 已收口；[query-routing-upgrade.md](../decisions/query-routing-upgrade.md)、[generation-grounding-policy.md](../decisions/generation-grounding-policy.md) 已落地。剩余内核工程项：拆 `run-runtime.ts`、core/runtime 双接口、`mergeSelectionTrace` 历史、indexing 概念泄漏；server 改 `createRuntimeFromConfig` 装配（当前仍手拼）。
+
+**评测（eval）** 检索跑分 + 回归 diff 已落地；继续 judge / 在线抽样 / Web UI 见 **[eval-handoff.md](./eval-handoff.md)**，不要与内核切片混在同一 PR。
