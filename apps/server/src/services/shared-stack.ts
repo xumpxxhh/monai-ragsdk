@@ -3,6 +3,8 @@ import { OpenAIEmbedder, createOpenAIChatAdapters } from '@monai-ragsdk/adapters
 import {
   createMemoryTraceExporter,
   createRAGObserver,
+  type RAGErrorRecord,
+  type RAGEvent,
   type RAGTrace,
   type MemoryTraceExporter,
   type RAGObserver,
@@ -20,6 +22,86 @@ export type SharedStack = {
   observer: RAGObserver;
   memoryExporter: MemoryTraceExporter;
 };
+
+/** 按 traceId 订阅 live observer 回调；SSE 写失败不得拖死 runtime。 */
+export type ObserverLiveListener = {
+  onEvent?: (event: RAGEvent) => void;
+  onError?: (error: RAGErrorRecord) => void;
+};
+
+const liveListeners = new Map<string, Set<ObserverLiveListener>>();
+
+/**
+ * 订阅指定 traceId 的 onEvent / onError。返回取消函数。
+ * 监听器抛错会被吞掉，避免影响主链路与其它订阅方。
+ */
+export function subscribeObserver(traceId: string, listener: ObserverLiveListener): () => void {
+  let set = liveListeners.get(traceId);
+  if (!set) {
+    set = new Set();
+    liveListeners.set(traceId, set);
+  }
+  set.add(listener);
+  return () => {
+    const current = liveListeners.get(traceId);
+    if (!current) {
+      return;
+    }
+    current.delete(listener);
+    if (current.size === 0) {
+      liveListeners.delete(traceId);
+    }
+  };
+}
+
+function notifyLiveListeners(
+  traceId: string,
+  kind: 'onEvent' | 'onError',
+  payload: RAGEvent | RAGErrorRecord,
+): void {
+  const set = liveListeners.get(traceId);
+  if (!set || set.size === 0) {
+    return;
+  }
+  for (const listener of set) {
+    try {
+      if (kind === 'onEvent') {
+        listener.onEvent?.(payload as RAGEvent);
+      } else {
+        listener.onError?.(payload as RAGErrorRecord);
+      }
+    } catch {
+      // 订阅方失败隔离：SSE 写失败等不得拖死 runtime
+    }
+  }
+}
+
+/**
+ * 在 exporter 缓冲之外再 fan-out 给 live 订阅方，供 ask SSE 实时推送。
+ * 先写完内层 buffer/export，再通知订阅，保证 memoryExporter 与 live 顺序一致。
+ */
+function wrapObserverWithLiveFanout(inner: RAGObserver): RAGObserver {
+  return {
+    async onEvent(event) {
+      await inner.onEvent?.(event);
+      notifyLiveListeners(event.traceId, 'onEvent', event);
+    },
+    async onError(error) {
+      await inner.onError?.(error);
+      notifyLiveListeners(error.traceId, 'onError', error);
+    },
+    async onTraceEnd(trace) {
+      await inner.onTraceEnd?.(trace);
+    },
+    async flush() {
+      await inner.flush?.();
+    },
+    async shutdown() {
+      await inner.shutdown?.();
+      liveListeners.clear();
+    },
+  };
+}
 
 /**
  * 把查询文本编成单条向量。retriever 只吃 number[]，不走完整 Chunk 写入路径。
@@ -63,7 +145,7 @@ export function getSharedStack(): SharedStack {
       fetch: dotsFetch,
     });
     const memoryExporter = createMemoryTraceExporter();
-    const observer = createRAGObserver({
+    const baseObserver = createRAGObserver({
       serviceName: 'monai-ragsdk-server',
       environment: 'local',
       exporters: [memoryExporter],
@@ -75,7 +157,7 @@ export function getSharedStack(): SharedStack {
       embedder,
       generator,
       strategyModel,
-      observer,
+      observer: wrapObserverWithLiveFanout(baseObserver),
       memoryExporter,
     };
   }

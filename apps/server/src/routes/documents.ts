@@ -5,6 +5,7 @@ import { readQueryInt, readQueryString } from '../http/query.js';
 import { paginate } from '../mappers/dto.js';
 import {
   getCollectionRecord,
+  getDocumentDetail,
   ingestDocuments,
   recommendIngestForCollection,
   removeDocument,
@@ -52,6 +53,18 @@ documentsRouter.get(
     const page = readQueryInt(req.query.page, 1);
     const pageSize = readQueryInt(req.query.pageSize, 10);
     res.json(paginate(items, page, pageSize));
+  }),
+);
+
+/** 按需取单文档原文；列表接口不带 content。 */
+documentsRouter.get(
+  '/documents/:documentId',
+  asyncHandler(async (req, res) => {
+    const documentId = req.params.documentId;
+    if (!documentId?.trim()) {
+      throw badRequest('缺少文档 ID');
+    }
+    res.json(getDocumentDetail(collectionIdOf(req), documentId));
   }),
 );
 

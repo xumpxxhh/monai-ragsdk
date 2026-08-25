@@ -10,7 +10,9 @@ import type {
   SearchResult,
   StrategyPreset,
 } from '../types/api.js';
+import { getObserverTrace } from '../services/shared-stack.js';
 import type { CollectionRecord } from '../services/state-store.js';
+import { appliedPostRetrievalFilters, toPipelineSnapshot } from './pipeline-snapshot.js';
 
 export const PRESET_LABELS: Record<StrategyPreset, string> = {
   balanced: '均衡',
@@ -100,12 +102,18 @@ export function mapSearchResult(
   });
 
   const effectiveQuery = result.effectiveQuery.query;
+  const traceId = result.traceId ?? result.requestId ?? '';
+  // search 跑完后 memoryExporter 已有整条 trace，一并带回控制台右侧检查面
+  const executionTrace = traceId ? getObserverTrace(traceId) : undefined;
 
   return {
     query,
     effectiveQuery: effectiveQuery !== query ? effectiveQuery : undefined,
     hits,
-    appliedFilters: [],
+    appliedFilters: appliedPostRetrievalFilters(result),
+    traceId,
+    pipeline: toPipelineSnapshot(result),
+    ...(executionTrace ? { executionTrace } : {}),
   };
 }
 

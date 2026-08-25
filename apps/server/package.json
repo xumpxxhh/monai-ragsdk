@@ -9,11 +9,13 @@
     "dev:debug-brk": "tsx watch --inspect-brk=9229 src/index.ts",
     "build": "tsc -p tsconfig.json",
     "check-types": "tsc --noEmit -p tsconfig.json",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "vitest run src"
   },
   "dependencies": {
     "@monai-ragsdk/adapters": "workspace:*",
     "@monai-ragsdk/core": "workspace:*",
+    "@monai-ragsdk/eval": "workspace:*",
     "@monai-ragsdk/indexing": "workspace:*",
     "@monai-ragsdk/observability": "workspace:*",
     "@monai-ragsdk/runtime": "workspace:*",
@@ -27,6 +29,7 @@
     "@types/node": "catalog:",
     "@types/pg": "catalog:",
     "tsx": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

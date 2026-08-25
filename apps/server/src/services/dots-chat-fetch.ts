@@ -32,6 +32,9 @@ export function createDotsChatFetch(baseFetch: FetchLike = fetch): FetchLike {
       const parsed = JSON.parse(body) as Record<string, unknown>;
       parsed.chat_template_kwargs = { enable_thinking: false };
       body = JSON.stringify(parsed);
+      // SDK 已按旧 body 写入 Content-Length；改写 body 后必须删掉，否则 undici 报连接错误
+      delete headers['content-length'];
+      delete headers['Content-Length'];
     }
 
     return baseFetch(input, {

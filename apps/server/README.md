@@ -14,7 +14,7 @@ pnpm dev:server
 
 默认监听 `http://localhost:3000`。健康检查：`GET /health`。业务 API 前缀：`/api/v1`。
 
-接口说明：[docs/server/api.md](../../docs/server/api.md)。ask/search 为全局路由（`POST /api/v1/ask|search`）；web 迁移见 [docs/server/web-followup.md](../../docs/server/web-followup.md)。
+接口说明：[docs/server/api.md](../../docs/server/api.md)。全局路由：`POST /api/v1/ask|search`；检索评测：`POST /api/v1/eval/run`、`POST /api/v1/eval/compare`（见 [eval-handoff.md](../../docs/context/eval-handoff.md)）。web 迁移见 [docs/server/web-followup.md](../../docs/server/web-followup.md)。
 
 ## 与 Web 联调
 
@@ -32,7 +32,7 @@ pnpm dev:server
 
 | 声明位置                                                                     | 作用                                                       |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| 根 [`turbo.json`](../../turbo.json) 的 `globalPassThroughEnv`                | 全仓透传，不进缓存键（`pnpm example` / CLI / server 共用） |
+| 根 [`turbo.json`](../../turbo.json) 的 `globalPassThroughEnv`                | 全仓透传，不进缓存键（`pnpm example` / server 共用） |
 | [`apps/server/turbo.json`](./turbo.json) 的 `dev` / `start`.`passThroughEnv` | 本包长驻任务显式允许列表                                   |
 
 本地推荐两种注入方式（可并存；**已存在的 `process.env` 优先**，文件不会覆盖 shell/CI）：
@@ -50,7 +50,7 @@ pnpm dev:server
 
 约定说明见 [`docs/turborepo.md`](../../docs/turborepo.md) 中 `globalPassThroughEnv` / `globalEnv` 一节。
 
-知识库元数据在 `data/state.json`（已 gitignore）；每个知识库使用独立 pgvector 表 `kb_<id>`。
+知识库元数据在 `data/state.json`（已 gitignore）；每个知识库使用独立 pgvector 表，表名由知识库 ID（`kb-<uuid>`）清洗得到，例如 `kb_<uuid>`。
 
 ## 脚本
 
@@ -59,6 +59,7 @@ pnpm dev:server
 | `pnpm dev:server`                          | 经 Turbo 跑 `tsx watch`                         |
 | `pnpm --filter @monai-ragsdk/server build` | 编译到 `dist/`                                  |
 | `pnpm --filter @monai-ragsdk/server start` | 运行编译产物                                    |
+| `pnpm --filter @monai-ragsdk/server test`  | vitest（mapper、eval 相关单测等）                 |
 | `pnpm dev:server:debug`                    | 带 Inspector（9229），可命中源码里的 `debugger` |
 
 ### 调试 `debugger`

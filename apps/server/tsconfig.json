@@ -5,7 +5,8 @@
     { "path": "../../packages/indexing" },
     { "path": "../../packages/adapters" },
     { "path": "../../packages/runtime" },
-    { "path": "../../packages/observability" }
+    { "path": "../../packages/observability" },
+    { "path": "../../packages/eval" }
   ],
   "compilerOptions": {
     "composite": true,

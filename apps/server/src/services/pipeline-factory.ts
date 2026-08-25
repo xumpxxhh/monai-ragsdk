@@ -6,6 +6,7 @@ import {
   StrategyRetrievalPostprocessor,
   createContextCompressionStrategy,
   createDefaultRuntime,
+  createGroundingPolicyRuntimeGenerator,
   createLlmRerankStrategy,
   createLostInTheMiddleStrategy,
   createMultiQueryStrategy,
@@ -126,13 +127,18 @@ export function buildRuntime(options: {
       ? new FanOutRetriever({ retriever: retrievers[0]!, retrievers })
       : new FanOutRetriever({ retriever });
 
+  // 按控制台 noGroundingPolicy 消费 runtime grounding；厂商 generator 本身仍忽略该字段
+  const groundingAwareGenerator = createGroundingPolicyRuntimeGenerator(generator, {
+    policy: strategy.generation.noGroundingPolicy,
+  });
+
   return createDefaultRuntime({
     preprocessor,
     retriever: retrieval,
     postprocessor: new StrategyRetrievalPostprocessor({
       strategies: postStrategies,
     }),
-    generator,
+    generator: groundingAwareGenerator,
     observer,
   });
 }

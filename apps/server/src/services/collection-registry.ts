@@ -3,7 +3,12 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { Document } from '@monai-ragsdk/core';
 import { PgVectorRuntimeRetrieverAdapter, PgVectorStoreAdapter } from '@monai-ragsdk/adapters';
 import { SimpleChunker, runIndexing, type IndexingOptions } from '@monai-ragsdk/indexing';
-import { createCollection, type Runtime, type RuntimeSearchResult } from '@monai-ragsdk/runtime';
+import {
+  createCollection,
+  type Runtime,
+  type RuntimeResult,
+  type RuntimeSearchResult,
+} from '@monai-ragsdk/runtime';
 import { Pool } from 'pg';
 
 import { loadServerConfig } from '../config/env.js';
@@ -12,6 +17,7 @@ import { toCollectionDetail, toIngestStats } from '../mappers/dto.js';
 import type {
   ChunkingConfig,
   CreateCollectionInput,
+  DocumentDetail,
   IngestDocumentInput,
   IngestMode,
   IngestRecommendation,
@@ -20,6 +26,11 @@ import type {
 } from '../types/api.js';
 import { recordActivity, recordIngestTrace, ingestActivityTitle } from './activity-store.js';
 import { buildChunker, recommendIngestConfig } from './chunking.js';
+import {
+  legacyDoublePrefixedTableName,
+  quoteSqlIdent,
+  tableNameFor,
+} from './collection-table-name.js';
 import { buildRuntime, defaultStrategy } from './pipeline-factory.js';
 import { embedQuery, getSharedStack } from './shared-stack.js';
 import { loadState, saveState, type CollectionRecord, type StoredDocument } from './state-store.js';
@@ -45,12 +56,42 @@ function persist(): void {
   });
 }
 
-function tableNameFor(collectionId: string): string {
-  const compact = `kb_${collectionId.replace(/[^A-Za-z0-9]/g, '_')}`;
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(compact)) {
+function tableNameOf(collectionId: string): string {
+  try {
+    return tableNameFor(collectionId);
+  } catch {
     throw badRequest('无效的知识库 ID');
   }
-  return compact;
+}
+
+/** 首次访问时把旧的 kb_kb_ 表改成规范名，避免 ingest 写到空表、旧向量被丢在一边。 */
+async function migrateLegacyVectorTable(
+  connectionString: string,
+  collectionId: string,
+): Promise<string> {
+  const tableName = tableNameOf(collectionId);
+  const legacyName = legacyDoublePrefixedTableName(collectionId);
+  if (legacyName === tableName) {
+    return tableName;
+  }
+
+  const pool = new Pool({ connectionString });
+  try {
+    const found = await pool.query<{ legacy: string | null; canonical: string | null }>(
+      'SELECT to_regclass($1) AS legacy, to_regclass($2) AS canonical',
+      [`public.${legacyName}`, `public.${tableName}`],
+    );
+    const row = found.rows[0];
+    if (row?.legacy && !row.canonical) {
+      await pool.query(
+        `ALTER TABLE "public".${quoteSqlIdent(legacyName)} RENAME TO ${quoteSqlIdent(tableName)}`,
+      );
+    }
+  } finally {
+    await pool.end();
+  }
+
+  return tableName;
 }
 
 function fingerprintOf(content: string): string {
@@ -202,10 +243,14 @@ export async function removeCollectionRecord(id: string): Promise<void> {
   await handle.retriever?.close();
 
   const config = loadServerConfig();
-  const tableName = tableNameFor(id);
+  const tableName = tableNameOf(id);
+  const legacyName = legacyDoublePrefixedTableName(id);
   const pool = new Pool({ connectionString: config.connectionString });
   try {
-    await pool.query(`DROP TABLE IF EXISTS "public"."${tableName.replaceAll('"', '""')}"`);
+    await pool.query(`DROP TABLE IF EXISTS "public".${quoteSqlIdent(tableName)}`);
+    if (legacyName !== tableName) {
+      await pool.query(`DROP TABLE IF EXISTS "public".${quoteSqlIdent(legacyName)}`);
+    }
   } finally {
     await pool.end();
   }
@@ -227,7 +272,7 @@ async function ensureHandle(
   }
 
   const shared = getSharedStack();
-  const tableName = tableNameFor(id);
+  const tableName = await migrateLegacyVectorTable(shared.config.connectionString, id);
   const store = new PgVectorStoreAdapter({
     connectionString: shared.config.connectionString,
     tableName,
@@ -423,14 +468,17 @@ export function recommendIngestForCollection(
  * 为全局 ask/search 组装 runtime：多库 FanOut + 全局策略。
  * 每个子 retriever 的 id 设为 collectionId，供 routeDecision.targets 选路。
  */
-export async function buildGlobalRuntime(collectionIds?: string[]): Promise<{
+export async function buildGlobalRuntime(
+  collectionIds?: string[],
+  strategyOverride?: StrategyConfig,
+): Promise<{
   runtime: Runtime;
   targets: CollectionRecord[];
   strategy: StrategyConfig;
 }> {
   const targets = resolveTargetCollections(collectionIds);
   const shared = getSharedStack();
-  const strategy = getGlobalStrategy();
+  const strategy = strategyOverride ?? getGlobalStrategy();
   const retrievers = [];
 
   for (const record of targets) {
@@ -458,14 +506,39 @@ export async function searchGlobal(
   query: string,
   topK: number | undefined,
   collectionIds?: string[],
+  strategyOverride?: StrategyConfig,
 ): Promise<RuntimeSearchResult> {
-  const { runtime, targets, strategy } = await buildGlobalRuntime(collectionIds);
+  const { runtime, targets, strategy } = await buildGlobalRuntime(collectionIds, strategyOverride);
   const resolvedTopK =
     typeof topK === 'number' && Number.isInteger(topK) && topK > 0 ? topK : strategy.retrieval.topK;
   const scope = targets.length === 1 ? targets[0]! : null;
 
   return runtime.search(
     { query, metadata: { topK: resolvedTopK } },
+    {
+      requestId: randomUUID(),
+      trace: {
+        tags: {
+          collectionId: scope?.id ?? 'global',
+          collectionName: scope?.name ?? `${targets.length} 个知识库`,
+          collectionIds: targets.map((item) => item.id).join(','),
+        },
+      },
+    },
+  );
+}
+
+/** 对 query 跑完整四段 pipeline（含 generation），供生成 judge 取完整 answer。 */
+export async function runGlobal(
+  query: string,
+  collectionIds?: string[],
+  strategyOverride?: StrategyConfig,
+): Promise<RuntimeResult> {
+  const { runtime, targets } = await buildGlobalRuntime(collectionIds, strategyOverride);
+  const scope = targets.length === 1 ? targets[0]! : null;
+
+  return runtime.run(
+    { query },
     {
       requestId: randomUUID(),
       trace: {
@@ -511,6 +584,19 @@ export async function retryDocument(collectionId: string, documentId: string): P
     ],
     record.ingestMode,
   );
+}
+
+/**
+ * 返回单文档详情（含入库登记的原文）。列表接口故意不带 content，避免整表膨胀。
+ */
+export function getDocumentDetail(collectionId: string, documentId: string): DocumentDetail {
+  const record = getCollectionRecord(collectionId);
+  const doc = record.documents.find((item) => item.id === documentId);
+  if (!doc) {
+    throw notFound('文档不存在');
+  }
+  const { fingerprint: _fingerprint, ...detail } = doc;
+  return detail;
 }
 
 export async function removeDocument(collectionId: string, documentId: string): Promise<void> {

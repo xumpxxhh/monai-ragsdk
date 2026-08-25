@@ -8,6 +8,7 @@ import { documentsRouter } from './routes/documents.js';
 import { healthRouter } from './routes/health.js';
 import { observeRouter } from './routes/observe.js';
 import { askRouter } from './routes/ask.js';
+import { evalRouter } from './routes/eval.js';
 import { searchRouter } from './routes/search.js';
 import { strategyRouter } from './routes/strategy.js';
 
@@ -31,6 +32,7 @@ export function createApp(): Express {
   api.use('/collections/:id', documentsRouter);
   api.use('/ask', askRouter);
   api.use('/search', searchRouter);
+  api.use('/eval', evalRouter);
   api.use('/strategy', strategyRouter);
   api.use(observeRouter);
   app.use('/api/v1', api);

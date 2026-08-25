@@ -48,6 +48,11 @@ export interface DocumentSource {
   failReason?: string;
 }
 
+/** 单文档详情：列表不含原文，详情按需带回入库时登记的 content。 */
+export interface DocumentDetail extends DocumentSource {
+  content: string;
+}
+
 export interface CreateCollectionInput {
   name: string;
   description?: string;
@@ -90,11 +95,65 @@ export interface SearchHit {
   snippet: string;
 }
 
+export interface PipelineSnapshotPreRetrieval {
+  originalQuery: string;
+  effectiveQuery: string;
+  subQueries?: string[];
+  strategies?: string[];
+  rewriteReason?: string;
+}
+
+export interface PipelineSnapshotRetrieval {
+  retrieved?: number;
+  skipped?: boolean;
+  skipReason?: string;
+  retrieverCount?: number;
+  fusedCandidateCount?: number;
+  strategies?: string[];
+}
+
+export interface PipelineSnapshotPostRetrieval {
+  selected?: number;
+  dropped?: number;
+  finalChunks?: number;
+  strategies?: string[];
+}
+
+export interface PipelineSnapshotGeneration {
+  citationCount: number;
+  groundingRefusal?: boolean;
+  chunksEmptyReason?: string;
+  noGroundingPolicy?: 'explicit' | 'generalize';
+  strategies?: string[];
+}
+
+export interface PipelineSnapshotTimings {
+  preRetrieval?: number;
+  retrieval?: number;
+  postRetrieval?: number;
+  generation?: number;
+  total?: number;
+}
+
+/** 一次 ask / search 的四段 runtime 摘要，供管理员检查面与观测详情复用。 */
+export interface PipelineSnapshot {
+  traceId: string;
+  preRetrieval: PipelineSnapshotPreRetrieval;
+  retrieval: PipelineSnapshotRetrieval;
+  postRetrieval: PipelineSnapshotPostRetrieval;
+  generation?: PipelineSnapshotGeneration;
+  timings?: PipelineSnapshotTimings;
+}
+
 export interface SearchResult {
   query: string;
   effectiveQuery?: string;
   hits: SearchHit[];
   appliedFilters: string[];
+  traceId: string;
+  pipeline: PipelineSnapshot;
+  /** observer 全链路；进程内存，与 GET /traces/ask/:id 同源。 */
+  executionTrace?: RAGTrace;
 }
 
 export interface StrategyConfig {
@@ -148,8 +207,34 @@ export interface AskTrace {
   citationCount: number;
   stages: TraceStage[];
   warnings: string[];
+  /** 与 ask SSE result.pipeline 同构，观测详情不必只靠 timings 键名猜阶段。 */
+  pipeline?: PipelineSnapshot;
+  /** observer / runtime 侧 traceId；与 id 一致时仍显式写出，便于前端对齐 SSE。 */
+  traceId?: string;
   /** observer 全链路快照；GET 详情时若缺失可回退 memoryExporter。 */
   executionTrace?: RAGTrace;
+  /**
+   * 在线抽样用的完整答案与检索观测。
+   * observer 只有 answerPreview（200 字）且 candidates 无 sourceId，不能替代本字段。
+   */
+  evalSnapshot?: AskEvalSnapshot;
+}
+
+/** 从 RuntimeResult 抽出、写入 AskTrace 的评测快照；不含 observer 协议。 */
+export interface AskEvalSnapshot {
+  answer: string;
+  refused: boolean;
+  retrieved: Array<{
+    chunkId: string;
+    sourceId?: string;
+    score?: number;
+    rank: number;
+  }>;
+  selected: Array<{
+    chunkId: string;
+    sourceId?: string;
+    text: string;
+  }>;
 }
 
 export interface IngestTaskTrace {
@@ -207,6 +292,207 @@ export interface GlobalSearchRequest {
   query: string;
   topK?: number;
   collectionIds?: string[];
+}
+
+/** POST /eval/run：inline golden 数据集 + 可选 scope / topK / layer / @k。 */
+export interface EvalRunRequest {
+  dataset: unknown;
+  collectionIds?: string[];
+  topK?: number;
+  layer?: 'retrieved' | 'selected';
+  k?: number[];
+}
+
+export interface EvalMetricsAtK {
+  k: number;
+  recall: number;
+  precision: number;
+  hitRate: number;
+  ndcg: number;
+}
+
+export interface EvalSampleScoreReport {
+  sampleId: string;
+  query: string;
+  layer: 'retrieved' | 'selected';
+  coverage: number;
+  unscorable: boolean;
+  mrr: number;
+  atK: EvalMetricsAtK[];
+}
+
+export interface EvalAggregateReport {
+  layer: 'retrieved' | 'selected';
+  scoredSampleCount: number;
+  unscorableSampleCount: number;
+  unscorableSampleIds: string[];
+  meanMrr: number;
+  meanAtK: EvalMetricsAtK[];
+}
+
+export interface EvalRunReport {
+  label?: string;
+  dataset: {
+    name: string;
+    version: string;
+  };
+  layer: 'retrieved' | 'selected';
+  topK: number;
+  collectionIds?: string[];
+  samples: EvalSampleScoreReport[];
+  aggregate: EvalAggregateReport;
+}
+
+export interface EvalCompareArm {
+  label: string;
+  /** 省略时使用当前全局策略。 */
+  strategy?: StrategyConfig;
+}
+
+/** POST /eval/compare：同一 dataset 在两套策略下各跑一遍并 diff。 */
+export interface EvalCompareRequest {
+  dataset: unknown;
+  baseline: EvalCompareArm;
+  candidate: EvalCompareArm;
+  collectionIds?: string[];
+  topK?: number;
+  layer?: 'retrieved' | 'selected';
+  k?: number[];
+  /** MRR 持平时用 recall@primaryK 判定样本 improved/regressed。 */
+  primaryK?: number;
+}
+
+export interface EvalMetricsAtKDelta {
+  k: number;
+  recallDelta: number | null;
+  precisionDelta: number | null;
+  hitRateDelta: number | null;
+  ndcgDelta: number | null;
+}
+
+export type EvalSampleDiffVerdict = 'improved' | 'regressed' | 'unchanged' | 'incomparable';
+
+export interface EvalSampleDiffReport {
+  sampleId: string;
+  verdict: EvalSampleDiffVerdict;
+  baseline: EvalSampleScoreReport;
+  candidate: EvalSampleScoreReport;
+  mrrDelta: number | null;
+  atKDelta: EvalMetricsAtKDelta[];
+}
+
+export interface EvalDiffReport {
+  baselineLabel: string;
+  candidateLabel: string;
+  primaryK: number;
+  aggregateDelta: {
+    meanMrrDelta: number;
+    meanAtKDelta: EvalMetricsAtKDelta[];
+    scoredSampleCountDelta: number;
+    unscorableSampleCountDelta: number;
+  };
+  sampleDiffs: EvalSampleDiffReport[];
+  improvedSampleIds: string[];
+  regressedSampleIds: string[];
+  unchangedSampleIds: string[];
+  incomparableSampleIds: string[];
+}
+
+export interface EvalCompareReport {
+  dataset: {
+    name: string;
+    version: string;
+  };
+  layer: 'retrieved' | 'selected';
+  topK: number;
+  primaryK: number;
+  collectionIds?: string[];
+  baseline: EvalRunReport;
+  candidate: EvalRunReport;
+  diff: EvalDiffReport;
+}
+
+/** POST /eval/judge：逐条 runtime.run + LLM 生成 judge。 */
+export interface EvalJudgeRequest {
+  dataset: unknown;
+  collectionIds?: string[];
+  /** 省略时使用当前全局策略。 */
+  strategy?: StrategyConfig;
+}
+
+export interface EvalJudgeSampleReport {
+  sampleId: string;
+  query: string;
+  answer: string;
+  refused: boolean;
+  faithfulness: number | null;
+  relevance: number | null;
+  refusalCorrectness: number | null;
+  unscorable: boolean;
+  rationale?: string;
+  parseError?: string;
+}
+
+export interface EvalJudgeAggregateReport {
+  scoredSampleCount: number;
+  unscorableSampleCount: number;
+  unscorableSampleIds: string[];
+  meanFaithfulness: number | null;
+  meanRelevance: number | null;
+  meanRefusalCorrectness: number | null;
+  faithfulnessSampleCount: number;
+  relevanceSampleCount: number;
+  refusalSampleCount: number;
+}
+
+export interface EvalJudgeReport {
+  dataset: {
+    name: string;
+    version: string;
+  };
+  collectionIds?: string[];
+  samples: EvalJudgeSampleReport[];
+  aggregate: EvalJudgeAggregateReport;
+}
+
+/** POST /eval/from-traces：用已落盘的 ask 轨迹对照 golden 打分，不再跑 pipeline。 */
+export interface EvalFromTracesRequest {
+  dataset: unknown;
+  /** 指定轨迹；省略则用当前内存中的 ask traces（JSONL 启动加载，最多 100 条）。 */
+  traceIds?: string[];
+  collectionId?: string;
+  layer?: 'retrieved' | 'selected';
+  k?: number[];
+  /** 有完整 answer 时是否跑生成 judge；默认 true。缺快照的旧轨迹仍跳过 judge。 */
+  includeJudge?: boolean;
+}
+
+export interface EvalFromTracesRetrievalSampleReport extends EvalSampleScoreReport {
+  traceId: string;
+}
+
+export interface EvalFromTracesJudgeSampleReport extends EvalJudgeSampleReport {
+  traceId: string;
+}
+
+export interface EvalFromTracesReport {
+  dataset: {
+    name: string;
+    version: string;
+  };
+  layer: 'retrieved' | 'selected';
+  collectionId?: string;
+  matchedSampleCount: number;
+  unmatchedSampleIds: string[];
+  skippedJudgeSampleIds: string[];
+  retrieval: {
+    samples: EvalFromTracesRetrievalSampleReport[];
+    aggregate: EvalAggregateReport;
+  };
+  judge?: {
+    samples: EvalFromTracesJudgeSampleReport[];
+    aggregate: EvalJudgeAggregateReport;
+  };
 }
 
 export interface IngestDocumentInput {

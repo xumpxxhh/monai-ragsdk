@@ -4,10 +4,12 @@ import type { Runtime } from '@monai-ragsdk/runtime';
 import type { Request, Response } from 'express';
 
 import { mapCitations } from '../mappers/dto.js';
-import type { StrategyConfig } from '../types/api.js';
+import { toAskEvalSnapshot } from '../mappers/ask-eval-snapshot.js';
+import { toPipelineSnapshot } from '../mappers/pipeline-snapshot.js';
+import type { AskEvalSnapshot, PipelineSnapshot, StrategyConfig } from '../types/api.js';
 import { recordAskTrace } from './activity-store.js';
 import { recordAskActivity } from './collection-registry.js';
-import { getObserverTrace } from './shared-stack.js';
+import { getObserverTrace, subscribeObserver } from './shared-stack.js';
 import type { CollectionRecord } from './state-store.js';
 
 export type AskStreamContext = {
@@ -46,18 +48,41 @@ export async function streamAskResponse(
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders?.();
 
-  const send = (payload: unknown) => {
-    res.write(`data: ${JSON.stringify(payload)}\n\n`);
-  };
-
   let aborted = false;
   req.on('close', () => {
     aborted = true;
   });
 
+  const send = (payload: unknown) => {
+    if (aborted) {
+      return;
+    }
+    try {
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+      // 尽快冲出缓冲，让管理员右侧能同步看到事件
+      (res as Response & { flush?: () => void }).flush?.();
+    } catch {
+      // 客户端已断开时 write 可能抛错；不拖死 runtime
+    }
+  };
+
+  send({ type: 'meta', traceId: requestId });
+
+  // 在 runStream 前订阅，把本轮 observer 事件实时推到 SSE
+  const unsubscribe = subscribeObserver(requestId, {
+    onEvent(event) {
+      send({ type: 'observer', event });
+    },
+    onError(error) {
+      send({ type: 'observer-error', error });
+    },
+  });
+
   const startedAt = Date.now();
   let citationCount = 0;
   let effectiveQuestion: string | undefined;
+  let pipeline: PipelineSnapshot | undefined;
+  let evalSnapshot: AskEvalSnapshot | undefined;
   let success = true;
   const stages: { id: string; label: string; durationMs?: number }[] = [];
 
@@ -85,18 +110,29 @@ export async function streamAskResponse(
         send({ type: 'token', content: event.text });
       }
       if (event.type === 'result') {
+        // 优先读包装器写入的拒答标记；fallback 兼容未包装路径
+        const refused = event.result.generationMetadata?.groundingRefusal === true;
         const empty = event.result.chunks.length === 0;
-        const noGrounding = empty && strategy.generation.noGroundingPolicy === 'explicit';
+        const noGrounding =
+          refused || (empty && strategy.generation.noGroundingPolicy === 'explicit');
         effectiveQuestion =
           event.result.effectiveQuery.query !== question
             ? event.result.effectiveQuery.query
             : undefined;
         if (effectiveQuestion) {
-          send({ type: 'meta', effectiveQuery: effectiveQuestion });
+          send({ type: 'meta', traceId: requestId, effectiveQuery: effectiveQuestion });
         }
         const citations = noGrounding ? [] : mapCitations(event.result);
         citationCount = citations.length;
-        send({ type: 'result', citations, noGrounding });
+        pipeline = toPipelineSnapshot(event.result, { citationCount });
+        evalSnapshot = toAskEvalSnapshot(event.result);
+        send({
+          type: 'result',
+          traceId: requestId,
+          citations,
+          noGrounding,
+          pipeline,
+        });
 
         const timings = event.result.debug?.timings ?? {};
         for (const [id, durationMs] of Object.entries(timings)) {
@@ -110,6 +146,14 @@ export async function streamAskResponse(
     if (!aborted) {
       send({ type: 'error', message });
     }
+  } finally {
+    unsubscribe();
+  }
+
+  // 结束后再附完整 executionTrace，防止 live 推送漏事件
+  const executionTrace = getObserverTrace(requestId);
+  if (!aborted && executionTrace) {
+    send({ type: 'execution-trace', executionTrace });
   }
 
   if (!aborted) {
@@ -119,7 +163,6 @@ export async function streamAskResponse(
   res.end();
 
   recordAskActivity({ collectionId, collectionName, question, citationCount });
-  const executionTrace = getObserverTrace(requestId);
   await recordAskTrace({
     id: requestId,
     collectionId,
@@ -132,6 +175,8 @@ export async function streamAskResponse(
     citationCount,
     stages,
     warnings: success ? [] : ['问答执行失败'],
+    ...(pipeline ? { pipeline, traceId: requestId } : {}),
+    ...(evalSnapshot ? { evalSnapshot } : {}),
     ...(executionTrace ? { executionTrace } : {}),
   });
 }
