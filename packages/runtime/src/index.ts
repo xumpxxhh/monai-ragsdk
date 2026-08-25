@@ -72,6 +72,16 @@ export * from './stages/post-retrieval/strategies/context-compression-strategy.j
 
 export type { RuntimeGenerator } from './stages/generation/runtime-generator.js';
 export { resolveGenerationGrounding } from './stages/generation/resolve-generation-grounding.js';
+export {
+  resolveGroundingPolicyAction,
+  type GroundingPolicyAction,
+  type GroundingPolicyMessages,
+  type NoGroundingPolicy,
+} from './stages/generation/grounding-policy.js';
+export {
+  createGroundingPolicyRuntimeGenerator,
+  type CreateGroundingPolicyRuntimeGeneratorOptions,
+} from './stages/generation/create-grounding-policy-runtime-generator.js';
 
 export * from './collection/index.js';
 

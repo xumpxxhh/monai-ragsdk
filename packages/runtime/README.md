@@ -11,7 +11,7 @@
 ## 依赖
 
 - workspace：`core`、`observability`、`indexing`
-- 被谁用：`adapters`（实现 `RuntimeRetriever` / `RuntimeGenerator` / `RuntimeStrategyModel`）、`apps/cli`、`apps/example`、`apps/server`
+- 被谁用：`adapters`（实现 `RuntimeRetriever` / `RuntimeGenerator` / `RuntimeStrategyModel`）、`apps/example`、`apps/server`
 
 依赖 `indexing` 的原因：`createCollection().ingest()` 调用 `runIndexing`；另外提供 indexing 查询协议（按 sourceId / fingerprint / hierarchy 过滤候选）。不是误引。
 
@@ -167,15 +167,25 @@ postRetrieval: {
 
 ## 4. Generation（生成）
 
-职责：根据 chunks 生成答案。**没有策略层。** 接口是 `generate` / 可选 `generateStream`。厂商实现放 adapters（如 `OpenAIRuntimeGenerator`）。
+职责：根据 chunks 生成答案。**没有完整 GenerationStrategy 链。** 接口是 `generate` / 可选 `generateStream`。厂商实现放 adapters（如 `OpenAIRuntimeGenerator`）。
 
-`RuntimeGeneratorInput.grounding` 仅在 `chunks.length === 0` 时出现，让策略可表达「为何没有依据」；内置 generator **不改拒答策略**：
+`RuntimeGeneratorInput.grounding` 仅在 `chunks.length === 0` 时出现。产品拒答 / 泛化用官方包装器：
 
-| `chunksEmptyReason` | 含义                | runtime 会不会写                                                  |
-| ------------------- | ------------------- | ----------------------------------------------------------------- |
-| `no-hits`           | 检索 0 条           | 会                                                                |
-| `filtered`          | 检索有条、post 滤光 | 会                                                                |
-| `skipped`           | 主动跳过检索        | 会（`retrievalMode: skip` 或 FanOut `retrievalMetadata.skipped`） |
+```ts
+import { createGroundingPolicyRuntimeGenerator } from '@monai-ragsdk/runtime';
+
+const generator = createGroundingPolicyRuntimeGenerator(vendorGenerator, {
+  policy: 'explicit', // 或 'generalize'
+});
+```
+
+| `chunksEmptyReason` | `explicit` | `generalize` |
+| ------------------- | ---------- | ------------ |
+| `no-hits` / `filtered` | 模板拒答，不调 inner | 注入 prompt 后调 LLM |
+| `skipped` | 调 LLM（豁免 explicit） | 调 LLM |
+| 有 chunks | 正常 grounded | 正常 grounded |
+
+厂商 generator 可继续忽略 `grounding`；装配时包一层即可。
 
 `run()` 允许空字符串答案；`runStream()` 对空答案抛错。这是刻意历史分叉，尚未统一。
 

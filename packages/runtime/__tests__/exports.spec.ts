@@ -47,6 +47,8 @@ describe('runtime export surface', () => {
     expect(distExports.createContextCompressionStrategy).toBeDefined();
     expect(distExports.applyRetrievalTopKAlias).toBeDefined();
     expect(distExports.resolveGenerationGrounding).toBeDefined();
+    expect(distExports.resolveGroundingPolicyAction).toBeDefined();
+    expect(distExports.createGroundingPolicyRuntimeGenerator).toBeDefined();
     expect(distExports.createRuntimeFromConfig).toBeDefined();
     expect(distExports.assemblePostRetrievalStrategies).toBeDefined();
     expect(distExports.createRuntime).toBeDefined();
