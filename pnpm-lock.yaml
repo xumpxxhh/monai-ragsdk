@@ -79,40 +79,6 @@ importers:
         specifier: ^4.1.4
         version: 4.1.10(@types/node@25.9.5)(jsdom@26.1.0)(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.12)(yaml@2.9.0))
 
-  apps/cli:
-    dependencies:
-      '@langchain/classic':
-        specifier: 'catalog:'
-        version: 1.0.43(@langchain/core@1.2.8(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3))(cheerio@1.2.0)(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3)
-      '@monai-ragsdk/adapters':
-        specifier: workspace:*
-        version: link:../../packages/adapters
-      '@monai-ragsdk/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@monai-ragsdk/indexing':
-        specifier: workspace:*
-        version: link:../../packages/indexing
-      '@monai-ragsdk/observability':
-        specifier: workspace:*
-        version: link:../../packages/observability
-      '@monai-ragsdk/runtime':
-        specifier: workspace:*
-        version: link:../../packages/runtime
-      zod:
-        specifier: 'catalog:'
-        version: 4.4.3
-    devDependencies:
-      '@types/node':
-        specifier: ^25.6.0
-        version: 25.9.5
-      tsx:
-        specifier: ^4.21.0
-        version: 4.23.12
-      typescript:
-        specifier: ^6.0.2
-        version: 6.0.3
-
   apps/example:
     dependencies:
       '@monai-ragsdk/adapters':
@@ -146,6 +112,9 @@ importers:
       '@monai-ragsdk/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@monai-ragsdk/eval':
+        specifier: workspace:*
+        version: link:../../packages/eval
       '@monai-ragsdk/indexing':
         specifier: workspace:*
         version: link:../../packages/indexing
@@ -183,6 +152,9 @@ importers:
       typescript:
         specifier: ^6.0.2
         version: 6.0.3
+      vitest:
+        specifier: ^4.1.4
+        version: 4.1.10(@types/node@25.9.5)(jsdom@26.1.0)(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.12)(yaml@2.9.0))
 
   apps/web:
     dependencies:
@@ -323,10 +295,20 @@ importers:
         version: 4.1.10(@types/node@25.9.5)(jsdom@26.1.0)(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/eval:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
     devDependencies:
+      tsx:
+        specifier: ^4.21.0
+        version: 4.23.12
       typescript:
         specifier: ^6.0.2
         version: 6.0.3
+      vitest:
+        specifier: ^4.1.4
+        version: 4.1.10(@types/node@25.9.5)(jsdom@26.1.0)(vite@8.2.1(@types/node@25.9.5)(esbuild@0.28.2)(jiti@1.21.7)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/indexing:
     dependencies:
@@ -5048,30 +5030,6 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/classic@1.0.43(@langchain/core@1.2.8(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3))(cheerio@1.2.0)(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3)':
-    dependencies:
-      '@langchain/core': 1.2.8(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3)
-      '@langchain/openai': 1.5.8(@langchain/core@1.2.8(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3))(ws@8.21.3)
-      '@langchain/textsplitters': 1.0.1(@langchain/core@1.2.8(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3))
-      handlebars: 4.7.9
-      js-yaml: 5.3.0
-      jsonpointer: 5.0.1
-      openapi-types: 12.1.3
-      yaml: 2.9.0
-      zod: 4.4.3
-    optionalDependencies:
-      cheerio: 1.2.0
-      langsmith: 0.8.11(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3)
-    transitivePeerDependencies:
-      - '@aws-sdk/credential-provider-node'
-      - '@opentelemetry/api'
-      - '@opentelemetry/exporter-trace-otlp-proto'
-      - '@opentelemetry/sdk-trace-base'
-      - '@smithy/hash-node'
-      - '@smithy/signature-v4'
-      - openai
-      - ws
-
   '@langchain/community@1.1.29(@browserbasehq/sdk@2.18.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.62.1)(deepmerge@4.3.1)(dotenv@16.4.5)(openai@4.104.0(ws@8.21.3)(zod@4.4.3))(zod@4.4.3))(@ibm-cloud/watsonx-ai@1.7.16)(@langchain/core@1.2.8(openai@4.104.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3))(cheerio@1.2.0)(chromadb@3.5.0)(ibm-cloud-sdk-core@5.6.0)(ignore@7.0.6)(jsdom@26.1.0)(jsonwebtoken@9.0.3)(openai@4.104.0(ws@8.21.3)(zod@4.4.3))(pdf-parse@1.1.4)(pg@8.23.0)(playwright@1.62.1)(ws@8.21.3)':
     dependencies:
       '@browserbasehq/stagehand': 1.14.0(@playwright/test@1.62.1)(deepmerge@4.3.1)(dotenv@16.4.5)(openai@4.104.0(ws@8.21.3)(zod@4.4.3))(zod@4.4.3)
@@ -5150,26 +5108,9 @@ snapshots:
       - '@smithy/signature-v4'
       - ws
 
-  '@langchain/openai@1.5.8(@langchain/core@1.2.8(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3))(ws@8.21.3)':
-    dependencies:
-      '@langchain/core': 1.2.8(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3)
-      js-tiktoken: 1.0.21
-      openai: 6.49.0(ws@8.21.3)(zod@4.4.3)
-      zod: 4.4.3
-    transitivePeerDependencies:
-      - '@aws-sdk/credential-provider-node'
-      - '@smithy/hash-node'
-      - '@smithy/signature-v4'
-      - ws
-
   '@langchain/textsplitters@1.0.1(@langchain/core@1.2.8(openai@4.104.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3))':
     dependencies:
       '@langchain/core': 1.2.8(openai@4.104.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3)
-      js-tiktoken: 1.0.21
-
-  '@langchain/textsplitters@1.0.1(@langchain/core@1.2.8(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3))':
-    dependencies:
-      '@langchain/core': 1.2.8(openai@7.5.0(ws@8.21.3)(zod@4.4.3))(ws@8.21.3)
       js-tiktoken: 1.0.21
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
@@ -7008,7 +6949,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.18.0)
+      retry-axios: 2.6.0(axios@1.18.0(debug@4.3.4))
       tough-cookie: 4.1.3
     transitivePeerDependencies:
       - supports-color
@@ -7860,7 +7801,7 @@ snapshots:
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
 
-  retry-axios@2.6.0(axios@1.18.0):
+  retry-axios@2.6.0(axios@1.18.0(debug@4.3.4)):
     dependencies:
       axios: 1.18.0(debug@4.3.4)
 
