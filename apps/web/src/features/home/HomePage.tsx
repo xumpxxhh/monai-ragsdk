@@ -2,19 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, CheckCircle, FileText, MessageCircle, TriangleAlert } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { listActivities } from '@/shared/api/observe';
+import { getStrategy, presetLabels } from '@/shared/api/strategy';
 import { useAppContext } from '@/shared/hooks/useAppContext';
+import { PipelineStageBar } from '@/features/strategy/PipelineStageBar';
 import { Button } from '@/shared/ui/Button';
 import { Card, PageHeader } from '@/shared/ui';
 import { IngestStatsChips } from '@/shared/ui/Badge';
 import { Input } from '@/shared/ui/form';
 import { formatDateTime, formatRelativeTime } from '@/shared/utils';
-import type { ActivityItem } from '@/shared/types';
+import type { ActivityItem, StrategyConfig } from '@/shared/types';
 
 export default function HomePage() {
   const navigate = useNavigate();
   const { collections, isAdmin, preferences, updatePreferences } = useAppContext();
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [question, setQuestion] = useState('');
+  const [strategy, setStrategy] = useState<StrategyConfig | null>(null);
 
   const stats = useMemo(() => {
     const documentCount = collections.reduce((sum, item) => sum + item.documentCount, 0);
@@ -35,8 +38,17 @@ export default function HomePage() {
   }, [collections]);
 
   useEffect(() => {
+    if (!isAdmin) {
+      navigate('/ask', { replace: true });
+    }
+  }, [isAdmin, navigate]);
+
+  useEffect(() => {
     void listActivities().then(setActivities);
-  }, []);
+    if (isAdmin) {
+      void getStrategy().then(setStrategy);
+    }
+  }, [isAdmin]);
 
   const handleAsk = () => {
     const q = question.trim();
@@ -78,6 +90,25 @@ export default function HomePage() {
           </Button>
         </div>
       </section>
+
+      {isAdmin && strategy ? (
+        <Card className="mb-6 p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="font-medium">当前装配</h2>
+              <p className="mt-0.5 text-xs text-muted">
+                预设 {presetLabels[strategy.preset]} · 作用于全部 ask / search
+              </p>
+            </div>
+            <Link to="/strategy">
+              <Button variant="secondary" size="sm">
+                编辑装配
+              </Button>
+            </Link>
+          </div>
+          <PipelineStageBar config={strategy} className="border-none bg-canvas/40 px-0" />
+        </Card>
+      ) : null}
 
       {isAdmin && preferences.showHealthCards ? (
         <div className="mb-6 grid gap-4 md:grid-cols-3">

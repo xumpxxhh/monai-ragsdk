@@ -111,19 +111,23 @@ export default function SettingsPage() {
 
       {isAdmin ? (
         <Card className="p-5">
-          <h2 className="mb-1 font-medium">全局检索策略</h2>
+          <h2 className="mb-1 font-medium">运行时装配</h2>
           <p className="mb-4 text-xs text-muted">
-            当前预设：{globalPresetLabel ?? '加载中…'}。修改后影响全部问答与检索。
+            当前预设：{globalPresetLabel ?? '加载中…'}。四段装配作用于全部问答与检索，不按单库分别配置。
           </p>
           <Link to="/strategy" className="text-sm text-brand hover:underline">
-            打开策略配置 →
+            打开运行时装配 →
+          </Link>
+          <span className="mx-2 text-muted">·</span>
+          <Link to="/eval" className="text-sm text-brand hover:underline">
+            打开评测 →
           </Link>
         </Card>
       ) : null}
 
       <Card className="p-5">
-        <h2 className="mb-4 font-medium">连接与模型</h2>
-        <p className="mb-4 text-xs text-muted">由部署环境注入，页面不收集密钥明文。</p>
+        <h2 className="mb-1 font-medium">Adapters 连接</h2>
+        <p className="mb-4 text-xs text-muted">Embedding / Chat / 向量库由部署环境注入，页面不收集密钥。</p>
         {connection ? (
           <dl className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
@@ -133,13 +137,13 @@ export default function SettingsPage() {
               </dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted">Chat 模型</dt>
+              <dt className="text-muted">Chat</dt>
               <dd>
                 <ConnectionBadge status={connection.chat} />
               </dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted">向量存储</dt>
+              <dt className="text-muted">向量库（pgvector）</dt>
               <dd>
                 <ConnectionBadge status={connection.vectorStore} />
               </dd>

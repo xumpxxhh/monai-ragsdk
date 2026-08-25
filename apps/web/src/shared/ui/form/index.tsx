@@ -1,5 +1,5 @@
 import { cn } from '@/shared/utils';
-import type { InputHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, ReactNode } from 'react';
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
@@ -68,7 +68,7 @@ export function Field({ label, error, children, htmlFor }: FieldProps) {
 interface SwitchRowProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
-  label: string;
+  label: ReactNode;
   description?: string;
   disabled?: boolean;
 }

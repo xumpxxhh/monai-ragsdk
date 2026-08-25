@@ -18,10 +18,12 @@ const EVENT_LABELS: Partial<Record<RAGEventName, string>> = {
 const STAGE_LABELS: Record<string, string> = {
   'pre-retrieval': '查询预处理',
   pre_retrieval: '查询预处理',
+  preRetrieval: '查询预处理',
   query: '查询',
   retrieval: '检索',
   'post-retrieval': '后处理',
   post_retrieval: '后处理',
+  postRetrieval: '后处理',
   generation: '生成',
   run: '运行',
   total: '总计',

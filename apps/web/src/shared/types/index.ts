@@ -48,6 +48,11 @@ export interface DocumentSource {
   failReason?: string;
 }
 
+/** 单文档详情：含入库时登记的原始文本。 */
+export interface DocumentDetail extends DocumentSource {
+  content: string;
+}
+
 export interface CreateCollectionInput {
   name: string;
   description?: string;
@@ -90,6 +95,8 @@ export interface AskMessage {
   effectiveQuery?: string;
   interrupted?: boolean;
   noGrounding?: boolean;
+  pipeline?: PipelineSnapshot;
+  traceId?: string;
 }
 
 export interface SearchHit {
@@ -100,11 +107,65 @@ export interface SearchHit {
   snippet: string;
 }
 
+export interface PipelineSnapshotPreRetrieval {
+  originalQuery: string;
+  effectiveQuery: string;
+  subQueries?: string[];
+  strategies?: string[];
+  rewriteReason?: string;
+}
+
+export interface PipelineSnapshotRetrieval {
+  retrieved?: number;
+  skipped?: boolean;
+  skipReason?: string;
+  retrieverCount?: number;
+  fusedCandidateCount?: number;
+  strategies?: string[];
+}
+
+export interface PipelineSnapshotPostRetrieval {
+  selected?: number;
+  dropped?: number;
+  finalChunks?: number;
+  strategies?: string[];
+}
+
+export interface PipelineSnapshotGeneration {
+  citationCount: number;
+  groundingRefusal?: boolean;
+  chunksEmptyReason?: string;
+  noGroundingPolicy?: 'explicit' | 'generalize';
+  strategies?: string[];
+}
+
+export interface PipelineSnapshotTimings {
+  preRetrieval?: number;
+  retrieval?: number;
+  postRetrieval?: number;
+  generation?: number;
+  total?: number;
+}
+
+/** 一次 ask / search 的四段 runtime 摘要，供管理员检查面与观测详情复用。 */
+export interface PipelineSnapshot {
+  traceId: string;
+  preRetrieval: PipelineSnapshotPreRetrieval;
+  retrieval: PipelineSnapshotRetrieval;
+  postRetrieval: PipelineSnapshotPostRetrieval;
+  generation?: PipelineSnapshotGeneration;
+  timings?: PipelineSnapshotTimings;
+}
+
 export interface SearchResult {
   query: string;
   effectiveQuery?: string;
   hits: SearchHit[];
   appliedFilters: string[];
+  traceId: string;
+  pipeline: PipelineSnapshot;
+  /** observer 全链路；与 ask SSE execution-trace / 观测详情同源。 */
+  executionTrace?: RAGTrace;
 }
 
 export interface StrategyConfig {
@@ -207,7 +268,16 @@ export interface AskTrace {
   citationCount: number;
   stages: TraceStage[];
   warnings: string[];
+  pipeline?: PipelineSnapshot;
+  traceId?: string;
   executionTrace?: RAGTrace;
+  /** 在线抽样快照；缺省时只能回退 observer（无完整 answer / sourceId）。 */
+  evalSnapshot?: {
+    answer: string;
+    refused: boolean;
+    retrieved: Array<{ chunkId: string; sourceId?: string; score?: number; rank: number }>;
+    selected: Array<{ chunkId: string; sourceId?: string; text: string }>;
+  };
 }
 
 export interface IngestTaskTrace {
@@ -277,6 +347,149 @@ export interface GlobalSearchRequest {
   query: string;
   topK?: number;
   collectionIds?: string[];
+}
+
+export type EvalMetricLayer = 'retrieved' | 'selected';
+
+export interface EvalMetricsAtK {
+  k: number;
+  recall: number;
+  precision: number;
+  hitRate: number;
+  ndcg: number;
+}
+
+export interface EvalSampleScoreReport {
+  sampleId: string;
+  query: string;
+  layer: EvalMetricLayer;
+  coverage: number;
+  unscorable: boolean;
+  mrr: number;
+  atK: EvalMetricsAtK[];
+}
+
+export interface EvalAggregateReport {
+  layer: EvalMetricLayer;
+  scoredSampleCount: number;
+  unscorableSampleCount: number;
+  unscorableSampleIds: string[];
+  meanMrr: number;
+  meanAtK: EvalMetricsAtK[];
+}
+
+export interface EvalRunReport {
+  label?: string;
+  dataset: { name: string; version: string };
+  layer: EvalMetricLayer;
+  topK: number;
+  collectionIds?: string[];
+  samples: EvalSampleScoreReport[];
+  aggregate: EvalAggregateReport;
+}
+
+export type EvalSampleDiffVerdict = 'improved' | 'regressed' | 'unchanged' | 'incomparable';
+
+export interface EvalMetricsAtKDelta {
+  k: number;
+  recallDelta: number | null;
+  precisionDelta: number | null;
+  hitRateDelta: number | null;
+  ndcgDelta: number | null;
+}
+
+export interface EvalSampleDiffReport {
+  sampleId: string;
+  verdict: EvalSampleDiffVerdict;
+  baseline: EvalSampleScoreReport;
+  candidate: EvalSampleScoreReport;
+  mrrDelta: number | null;
+  atKDelta: EvalMetricsAtKDelta[];
+}
+
+export interface EvalDiffReport {
+  baselineLabel: string;
+  candidateLabel: string;
+  primaryK: number;
+  aggregateDelta: {
+    meanMrrDelta: number;
+    meanAtKDelta: EvalMetricsAtKDelta[];
+    scoredSampleCountDelta: number;
+    unscorableSampleCountDelta: number;
+  };
+  sampleDiffs: EvalSampleDiffReport[];
+  improvedSampleIds: string[];
+  regressedSampleIds: string[];
+  unchangedSampleIds: string[];
+  incomparableSampleIds: string[];
+}
+
+export interface EvalCompareReport {
+  dataset: { name: string; version: string };
+  layer: EvalMetricLayer;
+  topK: number;
+  primaryK: number;
+  collectionIds?: string[];
+  baseline: EvalRunReport;
+  candidate: EvalRunReport;
+  diff: EvalDiffReport;
+}
+
+export interface EvalJudgeSampleReport {
+  sampleId: string;
+  query: string;
+  answer: string;
+  refused: boolean;
+  faithfulness: number | null;
+  relevance: number | null;
+  refusalCorrectness: number | null;
+  unscorable: boolean;
+  rationale?: string;
+  parseError?: string;
+}
+
+export interface EvalJudgeAggregateReport {
+  scoredSampleCount: number;
+  unscorableSampleCount: number;
+  unscorableSampleIds: string[];
+  meanFaithfulness: number | null;
+  meanRelevance: number | null;
+  meanRefusalCorrectness: number | null;
+  faithfulnessSampleCount: number;
+  relevanceSampleCount: number;
+  refusalSampleCount: number;
+}
+
+export interface EvalJudgeReport {
+  dataset: { name: string; version: string };
+  collectionIds?: string[];
+  samples: EvalJudgeSampleReport[];
+  aggregate: EvalJudgeAggregateReport;
+}
+
+export interface EvalFromTracesRetrievalSampleReport extends EvalSampleScoreReport {
+  traceId: string;
+}
+
+export interface EvalFromTracesJudgeSampleReport extends EvalJudgeSampleReport {
+  traceId: string;
+}
+
+export interface EvalFromTracesReport {
+  dataset: { name: string; version: string };
+  layer: EvalMetricLayer;
+  collectionId?: string;
+  matchedSampleCount: number;
+  unmatchedSampleIds: string[];
+  skippedJudgeSampleIds: string[];
+  retrieval: {
+    samples: EvalFromTracesRetrievalSampleReport[];
+    aggregate: EvalAggregateReport;
+  };
+  judge?: {
+    samples: EvalFromTracesJudgeSampleReport[];
+    aggregate: EvalJudgeAggregateReport;
+  };
 }
 
 export interface IngestDocumentInput {

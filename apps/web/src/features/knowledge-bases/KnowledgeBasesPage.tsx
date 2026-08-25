@@ -70,8 +70,8 @@ export default function KnowledgeBasesPage() {
         title="知识库"
         description={
           globalPresetLabel
-            ? `每个库对应一套入库闭环；全局检索策略：${globalPresetLabel}`
-            : '每个库对应一套入库、检索与问答闭环'
+            ? `Collection 是门面：入库走 indexing（load → chunk → embed → upsert），问答走全局 runtime。当前装配预设：${globalPresetLabel}`
+            : 'Collection 是门面：入库走 indexing，问答走全局 runtime（在线策略全局统一，不按单库分别配置）'
         }
         actions={
           <>
@@ -84,6 +84,9 @@ export default function KnowledgeBasesPage() {
                 className="w-48 pl-9"
               />
             </div>
+            <Link to="/strategy">
+              <Button variant="secondary">运行时装配</Button>
+            </Link>
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" /> 新建库
             </Button>
@@ -110,7 +113,7 @@ export default function KnowledgeBasesPage() {
               <Link to={`/knowledge-bases/${kb.id}/documents`} className="flex-1">
                 <Button className="w-full">进入</Button>
               </Link>
-              <Link to="/ask" className="flex-1">
+              <Link to={`/ask?collectionIds=${encodeURIComponent(kb.id)}`} className="flex-1">
                 <Button variant="secondary" className="w-full">
                   问答
                 </Button>

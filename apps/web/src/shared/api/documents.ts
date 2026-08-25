@@ -2,6 +2,7 @@ import { apiDelete, apiGet, apiPost, apiPostSse } from '@/shared/api/http';
 import type {
   AskMessage,
   ChunkingConfig,
+  DocumentDetail,
   DocumentSource,
   GlobalAskRequest,
   GlobalSearchRequest,
@@ -10,6 +11,10 @@ import type {
   IngestRecommendation,
   LastIngestSummary,
   Paginated,
+  PipelineSnapshot,
+  RAGErrorRecord,
+  RAGEvent,
+  RAGTrace,
   SearchResult,
 } from '@/shared/types';
 import { delay } from '@/shared/utils';
@@ -31,6 +36,14 @@ export async function listDocuments(
   params?: { q?: string; status?: string; page?: number; pageSize?: number },
 ): Promise<Paginated<DocumentSource>> {
   return apiGet<Paginated<DocumentSource>>(`/collections/${collectionId}/documents`, params);
+}
+
+/** 拉取单文档详情（含入库原文）；列表接口不含 content。 */
+export async function getDocument(
+  collectionId: string,
+  documentId: string,
+): Promise<DocumentDetail> {
+  return apiGet<DocumentDetail>(`/collections/${collectionId}/documents/${documentId}`);
 }
 
 export async function getLastIngest(collectionId: string): Promise<LastIngestSummary | null> {
@@ -137,13 +150,21 @@ export interface AskStreamResult {
   stream: AsyncGenerator<string>;
   effectiveQuery?: string;
   citations?: AskMessage['citations'];
+  pipeline?: PipelineSnapshot;
+  traceId?: string;
+  executionTrace?: RAGTrace;
 }
 
-/** 消费服务端 ask SSE：token 为 delta，前端累加后再 yield。 */
+/** 消费服务端 ask SSE：token 为 delta，前端累加后再 yield；observer 经回调实时回填。 */
 export async function askStream(input: {
   question: string;
   collectionIds?: string[];
   signal?: AbortSignal;
+  onObserverEvent?: (event: RAGEvent) => void;
+  onObserverError?: (error: RAGErrorRecord) => void;
+  onExecutionTrace?: (trace: RAGTrace) => void;
+  /** 流开始 meta 即带 traceId，便于右侧尽早链到观测。 */
+  onTraceId?: (traceId: string) => void;
 }): Promise<AskStreamResult> {
   const body: GlobalAskRequest = { question: input.question };
   if (input.collectionIds && input.collectionIds.length > 0) {
@@ -154,17 +175,44 @@ export async function askStream(input: {
     type: string;
     content?: string;
     effectiveQuery?: string;
+    traceId?: string;
     citations?: AskMessage['citations'];
     noGrounding?: boolean;
+    pipeline?: PipelineSnapshot;
+    event?: RAGEvent;
+    error?: RAGErrorRecord;
+    executionTrace?: RAGTrace;
   }>('/ask', body, input.signal);
 
-  const holder: { effectiveQuery?: string; citations?: AskMessage['citations'] } = {};
+  const holder: {
+    effectiveQuery?: string;
+    citations?: AskMessage['citations'];
+    pipeline?: PipelineSnapshot;
+    traceId?: string;
+    executionTrace?: RAGTrace;
+  } = {};
 
   async function* streamFromSse(): AsyncGenerator<string> {
     let accumulated = '';
     for await (const event of events) {
-      if (event.type === 'meta' && event.effectiveQuery) {
-        holder.effectiveQuery = event.effectiveQuery;
+      if (event.type === 'meta') {
+        if (event.effectiveQuery) {
+          holder.effectiveQuery = event.effectiveQuery;
+        }
+        if (event.traceId) {
+          holder.traceId = event.traceId;
+          input.onTraceId?.(event.traceId);
+        }
+      }
+      if (event.type === 'observer' && event.event) {
+        input.onObserverEvent?.(event.event);
+      }
+      if (event.type === 'observer-error' && event.error) {
+        input.onObserverError?.(event.error);
+      }
+      if (event.type === 'execution-trace' && event.executionTrace) {
+        holder.executionTrace = event.executionTrace;
+        input.onExecutionTrace?.(event.executionTrace);
       }
       if (event.type === 'token' && event.content) {
         accumulated += event.content;
@@ -176,6 +224,12 @@ export async function askStream(input: {
         }
         if (event.citations) {
           holder.citations = event.citations;
+        }
+        if (event.pipeline) {
+          holder.pipeline = event.pipeline;
+        }
+        if (event.traceId) {
+          holder.traceId = event.traceId;
         }
         if (event.noGrounding) {
           yield '__NO_GROUNDING__';
@@ -191,6 +245,15 @@ export async function askStream(input: {
     },
     get citations() {
       return holder.citations;
+    },
+    get pipeline() {
+      return holder.pipeline;
+    },
+    get traceId() {
+      return holder.traceId;
+    },
+    get executionTrace() {
+      return holder.executionTrace;
     },
   };
 }

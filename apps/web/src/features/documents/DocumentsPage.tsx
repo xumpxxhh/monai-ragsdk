@@ -12,6 +12,7 @@ import {
   subscribeDocumentsChanged,
 } from '@/shared/api/documents';
 import { IngestConfigModal, loaderLabel } from '@/features/documents/IngestConfigModal';
+import { DocumentContentModal } from '@/features/documents/DocumentContentModal';
 import { useIsAdmin } from '@/shared/hooks/useAppContext';
 import { useDebouncedValue } from '@/shared/hooks/useDebouncedValue';
 import { Button } from '@/shared/ui/Button';
@@ -81,6 +82,7 @@ export default function DocumentsPage() {
   const [ingestOpen, setIngestOpen] = useState(false);
   const [ingestProgress, setIngestProgress] = useState<IngestProgressEvent | null>(null);
   const [comingSoon, setComingSoon] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<DocumentSource | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -210,17 +212,17 @@ export default function DocumentsPage() {
         <div className="flex items-center gap-2 text-sm">
           <Link to="/strategy">
             <Button variant="secondary" size="sm">
-              全局策略
+              运行时装配
             </Button>
           </Link>
           {isAdmin ? (
-            <Link to="/search-debug">
+            <Link to={`/ask?mode=search&collectionIds=${encodeURIComponent(collection.id)}`}>
               <Button variant="secondary" size="sm">
-                仅检索调试
+                仅检索
               </Button>
             </Link>
           ) : null}
-          <Link to="/ask">
+          <Link to={`/ask?collectionIds=${encodeURIComponent(collection.id)}`}>
             <Button size="sm">去问答</Button>
           </Link>
         </div>
@@ -249,6 +251,9 @@ export default function DocumentsPage() {
         </div>
 
         <Card className="flex-1 p-4">
+          <p className="mb-3 text-xs text-muted">
+            离线 indexing：load → chunk → embed → upsert（增量模式会 skip / replace 未变化文档）
+          </p>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm">
               上次入库：
@@ -306,7 +311,15 @@ export default function DocumentsPage() {
             {documents.map((doc) => (
               <tr key={doc.id}>
                 <td className="px-4 py-3 font-mono text-xs">{doc.sourceId}</td>
-                <td className="px-4 py-3">{doc.title}</td>
+                <td className="px-4 py-3">
+                  <button
+                    type="button"
+                    className="text-left text-brand hover:underline"
+                    onClick={() => setPreviewDoc(doc)}
+                  >
+                    {doc.title}
+                  </button>
+                </td>
                 <td className="px-4 py-3">
                   <DocStatusBadge status={doc.status} />
                   {doc.failReason ? (
@@ -316,6 +329,13 @@ export default function DocumentsPage() {
                 <td className="px-4 py-3 text-muted">{formatDateTime(doc.updatedAt)}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2 text-xs">
+                    <button
+                      type="button"
+                      className="text-brand hover:underline"
+                      onClick={() => setPreviewDoc(doc)}
+                    >
+                      查看原文
+                    </button>
                     {doc.status === 'failed' ? (
                       <button
                         type="button"
@@ -389,6 +409,15 @@ export default function DocumentsPage() {
           </div>
         </div>
       ) : null}
+
+      <DocumentContentModal
+        open={previewDoc !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewDoc(null);
+        }}
+        collectionId={id}
+        document={previewDoc}
+      />
 
       <ComingSoonModal
         open={comingSoon !== null}

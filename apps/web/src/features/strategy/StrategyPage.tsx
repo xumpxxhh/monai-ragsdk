@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   applyPreset,
   getStrategy,
@@ -8,17 +8,27 @@ import {
   resetStrategyDefaults,
   saveStrategy,
 } from '@/shared/api/strategy';
+import { useAppContext } from '@/shared/hooks/useAppContext';
 import { Button } from '@/shared/ui/Button';
-import { Card, ComingSoonModal, PageHeader } from '@/shared/ui';
+import { Card, PageHeader } from '@/shared/ui';
 import { Input, SelectNative, SwitchRow } from '@/shared/ui/form';
 import { toast } from '@/shared/ui/Toast';
 import type { StrategyConfig, StrategyPreset } from '@/shared/types';
+import { KERNEL_ONLY_POST_STRATEGIES, POST_RETRIEVAL_CONTROLS } from './strategy-assembly';
+import { PipelineStageBar } from './PipelineStageBar';
 
-/** 全局检索策略配置页；读写 `/api/v1/strategy`，作用于全部 ask/search。 */
+/** 全局运行时装配；读写 `/api/v1/strategy`，编译进 createRuntimeFromConfig 四段链。 */
 export default function StrategyPage() {
+  const navigate = useNavigate();
+  const { isAdmin } = useAppContext();
   const [config, setConfig] = useState<StrategyConfig | null>(null);
   const [saving, setSaving] = useState(false);
-  const [comingSoon, setComingSoon] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      navigate('/ask', { replace: true });
+    }
+  }, [isAdmin, navigate]);
 
   useEffect(() => {
     void getStrategy().then(setConfig);
@@ -35,7 +45,7 @@ export default function StrategyPage() {
     setSaving(true);
     try {
       await saveStrategy(config);
-      toast.success('全局策略已保存');
+      toast.success('运行时装配已保存');
     } finally {
       setSaving(false);
     }
@@ -43,7 +53,7 @@ export default function StrategyPage() {
 
   const handleReset = () => {
     setConfig(resetStrategyDefaults());
-    toast.success('已恢复默认');
+    toast.success('已恢复默认装配');
   };
 
   if (!config) {
@@ -53,35 +63,34 @@ export default function StrategyPage() {
   return (
     <div>
       <PageHeader
-        title="全局检索策略"
-        description="作用于全部问答与检索；不再按单个知识库分别配置。"
+        title="运行时装配"
+        description="作用于全部问答与检索；下方四段即编译进 runtime 的实际配置。"
         actions={
-          <div className="flex items-center gap-2">
-            <SelectNative
-              value={config.preset}
-              onChange={(e) => handlePresetChange(e.target.value as StrategyPreset)}
-              className="h-8"
-            >
-              {(Object.keys(presetLabels) as StrategyPreset[]).map((key) => (
-                <option key={key} value={key}>
-                  {presetLabels[key]}
-                </option>
-              ))}
-            </SelectNative>
-            <Button variant="secondary" size="sm" onClick={() => setComingSoon('策略预设另存')}>
-              另存为
-            </Button>
-          </div>
+          <SelectNative
+            value={config.preset}
+            onChange={(e) => handlePresetChange(e.target.value as StrategyPreset)}
+            className="h-8"
+          >
+            {(Object.keys(presetLabels) as StrategyPreset[]).map((key) => (
+              <option key={key} value={key}>
+                {presetLabels[key]}
+              </option>
+            ))}
+          </SelectNative>
         }
       />
 
       <p className="mb-4 text-sm text-muted">
-        当前预设：{presetLabels[config.preset]} · {presetDescriptions[config.preset]}
+        预设「{presetLabels[config.preset]}」只是开关组合快捷方式（{presetDescriptions[config.preset]}
+        ）；保存后真正生效的是下方四段。
       </p>
+
+      <PipelineStageBar config={config} className="mb-5" />
 
       <div className="space-y-4">
         <Card className="p-4">
-          <h3 className="mb-2 font-medium">1. 提问预处理</h3>
+          <h3 className="mb-1 font-medium">1. 预处理（pre-retrieval）</h3>
+          <p className="mb-3 text-xs text-muted">查询改写、扩展、拆解、多路与路由策略，在检索前变换 effectiveQuery。</p>
           <SwitchRow
             checked={config.preRetrieval.rewrite}
             onCheckedChange={(v) =>
@@ -120,77 +129,112 @@ export default function StrategyPage() {
               setConfig({ ...config, preRetrieval: { ...config.preRetrieval, routing: v } })
             }
             label="查询路由"
-            description="按问题类型调整召回量/过滤（高级）"
+            description="LLM 写入 routeDecision（targets / skip / searchType）；FanOut 按 retriever id 过滤目标库，无匹配时不回退第一个 retriever"
           />
         </Card>
 
         <Card className="p-4">
-          <h3 className="mb-2 font-medium">2. 检索</h3>
-          <div className="flex items-center gap-2 text-sm">
-            <span>召回数量 topK</span>
+          <h3 className="mb-1 font-medium">2. 检索（retrieval）</h3>
+          <p className="mb-3 text-xs text-muted">
+            多库场景走 FanOut + RRF 融合；searchType 由路由写入 routeDecision 后由 pgvector 消费。
+          </p>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span>topK（budget.maxChunks）</span>
             <Input
               type="number"
+              min={1}
               value={config.retrieval.topK}
               onChange={(e) =>
                 setConfig({
                   ...config,
-                  retrieval: { topK: Number(e.target.value) || 8 },
+                  retrieval: { topK: Math.max(1, Number(e.target.value) || 8) },
                 })
               }
               className="w-20"
             />
+            <span className="text-xs text-muted">进入生成的片段上限</span>
           </div>
-          <p className="mt-2 text-xs text-muted">混合检索 / 稀疏检索：后续</p>
         </Card>
 
         <Card className="p-4">
-          <h3 className="mb-2 font-medium">3. 检索后处理</h3>
-          <SwitchRow
-            checked={config.postRetrieval.scoreThreshold}
-            onCheckedChange={(v) =>
-              setConfig({
-                ...config,
-                postRetrieval: { ...config.postRetrieval, scoreThreshold: v },
-              })
-            }
-            label="分数阈值过滤"
-            description={`低于 ${config.postRetrieval.scoreThresholdValue} 丢弃`}
-          />
-          <SwitchRow
-            checked={config.postRetrieval.dedupe}
-            onCheckedChange={(v) =>
-              setConfig({ ...config, postRetrieval: { ...config.postRetrieval, dedupe: v } })
-            }
-            label="近重复去除"
-          />
-          <SwitchRow
-            checked={config.postRetrieval.contextBudget}
-            onCheckedChange={(v) =>
-              setConfig({ ...config, postRetrieval: { ...config.postRetrieval, contextBudget: v } })
-            }
-            label="上下文预算"
-            description={`最多保留 ${config.postRetrieval.contextBudgetMax} 段`}
-          />
-          <SwitchRow
-            checked={config.postRetrieval.rerank}
-            onCheckedChange={(v) =>
-              setConfig({ ...config, postRetrieval: { ...config.postRetrieval, rerank: v } })
-            }
-            label="智能重排序"
-            description="用模型对候选再排序（更准，更慢更贵）"
-          />
-          <SwitchRow
-            checked={config.postRetrieval.compression}
-            onCheckedChange={(v) =>
-              setConfig({ ...config, postRetrieval: { ...config.postRetrieval, compression: v } })
-            }
-            label="上下文压缩"
-            description="压缩后再生成，减少噪音"
-          />
+          <h3 className="mb-1 font-medium">3. 后处理（post-retrieval）</h3>
+          <p className="mb-3 text-xs text-muted">按内核官方装配顺序编号；仅列出本控制台可编辑的策略。</p>
+          <div className="space-y-1">
+            {POST_RETRIEVAL_CONTROLS.map((item) => (
+              <div key={item.id} className="rounded-ctrl border border-transparent px-1">
+                <SwitchRow
+                  checked={config.postRetrieval[item.configKey]}
+                  onCheckedChange={(v) =>
+                    setConfig({
+                      ...config,
+                      postRetrieval: { ...config.postRetrieval, [item.configKey]: v },
+                    })
+                  }
+                  label={
+                    <span>
+                      <span className="mr-2 font-mono text-[10px] text-muted">{item.order}.</span>
+                      <span className="font-mono text-xs text-brand">{item.id}</span>
+                      <span className="ml-2">{item.label}</span>
+                    </span>
+                  }
+                  description={item.description}
+                />
+                {item.configKey === 'scoreThreshold' && config.postRetrieval.scoreThreshold ? (
+                  <div className="mb-2 ml-10 flex items-center gap-2 text-sm">
+                    <span className="text-muted">阈值</span>
+                    <Input
+                      type="number"
+                      step={0.05}
+                      min={0}
+                      max={1}
+                      value={config.postRetrieval.scoreThresholdValue}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          postRetrieval: {
+                            ...config.postRetrieval,
+                            scoreThresholdValue: Number(e.target.value) || 0.2,
+                          },
+                        })
+                      }
+                      className="w-24"
+                    />
+                  </div>
+                ) : null}
+                {item.configKey === 'contextBudget' && config.postRetrieval.contextBudget ? (
+                  <div className="mb-2 ml-10 flex items-center gap-2 text-sm">
+                    <span className="text-muted">最多保留</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={config.postRetrieval.contextBudgetMax}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          postRetrieval: {
+                            ...config.postRetrieval,
+                            contextBudgetMax: Math.max(1, Number(e.target.value) || 5),
+                          },
+                        })
+                      }
+                      className="w-20"
+                    />
+                    <span className="text-muted">段</span>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 border-t border-line pt-3 text-xs text-muted">
+            内核默认链还包含 {KERNEL_ONLY_POST_STRATEGIES.join(' → ')}，本控制台未暴露对应开关。
+          </p>
         </Card>
 
         <Card className="p-4">
-          <h3 className="mb-2 font-medium">4. 生成</h3>
+          <h3 className="mb-1 font-medium">4. 生成（generation）</h3>
+          <p className="mb-3 text-xs text-muted">
+            引用与 grounding policy 为一等配置；runtime 会用包装器按策略处理无依据场景（skip 检索时 explicit 不拒答）。
+          </p>
           <SwitchRow
             checked={config.generation.citations}
             onCheckedChange={(v) =>
@@ -199,16 +243,9 @@ export default function StrategyPage() {
             label="引用溯源"
             description="答案附带出处编号（推荐常开）"
           />
-          <SwitchRow
-            checked={config.generation.activeRag}
-            onCheckedChange={() => undefined}
-            disabled
-            label="Active RAG"
-            description="答不稳时自动再检索（后续 · 暂不可用）"
-          />
-          <div className="mt-2 space-y-2 text-sm">
-            <p className="text-muted">兜底：无依据时 →</p>
-            <label className="flex items-center gap-2">
+          <div className="mt-3 space-y-2 text-sm">
+            <p className="font-medium">无依据策略（noGroundingPolicy）</p>
+            <label className="flex items-start gap-2">
               <input
                 type="radio"
                 checked={config.generation.noGroundingPolicy === 'explicit'}
@@ -218,11 +255,16 @@ export default function StrategyPage() {
                     generation: { ...config.generation, noGroundingPolicy: 'explicit' },
                   })
                 }
-                className="text-brand"
+                className="mt-0.5 text-brand"
               />
-              明确说「知识库未覆盖」
+              <span>
+                <span className="font-medium">explicit</span>
+                <span className="mt-0.5 block text-xs text-muted">
+                  无召回或 post 过滤后为空时模板拒答（routing skip 除外）
+                </span>
+              </span>
             </label>
-            <label className="flex items-center gap-2">
+            <label className="flex items-start gap-2">
               <input
                 type="radio"
                 checked={config.generation.noGroundingPolicy === 'generalize'}
@@ -232,11 +274,19 @@ export default function StrategyPage() {
                     generation: { ...config.generation, noGroundingPolicy: 'generalize' },
                   })
                 }
-                className="text-brand"
+                className="mt-0.5 text-brand"
               />
-              仍尝试泛化回答
+              <span>
+                <span className="font-medium">generalize</span>
+                <span className="mt-0.5 block text-xs text-muted">
+                  仍尝试用模型知识回答，并说明非来自知识库
+                </span>
+              </span>
             </label>
           </div>
+          <p className="mt-4 text-xs text-muted">
+            Active RAG：内核冻结项，配置字段可写入但不生效。
+          </p>
         </Card>
       </div>
 
@@ -249,16 +299,10 @@ export default function StrategyPage() {
             恢复默认
           </Button>
           <Button onClick={() => void handleSave()} disabled={saving}>
-            {saving ? '保存中…' : '保存'}
+            {saving ? '保存中…' : '保存装配'}
           </Button>
         </div>
       </div>
-
-      <ComingSoonModal
-        open={comingSoon !== null}
-        onOpenChange={(open) => !open && setComingSoon(null)}
-        title={comingSoon ?? ''}
-      />
     </div>
   );
 }
