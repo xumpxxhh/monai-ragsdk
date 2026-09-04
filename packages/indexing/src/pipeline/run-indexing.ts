@@ -434,17 +434,21 @@ export async function runIndexing(options: IndexingOptions): Promise<IndexingRes
       }
     }
 
-    const staleSourceIds = collectStaleSourceIds(previousFingerprints, seenSourceIds);
+    // stale cleanup 只属于 incremental：本轮 loader 视为「当前全集」。
+    // full 只 upsert 本批文档，不得把未出现在本批的旧 source 清掉，否则分次上传会互相抹掉。
+    if (mode === 'incremental') {
+      const staleSourceIds = collectStaleSourceIds(previousFingerprints, seenSourceIds);
 
-    if (staleSourceIds.length > 0) {
-      if (!options.store.deleteByFilter) {
-        throw new IndexingError('stale cleanup requires VectorStore.deleteByFilter()', 'delete', {
-          context: { mode },
-        });
+      if (staleSourceIds.length > 0) {
+        if (!options.store.deleteByFilter) {
+          throw new IndexingError('stale cleanup requires VectorStore.deleteByFilter()', 'delete', {
+            context: { mode },
+          });
+        }
+
+        await deleteSourceIds(options.store, staleSourceIds, { mode }, observation);
+        result.staleSourcesDeleted += staleSourceIds.length;
       }
-
-      await deleteSourceIds(options.store, staleSourceIds, { mode }, observation);
-      result.staleSourcesDeleted += staleSourceIds.length;
     }
 
     await emitEvent(observation, 'run', 'complete', Date.now(), Date.now() - startedAt, {

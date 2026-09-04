@@ -21,6 +21,7 @@
     "example": "turbo run build --filter=@monai-ragsdk/example && pnpm --filter @monai-ragsdk/example start",
     "dev:web": "turbo run dev --filter=@monai-ragsdk/web",
     "dev:server": "turbo run dev --filter=@monai-ragsdk/server",
+    "dev:knowledge": "turbo run dev --filter=@monai-ragsdk/knowledge",
     "dev:server:debug": "pnpm --filter @monai-ragsdk/server dev:debug",
     "build:server": "turbo run build --filter=@monai-ragsdk/server",
     "start:web": "pnpm --filter @monai-ragsdk/web start",

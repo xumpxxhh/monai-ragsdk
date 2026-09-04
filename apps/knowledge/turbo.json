@@ -1,0 +1,42 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "PORT",
+        "KNOWLEDGE_PORT",
+        "CORS_ORIGIN",
+        "CONSOLE_STATE_PATH",
+        "PGVECTOR_CONNECTION_STRING",
+        "EMBEDDING_API_KEY",
+        "EMBEDDING_BASE_URL",
+        "EMBEDDING_MODEL",
+        "EMBEDDING_DIMENSION",
+        "DOTSAI_API_KEY",
+        "DOTSAI_BASE_URL",
+        "DOTSAI_CHAT_MODEL"
+      ]
+    },
+    "start": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "PORT",
+        "KNOWLEDGE_PORT",
+        "CORS_ORIGIN",
+        "CONSOLE_STATE_PATH",
+        "PGVECTOR_CONNECTION_STRING",
+        "EMBEDDING_API_KEY",
+        "EMBEDDING_BASE_URL",
+        "EMBEDDING_MODEL",
+        "EMBEDDING_DIMENSION",
+        "DOTSAI_API_KEY",
+        "DOTSAI_BASE_URL",
+        "DOTSAI_CHAT_MODEL"
+      ]
+    }
+  }
+}

@@ -43,7 +43,7 @@ export function shouldSkipUnchanged(input: {
   );
 }
 
-/** 上一轮有、本轮 loader 没再见到的 source，交给 stale cleanup 删除。 */
+/** 上一轮有、本轮 loader 没再见到的 source；仅 incremental 跑完后交给 stale cleanup。 */
 export function collectStaleSourceIds(
   previous: SourceFingerprintMap,
   seenSourceIds: Set<string>,

@@ -201,6 +201,48 @@ describe('runIndexing incremental behavior', () => {
     expect(store.getAll().every((vector) => vector.metadata?.sourceId === 'source-a')).toBe(true);
   });
 
+  it('full mode keeps prior sources when a later batch only uploads a new document', async () => {
+    const store = new MemoryVectorStore();
+    const embedder = new MockEmbedder({ dimension: 4 });
+
+    await runIndexing({
+      loader: createSourceLoader([
+        {
+          id: 'doc-a',
+          content: 'first document',
+          sourceId: 'source-a',
+          fingerprint: 'fp-a',
+        },
+      ]),
+      chunker: new SimpleChunker({ chunkSize: 50, overlap: 0 }),
+      embedder,
+      store,
+      mode: 'full',
+    });
+
+    const result = await runIndexing({
+      loader: createSourceLoader([
+        {
+          id: 'doc-b',
+          content: 'second document',
+          sourceId: 'source-b',
+          fingerprint: 'fp-b',
+        },
+      ]),
+      chunker: new SimpleChunker({ chunkSize: 50, overlap: 0 }),
+      embedder,
+      store,
+      mode: 'full',
+    });
+
+    expect(result.staleSourcesDeleted).toBe(0);
+    expect(result.documentsIndexed).toBe(1);
+    const sourceIds = new Set(
+      store.getAll().map((vector) => vector.metadata?.sourceId).filter(Boolean),
+    );
+    expect(sourceIds).toEqual(new Set(['source-a', 'source-b']));
+  });
+
   it('throws when replace is needed but the store cannot delete', async () => {
     const store: VectorStore = {
       async upsert() {},

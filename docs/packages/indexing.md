@@ -1,6 +1,6 @@
 # `@monai-ragsdk/indexing` — 现状
 
-> 快照：**2026-08-20** · 状态：**可用**
+> 快照：**2026-09-03** · 状态：**可用**
 > 源码：`packages/indexing/` · 用法：[README](../../packages/indexing/README.md)
 > 回：[routing.md](./routing.md)
 
@@ -33,15 +33,15 @@
 6. `extract-metadata` — 可选 `MetadataExtractor[]`，再经 `metadataBuilder`
 7. `filter-chunk` — 可选 `ChunkFilter[]`
 8. `embed` — `Embedder` 按 `batchSize`（默认 50）批处理
-9. `store` — `VectorStore.upsert()`
-10. 增量模式下的 `delete` — fingerprint 变化则 replace；本轮未见的 source 做 stale cleanup
+9. `store` — 有 `sourceId` 时先按 source 删旧向量再 `upsert()`（同文档 replace）
+10. **仅 `incremental`**：本轮未见的 source 做 stale cleanup（需 `deleteByFilter()`）
 
 `mode`：
 
 | 模式          | 行为                                                                                                                                                   |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `full`        | 每份文档都 embed / upsert                                                                                                                              |
-| `incremental` | 按 `sourceId` + `fingerprint` 对比。未变化 skip；同一 source 多个 fingerprint 视为脏状态，走 replace。stale cleanup 需要 store 实现 `deleteByFilter()` |
+| `full`        | 每份文档都 embed / upsert；**不做** stale cleanup，分次上传不会删掉库里其它文档                                                                         |
+| `incremental` | 按 `sourceId` + `fingerprint` 对比。未变化 skip；同一 source 多个 fingerprint 视为脏状态，走 replace。本轮 loader 视为全集，未见的 source 做 stale cleanup |
 
 缺少 `sourceId` 或 `fingerprint` 时无法跨运行定位旧向量，只能当新文档写入。
 
