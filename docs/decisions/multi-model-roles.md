@@ -1,8 +1,8 @@
-# 多模型 — 调用方配置
+# 多模型 — 单实例构造与模型簇聚合
 
 > 状态：**草案**
-> 日期：2026-08-20
-> 范围：在线 RAG 管线中除 embedding 外的 LLM 模型选型与装配约定
+> 日期：2026-09-08
+> 范围：在线 RAG 管线中除 embedding 外的 LLM 选型、注册与装配约定
 > 关联：[runtime.md](../packages/runtime.md) · [adapters.md](../packages/adapters.md)
 
 ---
@@ -17,70 +17,75 @@
 | post-retrieval | rerank、context compression | rerank 对排序质量敏感；compression 可偏小模型 |
 | generation | 最终 grounded 答问 | 通常需要最强模型 |
 
-**内核现状**：`packages/runtime` 各 LLM 策略工厂已接受 `model: RuntimeStrategyModel`；`RuntimeGenerator` 与策略模型是独立接口。接口层**已支持**按策略注入不同模型。
+内核侧能力已经具备：
 
-**实际缺口**不在 runtime 类型，而在装配叙事与示例路径：
+- `packages/runtime` 各 LLM 策略工厂要求注入 `model: RuntimeStrategyModel`
+- `RuntimeGenerator` 与策略模型是独立接口，可分别注入不同实现
 
-1. [`createOpenAIChatAdapters`](../../packages/adapters/src/openai/shared/create-openai-chat-adapters.ts) 一次配置产出同一 `model` 的 generator + strategyModel，文档暗示「除 embedding 外全共用」。
-2. [`OpenAIChatClient`](../../packages/adapters/src/openai/shared/openai-chat-client.ts) 构造时绑定 `model`（合理）；多模型 = 多 client 实例，而非改 `complete()` 签名。
-3. `apps/server` 的 [`shared-stack`](../../apps/server/src/services/shared-stack.ts) + [`pipeline-factory`](../../apps/server/src/services/pipeline-factory.ts) 把单一 `strategyModel` 灌入 rewrite / rerank / compression 等全部策略。
+缺口在**装配与登记**：
 
-因此本决策定的是：**调用方如何持有配置、如何兜底、adapters 提供什么小工具**——不在 runtime 内增解析层。
+1. [`createOpenAIChatAdapters`](../../packages/adapters/src/openai/shared/create-openai-chat-adapters.ts) 一次配置产出**同一** `model` 的 generator + strategyModel，只覆盖「全家共用一个 chat 模型」场景。
+2. [`OpenAIChatClient`](../../packages/adapters/src/openai/shared/openai-chat-client.ts) 在构造时绑定 `model`；多模型 = 多个 client / 包装实例，而不是给 `complete()` 增加 per-call model 参数。
+3. `apps/server` 的 [`shared-stack`](../../apps/server/src/services/shared-stack.ts) 与 [`pipeline-factory`](../../apps/server/src/services/pipeline-factory.ts) 持有并下发**单一** `strategyModel`，角色与端点无法分册登记，维护与审计缺少单一清单。
+
+本决策约定：**厂商只提供模型单实例；与厂商无关的模型簇负责按角色聚合、兜底与盘点；策略与 generator 仍通过既有窄接口调用。**
 
 ---
 
 ## 决策
 
-**多模型是装配问题，不是内核新能力。**
+**多模型是装配与注册问题，不是运行时选模总线，也不是某个厂商适配器的批量子工厂。**
 
-- 调用方（apps / 自建装配）持有配置对象，在 `createQueryRewriteStrategy({ model })` 等处注入对应实例。
-- 未单独指定的策略按固定兜底规则解析。
-- `packages/adapters` 可提供从配置字符串批量建实例的小工具；**不**在 adapters 内编译 query/post 策略数组。
-- **不**在 runtime 新增 `RuntimeModelRoles`、`resolveRuntimeModelRoles`、扩展 `createRuntimeFromConfig` 吃整表 models 等解析层。
-- embedding（`Embedder`）独立配置，不在本决策的配置表内。
+- **单实例**：adapters 各厂商提供可独立构造的 chat client / `RuntimeStrategyModel` / `RuntimeGenerator`（及既有类名，如 `OpenAIStrategyModel`、`OpenAIRuntimeGenerator`）。
+- **模型簇**：提供与厂商无关的聚合类型（下文称 `RuntimeModelCluster`），只接受已构造的 runtime 接口实例；负责角色注册、缺省兜底、`list` 盘点。
+- **调用**：策略工厂与 `createRuntimeFromConfig` 仍接收具体 `model` / `generator` 实例；**不**引入 `cluster.invoke` / 按标签现场选模。
+- **配置**：调用方（apps）持有端点描述并完成「字符串 → 单实例」；簇不解析 `baseUrl` / `apiKey` / provider。
+- **embedding**：继续走独立的 `Embedder` 配置与实例，不进入本决策的 chat 角色表。
 
 ```mermaid
 flowchart LR
-  CallerConfig["RuntimeModelConfig"]
-  AdaptersHelper["createOpenAIModels"]
-  StrategyFactories["createXxxStrategy"]
+  Vendor["厂商单实例构造"]
+  Cluster["RuntimeModelCluster"]
+  Strategies["createXxxStrategy"]
   Runtime["createRuntimeFromConfig"]
 
-  CallerConfig --> AdaptersHelper
-  AdaptersHelper -->|"per-strategy model"| StrategyFactories
-  AdaptersHelper -->|"generator"| Runtime
-  StrategyFactories --> Runtime
+  Vendor -->|"StrategyModel / Generator"| Cluster
+  Cluster -->|"per-role model"| Strategies
+  Cluster -->|"generator"| Runtime
+  Strategies --> Runtime
 ```
 
 ---
 
 ## 做 / 不做
 
-**做（后续实现，本文先定约定）：**
+**做：**
 
-- 调用方配置形态 `RuntimeModelConfig` 与逐字段继承规则（本文 §2–§3）
-- adapters 小工具 `createOpenAIModels(config)`：按配置建多个 `OpenAIChatClient` / `RuntimeStrategyModel` / `RuntimeGenerator`
-- 保留 `createOpenAIChatAdapters` 为单 model 快捷方式，文档标明适用场景
-- apps 装配层（如 server `pipeline-factory`）按策略键注入不同 model
-- 策略 trace metadata 带上实际 model id（§6）
+- 角色键、兜底规则、簇 API（本文 §1–§3）
+- 厂商侧只保证单实例可构造；同连接参数下可复用底层 chat client（实现优化）
+- 保留 `createOpenAIChatAdapters` 为**单 model**快捷方式（同一 client 产出 generator + strategyModel）
+- apps 装配层从簇按角色取实例再注入策略工厂
+- 策略 / 生成相关 trace metadata 带上实际 model id（§6）
 
 **不做：**
 
-- runtime 包内 roles 解析器或策略工厂改 `model?` 可选
+- 以厂商批量子工厂（如 `createOpenAIModels`）作为多模型主路径
+- 在簇或 runtime 内提供统一 `invoke` / `stream` 并按「功能 / 强度」标签运行时选模
 - `RuntimeStrategyModel.complete` 增加 per-call `model` 覆盖
+- 扩展 `createRuntimeFromConfig` 直接吃整表 endpoint 配置或 provider 连接串
+- 策略工厂将 `model` 改为可选
 - Active RAG / 按 route 选 generator
-- 把 embedding 并入 roles 表
-- 为观测新增 observability 事件类型或必填字段（只用既有 metadata，§6）
-- 把 model 选择放进 `StrategyConfig` / 控制台 UI（首轮只走 env，§7）
-- `createOllamaModels`（需先补 ollama chat client 抽象，§5）
+- 把 embedding 并入 chat 角色表
+- 新增 observability 事件类型或必填字段（只用既有 metadata）
+- 首轮把 model 选择放进 `StrategyConfig` / 控制台 UI（配置来源见 §7）
 
 ---
 
-## 1. 策略键与消费点
+## 1. 角色键与消费点
 
-配置键与 runtime 策略工厂一一对应。前七个位于 `strategies.*` 下，`generation` 是配置顶层键（见 §2）：
+簇内角色与 runtime 策略工厂一一对应：
 
-| 配置键 | 策略工厂 | 阶段 |
+| 角色键 | 消费方 | 阶段 |
 | --- | --- | --- |
 | `rewrite` | `createQueryRewriteStrategy` | pre-retrieval |
 | `expansion` | `createQueryExpansionStrategy` | pre-retrieval |
@@ -91,23 +96,94 @@ flowchart LR
 | `compression` | `createContextCompressionStrategy` | post-retrieval |
 | `generation` | `RuntimeGenerator`（如 `OpenAIRuntimeGenerator`） | generation |
 
-**不占 model 槽位：**
+**不占簇内 chat 角色槽位：**
 
-- `createRuleBasedRoutingStrategy`（规则路由，无 LLM）
+- `createRuleBasedRoutingStrategy`（无 LLM）
 - 非 LLM post 策略：score-threshold、dedupe、budget-trim、source-coverage、ordering、lost-in-the-middle 等
+
+可选元数据（如 `tier: 'cheap' | 'strong'`）只作为注册时的标注，供 `list` / 运维展示；**不**作为 `complete` 的运行时入参。
 
 ---
 
-## 2. 调用方配置形态
+## 2. 厂商：只提供单实例
 
-纯数据对象，由**调用方**填写与持有；类型定义随 adapters 工具走（见末条），**不**进入 `@monai-ragsdk/runtime` 包根导出。
+adapters 的职责止于「给定连接参数，构造一个可用实例」。
+
+OpenAI 兼容路径既有能力即可满足：
+
+| 类型 | 构造方式 |
+| --- | --- |
+| 共享 HTTP / SDK | `OpenAIChatClient` / `createOpenAIClient` |
+| 策略 LLM | `new OpenAIStrategyModel({ client })` 或传入 `OpenAIChatClientOptions` 自建 |
+| 答问 | `new OpenAIRuntimeGenerator({ client })` 或等价 options |
+| 单 model 快捷 | `createOpenAIChatAdapters`：同一 client 上挂 generator + strategyModel |
+
+约束：
+
+- 多模型场景下，按需 `new` 多个 `OpenAIStrategyModel` / `OpenAIRuntimeGenerator`，再交给簇；**不要**让厂商函数按角色表批量返回整簇。
+- 同一 `baseUrl + apiKey + model + fetch` 可共用一个 `OpenAIChatClient`；`OpenAIStrategyModel` 与 `OpenAIRuntimeGenerator` 因 system prompt / 职责不同，包装实例仍各自独立。
+- `fetch` 必须随具体端点传入（例如 server 的 `createDotsChatFetch` 会改写鉴权头与 body）；不同网关不要共用一个会改写请求体的 fetch。
+- Ollama 等其它厂商同样只导出单实例构造；簇 API 不出现厂商前缀。
+
+---
+
+## 3. 模型簇：聚合、兜底、盘点
+
+### 3.1 职责
+
+`RuntimeModelCluster`（最终类名实现阶段可微调）与厂商无关，只持有 runtime 接口：
 
 ```typescript
-/**
- * 单个 LLM 端点描述；model 与 baseUrl 必填。
- * 连接层字段与 OpenAIChatClientOptions 对齐：不同端点可能需要不同 fetch
- * （如策略走 Dots 网关改写 api-key 头、generation 走标准 OpenAI）。
- */
+type StrategyRole =
+  | 'rewrite'
+  | 'expansion'
+  | 'decomposition'
+  | 'multiQuery'
+  | 'routing'
+  | 'rerank'
+  | 'compression';
+
+type RuntimeModelClusterOptions = {
+  /** 策略 LLM 兜底实例；未单独注册的角色均解析到此。 */
+  defaultStrategyModel: RuntimeStrategyModel;
+  /** 最终答问；必填。 */
+  generator: RuntimeGenerator;
+  /** 按角色覆盖；未列出的角色使用 defaultStrategyModel。 */
+  strategies?: Partial<Record<StrategyRole, RuntimeStrategyModel>>;
+};
+
+interface RuntimeModelCluster {
+  /** 解析策略角色：覆盖实例 → 否则 defaultStrategyModel。 */
+  strategy(role: StrategyRole): RuntimeStrategyModel;
+  readonly generator: RuntimeGenerator;
+  /**
+   * 盘点已注册角色与可观测 model id（若实例可暴露）。
+   * 用于启动日志、health、审计对照。
+   */
+  list(): Array<{ role: 'default' | 'generation' | StrategyRole; modelId?: string }>;
+}
+```
+
+归属：实现放在 `packages/runtime`（只依赖本包接口），或同等「不依赖具体厂商」的装配模块；**不得**放进 `adapters/openai` 等厂商目录，也不得在簇内 `import` OpenAI / Ollama SDK。
+
+### 3.2 兜底规则
+
+| 目标 | 解析 |
+| --- | --- |
+| 策略角色 `R` | `strategies?.[R]` → 否则 `defaultStrategyModel` |
+| `generation` | 构造时传入的 `generator`（无第二层字符串兜底；需要与 default 同模型时由调用方构造两个包装实例或复用 client） |
+
+补充：
+
+1. 簇**急切**持有传入的引用；不按管线策略开关裁剪。开关只决定 apps 是否把 `cluster.strategy('rewrite')` 传给对应工厂。
+2. 簇**不**创建 SDK 客户端，也**不**读取 env。
+3. 允许不同角色注册来自不同厂商的实例，只要实现同一接口。
+
+### 3.3 调用方端点配置（可选约定，非簇输入）
+
+apps 可用纯数据描述端点，并在装配时自行解析为单实例后填入簇。推荐形态（类型可放在 apps，或 adapters 仅作 OpenAI options 别名，**不是**簇的构造参数）：
+
+```typescript
 type ModelEndpoint = {
   model: string;
   baseUrl: string;
@@ -117,87 +193,24 @@ type ModelEndpoint = {
   fetch?: FetchLike;
 };
 
-/** 覆盖项：只写与 default 不同的字段，其余逐字段继承 default。 */
 type ModelEndpointOverride = Partial<ModelEndpoint> & Pick<ModelEndpoint, 'model'>;
 
-type StrategyKey =
-  | 'rewrite'
-  | 'expansion'
-  | 'decomposition'
-  | 'multiQuery'
-  | 'routing'
-  | 'rerank'
-  | 'compression';
-
-/**
- * 在线 RAG 模型配置。
- * - default 必填：策略 LLM 与 generation 的共同兜底。
- * - generation 可选：答问模型；缺省沿用 default 的全部字段。
- * - strategies 可选：按策略键覆盖，未写字段继承 default。
- */
-type RuntimeModelConfig = {
+type AppChatModelConfig = {
   default: ModelEndpoint;
   generation?: ModelEndpointOverride;
-  strategies?: Partial<Record<StrategyKey, ModelEndpointOverride>>;
+  strategies?: Partial<Record<StrategyRole, ModelEndpointOverride>>;
 };
 ```
 
-说明：
+字段继承（仅用于 apps 解析 endpoint，与簇的实例级兜底分开）：
 
-- `generation` 与 `strategies.*` 使用**同一套字段级继承**（见 §3），不存在「整体替换」语义；只换模型时写 `{ model: 'gpt-4o' }` 即可，连接参数自动继承。
-- `default.baseUrl` 必填：`createOpenAIClient` 要求 baseUrl 由调用方显式传入，可选会把校验推迟到运行时抛错。
-- `apiKey` 仍可缺省，由 `OpenAIChatClient` 回退 `OPENAI_API_KEY`（现状行为，不改）。
-- `fetch` 必须是 per-endpoint 而非全局单例：server 的 `createDotsChatFetch` 会给请求体注入 `chat_template_kwargs`，套到非 Dots 端点上是错的。
-- 类型名 `RuntimeModelConfig` 仅为本文约定。**归属只能是 adapters（或更底层共享包）**：`createOpenAIModels(config)` 在 adapters 内消费它，adapters 不能反向依赖 apps；runtime 不导出。
-
----
-
-## 3. 兜底规则
-
-解析**两层且逐字段**，不做可配置回退图。`generation` 与策略键走同一条规则，只是取覆盖项的位置不同：
-
-| 目标 | 覆盖项 | 解析 |
-| --- | --- | --- |
-| 策略键 `K` | `config.strategies?.[K]` | 每个字段：覆盖项 → 否则 `config.default` 同名字段 |
-| `generation` | `config.generation` | 同上 |
-
-补充：
-
-1. **同一物理 model 仍建独立的包装实例**：`OpenAIStrategyModel` 与 `OpenAIRuntimeGenerator` 的职责与 system prompt 不同，即使 default 与 generation 同为 `gpt-4o` 也各建一个，不强行合并。
-2. **底层 `OpenAIChatClient` 按连接三元组去重**：`baseUrl + apiKey + model`（含同一 `fetch` 引用）相同的键共用一个 client。这与现状 `createOpenAIChatAdapters` 让 generator / strategyModel 共享 client 的行为一致——独立的是包装层，不是连接层。
-3. **实例急切构造，不按策略开关裁剪**。建一个 client 只是构造 SDK 对象，成本远低于为此引入 lazy getter 的 API 复杂度；配置缺 baseUrl / apiKey 时早失败也比请求期才炸好。策略开关只决定**是否把实例传给工厂**，由 apps 的 `pipeline-factory` 负责。
-
-伪代码：
-
-```typescript
-/** 逐字段继承 default；generation 与策略键共用此函数，避免两套语义。 */
-function resolveEndpoint(
-  config: RuntimeModelConfig,
-  override: ModelEndpointOverride | undefined,
-): ModelEndpoint {
-  const base = config.default;
-  return {
-    model: override?.model ?? base.model,
-    baseUrl: override?.baseUrl ?? base.baseUrl,
-    apiKey: override?.apiKey ?? base.apiKey,
-    timeoutMs: override?.timeoutMs ?? base.timeoutMs,
-    maxRetries: override?.maxRetries ?? base.maxRetries,
-    fetch: override?.fetch ?? base.fetch,
-  };
-}
-
-const strategyEndpoint = (config: RuntimeModelConfig, key: StrategyKey) =>
-  resolveEndpoint(config, config.strategies?.[key]);
-
-const generationEndpoint = (config: RuntimeModelConfig) =>
-  resolveEndpoint(config, config.generation);
-```
+- 每个字段：覆盖项 → 否则 `default` 同名字段
+- `default.baseUrl` 必填（与 `createOpenAIClient` / `OpenAIChatClient` 要求一致）
+- `apiKey` 可缺省，由 `OpenAIChatClient` 回退 `OPENAI_API_KEY`
 
 ---
 
 ## 4. 装配示例
-
-与现有 [`createRuntimeFromConfig`](../../packages/runtime/src/pipeline/create-runtime-from-config.ts) 完全兼容：仅把不同 `model` 实例传入已有工厂。
 
 ```typescript
 import {
@@ -206,51 +219,70 @@ import {
   createLlmRoutingStrategy,
   createLlmRerankStrategy,
   createContextCompressionStrategy,
+  createRuntimeModelCluster,
 } from '@monai-ragsdk/runtime';
-// 后续由 adapters 提供：
-import { createOpenAIModels, type RuntimeModelConfig } from '@monai-ragsdk/adapters';
+import {
+  OpenAIChatClient,
+  OpenAIStrategyModel,
+  OpenAIRuntimeGenerator,
+} from '@monai-ragsdk/adapters';
 
-// apps 自有的网关适配，如 server 的 createDotsChatFetch()
 const dotsFetch = createDotsChatFetch();
 
-const config: RuntimeModelConfig = {
-  default: { model: 'gpt-4o-mini', baseUrl: 'https://api.example.com/v1', fetch: dotsFetch },
-  // 只换模型；baseUrl / apiKey / fetch 逐字段继承 default
-  generation: { model: 'gpt-4o' },
-  strategies: {
-    rerank: { model: 'gpt-4o' },
-    routing: { model: 'gpt-4o-mini' },
-  },
-};
+const defaultClient = new OpenAIChatClient({
+  model: 'gpt-4o-mini',
+  baseUrl: 'https://api.example.com/v1',
+  fetch: dotsFetch,
+});
+const strongClient = new OpenAIChatClient({
+  model: 'gpt-4o',
+  baseUrl: 'https://api.example.com/v1',
+  fetch: dotsFetch,
+});
 
-const models = createOpenAIModels(config);
+const defaultStrategyModel = new OpenAIStrategyModel({ client: defaultClient });
+const strongStrategyModel = new OpenAIStrategyModel({ client: strongClient });
+const generator = new OpenAIRuntimeGenerator({ client: strongClient });
+
+const cluster = createRuntimeModelCluster({
+  defaultStrategyModel,
+  generator,
+  strategies: {
+    rerank: strongStrategyModel,
+    // routing / rewrite / … 未列出 → 使用 defaultStrategyModel
+  },
+});
 
 const queryStrategies = [];
 if (flags.routing) {
-  queryStrategies.push(createLlmRoutingStrategy({ model: models.routing, availableTargets }));
+  queryStrategies.push(
+    createLlmRoutingStrategy({ model: cluster.strategy('routing'), availableTargets }),
+  );
 }
 if (flags.rewrite) {
-  queryStrategies.push(createQueryRewriteStrategy({ model: models.rewrite }));
+  queryStrategies.push(createQueryRewriteStrategy({ model: cluster.strategy('rewrite') }));
 }
 
 const postRetrieval: AssemblePostRetrievalStrategiesConfig = {};
 if (flags.rerank) {
-  postRetrieval.rerank = createLlmRerankStrategy({ model: models.rerank });
+  postRetrieval.rerank = createLlmRerankStrategy({ model: cluster.strategy('rerank') });
 }
 if (flags.compression) {
-  postRetrieval.compression = createContextCompressionStrategy({ model: models.compression });
+  postRetrieval.compression = createContextCompressionStrategy({
+    model: cluster.strategy('compression'),
+  });
 }
 
 const runtime = createRuntimeFromConfig({
   retriever,
-  generator: models.generator,
+  generator: cluster.generator,
   observer,
   query: { strategies: queryStrategies },
   postRetrieval,
 });
 ```
 
-**单 model 快捷路径**（与今天行为等价，仍合法）：
+**单 model 快捷路径**（全家共用一个 chat 模型时仍合法）：
 
 ```typescript
 const { generator, strategyModel } = createOpenAIChatAdapters({
@@ -259,73 +291,68 @@ const { generator, strategyModel } = createOpenAIChatAdapters({
   apiKey,
 });
 
-createQueryRewriteStrategy({ model: strategyModel });
-createLlmRerankStrategy({ model: strategyModel });
-createRuntimeFromConfig({ retriever, generator, ... });
+const cluster = createRuntimeModelCluster({
+  defaultStrategyModel: strategyModel,
+  generator,
+});
 ```
-
-多模型场景应显式改用 `createOpenAIModels` + 按策略注入，而不是继续复用单一 `strategyModel`。
 
 ### 生命周期
 
-`createOpenAIModels` 的结果是**进程级**的，与 server 现在的 `strategyModel` 同级：挂在 `shared-stack` 上构造一次，`pipeline-factory` 每请求只挑实例注入工厂。
+簇与其持有的 client / 包装实例均为**进程级**：在 server 的 `shared-stack`（或等价共享层）构造一次；`pipeline-factory` 每请求只按角色取引用并注入工厂。
 
-不要在 `buildRuntime` 内部按请求调用 `createOpenAIModels`——那会为每个请求 new 出一批 OpenAI SDK 客户端，丢掉连接复用与 SDK 内置重试状态。策略开关是每请求可变的，模型配置不是。
-
----
-
-## 5. adapters 后续边界
-
-实现 `createOpenAIModels(config: RuntimeModelConfig)` 时遵守：
-
-**做：**
-
-- 按 §3 规则急切构造并返回具名实例 `{ generator, rewrite, expansion, decomposition, multiQuery, routing, rerank, compression }`
-- 按 `baseUrl + apiKey + model + fetch` 去重 `OpenAIChatClient`；包装层（`OpenAIStrategyModel` / `OpenAIRuntimeGenerator`）各自独立
-- 在 adapters 内定义并导出 `RuntimeModelConfig` / `ModelEndpoint`（依赖方向决定，见 §2 末条）
-- 保留 `createOpenAIChatAdapters` 为单 model 快捷方式（内部可视为无 override 的特例）
-
-**不做：**
-
-- 在 adapters 内根据策略开关编译 `queryStrategies` / `postRetrieval` 数组（属于 apps 的 `pipeline-factory` 职责）
-- 修改 `RuntimeStrategyModel` 接口
-
-**Ollama 对称化（明确排除在首个 PR 外）：** ollama 侧目前只有 `ollama/shared/http.ts`，没有与 `OpenAIChatClient` 对称的 chat client 抽象。要提供 `createOllamaModels` 需先补这层，成本不小；`RuntimeModelConfig` 类型本身 provider 无关，届时可直接复用。
+不要在每请求的 `buildRuntime` 内新建整簇或整批 `OpenAIChatClient`——会丢掉连接复用与 SDK 重试状态。策略开关可每请求变化；模型登记不可。
 
 ---
 
-## 6. 观测
+## 5. 包边界
 
-链路已经通：`OpenAIChatClient.model` 是公开 `readonly`，`OpenAIStrategyModel.chatClient` 已有 getter。因此策略相关 trace / audit metadata **应当**带上实际 model id，而不只是「建议」。
+| 包 / 层 | 职责 |
+| --- | --- |
+| `runtime` | `RuntimeModelCluster`（或 `createRuntimeModelCluster`）；策略工厂签名不变；`createRuntimeFromConfig` 不解析 endpoint 表 |
+| `adapters`（厂商目录） | 单实例构造；`createOpenAIChatAdapters` 仅作单 model 快捷 |
+| `apps/*` | 读 env / 本地配置 → 构造单实例 → 填入簇 → 按开关注入策略 |
 
-理由不是好看：没有它，「未配置的策略回退到 default」在线上无法确认，只能靠单测 spy 断言；「小模型 rerank + 大模型 generation」是否真的生效也看不出来。
+**adapters 不做：**
 
-仍然**不**为此新增 observability 事件类型或必填字段——只往既有 metadata 里塞字符串。
+- 按角色表批量创建并返回整簇的厂商 API 作为多模型主路径
+- 根据策略开关编译 `queryStrategies` / `postRetrieval`（属 apps 的 `pipeline-factory`）
 
----
+**runtime 不做：**
 
-## 7. 落地顺序（实现阶段）
-
-本文仅为设计定稿；代码按以下顺序推进：
-
-1. **adapters**：`createOpenAIModels` + `RuntimeModelConfig` 类型 + 单元测试；README 增加多模型示例；`createOpenAIChatAdapters` 文档注明快捷场景
-2. **apps/server**：`shared-stack` 用 `createOpenAIModels` 替换单 `strategyModel`（进程级，见 §4 生命周期）；`pipeline-factory` 按策略键注入
-3. **Wiki**：`adapters.md` 同步 `createOpenAIModels` 现状；`routing.md` 一览表与横切事实同步
-
-### 配置来源：先只走 env
-
-第 2 步的配置**只从 env 读**（`DOTSAI_*` / `OPENAI_*` 之外，按策略键加覆盖变量），不进 `StrategyConfig`。
-
-代价是控制台不能按知识库改模型——接受。把 model 选择放进 `StrategyConfig` 意味着要改 server DTO、`apps/web` 的类型与 `StrategyPage` UI，范围远超本决策；等 env 路径跑通、确有按库调模型的需求再单独决策。
+- 认识 `baseUrl` / `apiKey` / `fetch` / 具体 SDK
+- 提供按 capability / tier 的运行时路由调用面
 
 ---
 
-## 8. 验收（实现完成后）
+## 6. 观测与审计
 
-- 可为 rewrite / rerank / generation 配置不同 model，且未配策略回退到 `default`
-- 只写 `{ model }` 的覆盖项能继承 `default` 的 baseUrl / apiKey / fetch，不因缺字段构造失败
-- server 的 Dots 链路（`createDotsChatFetch`）在多模型装配下仍可用
-- runtime 包根无新增 model 解析 API；`createRuntimeFromConfig` 签名不变
-- 单 model 快捷路径（`createOpenAIChatAdapters`）行为与改前一致
-- trace 中能读到各策略实际使用的 model id（§6）
-- server 或 example 至少一处演示多 model 装配（非本文档范围，实现阶段验收）
+`OpenAIChatClient.model` 为公开 `readonly`；`OpenAIStrategyModel` 已暴露 `chatClient` getter。策略与生成相关的 trace / audit metadata **应当**写入实际 model id。
+
+簇的 `list()` 提供进程内登记面，便于对照「配置意图」与「实例持有」；请求级仍以 trace metadata 为准。
+
+不新增 observability 事件类型或必填字段。
+
+---
+
+## 7. 落地顺序
+
+1. **runtime**：`RuntimeModelCluster` / `createRuntimeModelCluster` + 单元测试（兜底、`list`）
+2. **apps/server**：`shared-stack` 持有簇（进程级）；按 env 构造单实例并注册；`pipeline-factory` 按角色注入
+3. **adapters 文档**：标明 `createOpenAIChatAdapters` 仅适用于单 model；多模型示例改为「单实例 + 簇」
+4. **Wiki**：`runtime.md` / `adapters.md` / `routing.md` 同步簇与单实例边界
+
+### 配置来源
+
+server 首轮**只从 env 读** chat 端点与角色覆盖，不进 `StrategyConfig`。控制台按知识库改模型超出本决策范围，需单独决策。
+
+---
+
+## 8. 验收
+
+- 可为 rewrite / rerank / generation 使用不同实例；未注册角色解析到 `defaultStrategyModel`
+- 簇 API 无厂商类型；OpenAI 与其它实现只要满足接口即可注册
+- `createRuntimeFromConfig` 签名不变；runtime 不解析 endpoint 连接串
+- `createOpenAIChatAdapters` 单 model 行为保持可用，且可经簇包装后注入
+- `cluster.list()` 能列出已登记角色；trace 中能读到各策略实际 model id
+- server 或 example 至少一处演示多角色装配
